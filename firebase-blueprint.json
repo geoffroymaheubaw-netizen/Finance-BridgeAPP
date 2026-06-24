@@ -1,0 +1,144 @@
+{
+  "entities": {
+    "PortfolioItem": {
+      "title": "Portfolio Item",
+      "description": "Stock symbol and shares held in the user's portfolio",
+      "type": "object",
+      "properties": {
+        "symbol": {
+          "type": "string",
+          "description": "Ticker symbol of the stock"
+        },
+        "shares": {
+          "type": "number",
+          "description": "Number of shares owned"
+        },
+        "avgBuyPrice": {
+          "type": "number",
+          "description": "Average buy price per share"
+        },
+        "stopLoss": {
+          "type": "number",
+          "description": "Stop-loss price trigger"
+        }
+      },
+      "required": ["symbol", "shares", "avgBuyPrice"]
+    },
+    "Transaction": {
+      "title": "Transaction Log",
+      "description": "A purchase or sale of shares of stock",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique transaction ID"
+        },
+        "symbol": {
+          "type": "string",
+          "description": "Ticker symbol of the stock"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["BUY", "SELL"],
+          "description": "Transaction type"
+        },
+        "shares": {
+          "type": "number",
+          "description": "Number of shares traded"
+        },
+        "price": {
+          "type": "number",
+          "description": "Trade execution price"
+        },
+        "date": {
+          "type": "string",
+          "description": "Transaction date string"
+        }
+      },
+      "required": ["id", "symbol", "type", "shares", "price", "date"]
+    },
+    "PortfolioHistory": {
+      "title": "Portfolio History Entry",
+      "description": "Portfolio valuation at a given point in time",
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Date of historical valuation record"
+        },
+        "value": {
+          "type": "number",
+          "description": "Total valuation in currency"
+        }
+      },
+      "required": ["date", "value"]
+    },
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Detailed financial simulator user profile and state",
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string",
+          "description": "Display name of the user"
+        },
+        "xp": {
+          "type": "integer",
+          "description": "Total experience points earned"
+        },
+        "level": {
+          "type": "integer",
+          "description": "Current learning and practice level"
+        },
+        "streak": {
+          "type": "integer",
+          "description": "Number of consecutive active days"
+        },
+        "lastActive": {
+          "type": "string",
+          "description": "ISO timestamp of the user's last activity"
+        },
+        "cash": {
+          "type": "number",
+          "description": "Current available simulator cash"
+        },
+        "completedLessons": {
+          "type": "array",
+          "description": "List of completed lesson IDs"
+        },
+        "portfolio": {
+          "type": "array",
+          "description": "List of user's portfolio items"
+        },
+        "transactions": {
+          "type": "array",
+          "description": "List of user's past transaction logs"
+        },
+        "portfolioHistory": {
+          "type": "array",
+          "description": "List of user's portfolio history data points"
+        },
+        "marketMode": {
+          "type": "string",
+          "enum": ["real", "continuous"],
+          "description": "Market behavior model for practice"
+        },
+        "learningHearts": {
+          "type": "integer",
+          "description": "Remaining learning hearts for active session"
+        },
+        "lastHeartsResetDate": {
+          "type": "string",
+          "description": "Last date hearts were refilled (YYYY-MM-DD)"
+        }
+      },
+      "required": ["username", "xp", "level", "streak", "cash", "completedLessons", "portfolio", "transactions", "portfolioHistory"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User simulator state, settings, level, achievements, transactions, and portfolio"
+    }
+  }
+}

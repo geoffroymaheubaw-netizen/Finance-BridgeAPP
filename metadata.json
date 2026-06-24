@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Finance Bridge",
+  "description": "Master the French language through interactive lessons, pronunciation practice, and real-world conversation tools.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

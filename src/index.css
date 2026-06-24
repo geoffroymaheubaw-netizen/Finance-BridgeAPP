@@ -1,0 +1,535 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Global Dark Mode Style overrides */
+.dark {
+  background-color: #020617 !important;
+}
+
+.dark .bg-white {
+  background-color: #0b1324 !important; /* Beautiful deep dark blue-grey card shadow background */
+  border-color: #1e293b !important;
+}
+
+.dark .bg-slate-50 {
+  background-color: #060a13 !important; /* Soft dark slate layout grid background */
+}
+
+.dark .bg-slate-100 {
+  background-color: #0f1a30 !important;
+}
+
+.dark .hover\:bg-slate-50:hover {
+  background-color: #0f1a30 !important;
+}
+
+.dark .hover\:bg-slate-50\/50:hover {
+  background-color: rgba(15, 26, 48, 0.5) !important;
+}
+
+/* Inputs and Forms dark colors */
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: #030712 !important;
+  color: #ffffff !important;
+  border-color: #334155 !important;
+}
+
+.dark input::placeholder {
+  color: #475569 !important;
+}
+
+/* Borders */
+.dark .border-slate-50 {
+  border-color: #0f172a !important;
+}
+
+.dark .border-slate-100,
+.dark .border-slate-150,
+.dark .border-slate-200 {
+  border-color: #1e293b !important;
+}
+
+/* Solid text overrides to white/light slate text colors in Dark Mode */
+.dark .text-slate-950,
+.dark .text-slate-900,
+.dark .text-slate-850,
+.dark .text-slate-800 {
+  color: #f1f5f9 !important;
+}
+
+.dark .text-slate-700 {
+  color: #cbd5e1 !important;
+}
+
+.dark .text-slate-600 {
+  color: #94a3b8 !important;
+}
+
+.dark .text-slate-500 {
+  color: #64748b !important;
+}
+
+.dark .text-slate-450,
+.dark .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+/* Theme accent text classes */
+.dark .text-indigo-600 {
+  color: #818cf8 !important;
+}
+
+.dark .text-teal-800 {
+  color: #14b8a6 !important;
+}
+
+.dark .hover\:bg-teal-50:hover {
+  background-color: rgba(20, 184, 166, 0.1) !important;
+}
+
+/* Floating boxes indicators */
+.dark .bg-emerald-50 {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  color: #34d399 !important;
+  border-color: rgba(16, 185, 129, 0.2) !important;
+}
+
+.dark .bg-rose-50 {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+  color: #fca5a5 !important;
+  border-color: rgba(239, 68, 68, 0.2) !important;
+}
+
+.dark .bg-amber-50 {
+  background-color: rgba(245, 158, 11, 0.1) !important;
+  color: #fcd34d !important;
+  border-color: rgba(245, 158, 11, 0.2) !important;
+}
+
+.dark .bg-indigo-50 {
+  background-color: rgba(99, 102, 241, 0.1) !important;
+  color: #818cf8 !important;
+  border-color: rgba(99, 102, 241, 0.2) !important;
+}
+
+/* Standard grey box buttons */
+.dark .bg-slate-50\/30 {
+  background-color: #080e1a !important;
+}
+
+/* Modals background */
+.dark .bg-white.rounded-2xl.shadow-2xl {
+  background-color: #0b1324 !important;
+  border-color: #1e293b !important;
+}
+
+/* ==================== GLOBAL LIGHT MODE OVERRIDES ==================== */
+html:not(.dark) {
+  background-color: #f1f5f9 !important; /* Soft, clean modern background to make white cards stand out beautifully */
+}
+
+/* All boxes, cards, and sections become pure solid white background */
+html:not(.dark) .bg-white,
+html:not(.dark) .bg-slate-50,
+html:not(.dark) .bg-slate-100,
+html:not(.dark) .bg-slate-150,
+html:not(.dark) .bg-slate-200,
+html:not(.dark) .bg-slate-50\/70,
+html:not(.dark) .bg-slate-50\/50,
+html:not(.dark) .bg-slate-50\/30,
+html:not(.dark) .bg-slate-50\/20,
+html:not(.dark) .hover\:bg-slate-50\/50:hover,
+html:not(.dark) .hover\:bg-slate-50:hover,
+html:not(.dark) #ai-advisor-tab,
+html:not(.dark) #dashboard-tab {
+  background-color: #ffffff !important;
+}
+
+/* Make sure the simulator tables, learning nodules and preset lists have white backgrounds too */
+html:not(.dark) tr,
+html:not(.dark) td,
+html:not(.dark) th,
+html:not(.dark) .hover\:bg-indigo-50\/10:hover,
+html:not(.dark) .dark\:hover\:bg-indigo-950\/20:hover {
+  background-color: #ffffff !important;
+}
+
+/* Ensure clean, crisp slate borders around all white boxes for pristine separation */
+html:not(.dark) .border,
+html:not(.dark) .border-slate-50,
+html:not(.dark) .border-slate-100,
+html:not(.dark) .border-slate-150,
+html:not(.dark) .border-slate-200,
+html:not(.dark) .border-slate-300 {
+  border-color: #cbd5e1 !important;
+}
+
+/* Force all text elements inside tabs and main sections to be crisp black in Light Mode */
+html:not(.dark) #dashboard-tab,
+html:not(.dark) #learning-tab,
+html:not(.dark) #simulator-tab,
+html:not(.dark) #ai-advisor-tab,
+html:not(.dark) main,
+html:not(.dark) h1,
+html:not(.dark) h2,
+html:not(.dark) h3,
+html:not(.dark) h4,
+html:not(.dark) h5,
+html:not(.dark) h6,
+html:not(.dark) p,
+html:not(.dark) span,
+html:not(.dark) strong,
+html:not(.dark) div,
+html:not(.dark) small,
+html:not(.dark) label {
+  color: #000000 !important;
+}
+
+/* Specific slate-text text color overrides inside Light Mode to override tailwind defaults to black */
+html:not(.dark) .text-slate-950,
+html:not(.dark) .text-slate-900,
+html:not(.dark) .text-slate-850,
+html:not(.dark) .text-slate-800,
+html:not(.dark) .text-slate-755,
+html:not(.dark) .text-slate-750,
+html:not(.dark) .text-slate-700,
+html:not(.dark) .text-slate-600,
+html:not(.dark) .text-slate-505,
+html:not(.dark) .text-slate-500,
+html:not(.dark) .text-slate-450,
+html:not(.dark) .text-slate-400 {
+  color: #000000 !important;
+}
+
+/* Inputs, drop-downs and text fields in white background with black writing and borders */
+html:not(.dark) input,
+html:not(.dark) select,
+html:not(.dark) textarea {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-color: #94a3b8 !important;
+}
+
+html:not(.dark) input::placeholder {
+  color: #475569 !important;
+}
+
+/* Let the active green prices, red losses and blue highlights keep high contrast visibility */
+html:not(.dark) .text-emerald-600,
+html:not(.dark) .text-emerald-700,
+html:not(.dark) .text-emerald-800 {
+  color: #15803d !important; /* Rich green readable on white background */
+}
+
+html:not(.dark) .text-rose-600,
+html:not(.dark) .text-rose-700,
+html:not(.dark) .text-rose-800 {
+  color: #b91c1c !important; /* Rich red readable on white background */
+}
+
+html:not(.dark) .text-indigo-600,
+html:not(.dark) .text-indigo-700 {
+  color: #4f46e5 !important; /* Rich solid royal indigo */
+}
+
+html:not(.dark) .text-amber-600,
+html:not(.dark) .text-amber-800 {
+  color: #b45309 !important;
+}
+
+/* Refined tag alerts and status badges background visibility in light mode with dark text */
+html:not(.dark) .bg-emerald-50 {
+  background-color: #f0fdf4 !important;
+  color: #166534 !important;
+  border: 1px solid #bbf7d0 !important;
+}
+
+html:not(.dark) .bg-rose-50 {
+  background-color: #fff1f2 !important;
+  color: #991b1b !important;
+  border: 1px solid #fecdd3 !important;
+}
+
+html:not(.dark) .bg-amber-50 {
+  background-color: #fffbeb !important;
+  color: #92400e !important;
+  border: 1px solid #fde68a !important;
+}
+
+html:not(.dark) .bg-indigo-50 {
+  background-color: #f5f3ff !important;
+  color: #3730a3 !important;
+  border: 1px solid #ddd6fe !important;
+}
+
+/* Custom precise response to Request 1: ensure dark mode stock name borders and backgrounds are fully dark dark/black instead of gray */
+.dark #simulator-tab .bg-white,
+.dark #simulator-tab .border-slate-200,
+.dark #simulator-tab .border-slate-100 {
+  background-color: #040814 !important;
+  border-color: #111827 !important;
+}
+
+/* Ensure the ticker boxes enclosing the action names also look beautifully dark in dark mode */
+.dark #simulator-tab .bg-slate-100 {
+  background-color: #090e1a !important;
+  color: #f1f5f9 !important;
+  border: 1px solid #1f2937 !important;
+}
+
+/* ==================== LIGHT THEME OVERRIDES FOR SELECTED ELEMENTS ==================== */
+
+/* Ensure the Header Title, Motto Subtitle, and Logo SVG remain white in Light Mode */
+html:not(.dark) header h1 {
+  color: #ffffff !important;
+}
+
+html:not(.dark) header span.tracking-wide {
+  color: #ffffff !important; /* Pure white for secondary text (motto) in header */
+}
+
+/* Restrict to only the Landmark brand logo SVG inside its gradient box, not all header SVGs */
+html:not(.dark) header div.bg-gradient-to-tr svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+/* Ensure the text and icons of the theme selector buttons (Light and Dark) are black in Light Mode */
+html:not(.dark) header .relative button {
+  color: #000000 !important;
+}
+
+html:not(.dark) header .relative button span {
+  color: #000000 !important;
+}
+
+/* Target the exact SVG selectors requested to make them visible and colored nicely in Light Mode */
+html:not(.dark) div#root:nth-of-type(1) > div:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > button:nth-of-type(2) > svg:nth-of-type(1) {
+  color: #475569 !important; /* Dark slate */
+  stroke: #475569 !important;
+}
+
+html:not(.dark) div#root:nth-of-type(1) > div:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > button:nth-of-type(1) > svg:nth-of-type(1) {
+  color: #d97706 !important; /* Warm glowing amber */
+  stroke: #d97706 !important;
+}
+
+/* Target the exact CSS selectors requested to ensure they become black in Light Mode */
+html:not(.dark) div#root:nth-of-type(1) > div:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > button:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > button:nth-of-type(2) {
+  color: #000000 !important;
+}
+
+html:not(.dark) div#root:nth-of-type(1) > div:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > button:nth-of-type(1) span,
+html:not(.dark) div#root:nth-of-type(1) > div:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > button:nth-of-type(2) span {
+  color: #000000 !important;
+}
+
+/* Ensure the settings button icon is white in Light Mode */
+html:not(.dark) div#root:nth-of-type(1) > div:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > button#app-settings-toggle:nth-of-type(1) > svg:nth-of-type(1),
+html:not(.dark) #app-settings-toggle svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+/* Ensure other non-selected header utilities (clock, status badge, credentials) stay white/slate */
+html:not(.dark) header span.font-mono {
+  color: #cbd5e1 !important;
+}
+
+html:not(.dark) header span.font-extrabold {
+  color: #e2e8f0 !important;
+}
+
+html:not(.dark) header span.text-indigo-300 {
+  color: #a5b4fc !important;
+}
+
+html:not(.dark) header .bg-slate-800 {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+/* Ensure the Dashboard Welcoming Banner title (h2) and subtitle/badges remain beautifully white */
+html:not(.dark) #dashboard-tab div.bg-gradient-to-r h2 {
+  color: #ffffff !important;
+}
+
+html:not(.dark) #dashboard-tab div.bg-gradient-to-r p {
+  color: #ccfbf1 !important; /* Soft light teal text */
+}
+
+html:not(.dark) #dashboard-tab div.bg-gradient-to-r span {
+  color: #ffffff !important;
+}
+
+/* Ensure the chart tooltip background and borders stay beautifully dark and readable in Light Mode */
+html:not(.dark) #simulator-tab .absolute.bg-slate-900 {
+  background-color: #0f172a !important; /* Solid dark background */
+  border-color: #1e293b !important;
+}
+
+/* Ensure any generic text, spans, or labels inside the dark chart tooltip are light/white in Light Mode */
+html:not(.dark) #simulator-tab .absolute.bg-slate-900 span,
+html:not(.dark) #simulator-tab .absolute.bg-slate-900 div {
+  color: #f1f5f9 !important;
+}
+
+/* Retain high-contrast coloring for prices and labels in the dark tooltip during Light Mode */
+html:not(.dark) #simulator-tab .absolute.bg-slate-900 span.text-amber-400 {
+  color: #fbbf24 !important; /* Gold/Amber text */
+}
+
+html:not(.dark) #simulator-tab .absolute.bg-slate-900 span.text-indigo-400 {
+  color: #818cf8 !important; /* Bright Indigo text */
+}
+
+html:not(.dark) #simulator-tab .absolute.bg-slate-900 span.text-emerald-400 {
+  color: #34d399 !important; /* Emerald green text */
+}
+
+html:not(.dark) #simulator-tab .absolute.bg-slate-900 span.text-rose-400 {
+  color: #fca5a5 !important; /* Rose red text */
+}
+
+/* Target the exact CSS selectors requested to ensure they become colored and legible in Light Mode */
+html:not(.dark) div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#simulator-tab:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(1) {
+  color: #cbd5e1 !important; /* Timeframe/label text */
+}
+
+html:not(.dark) div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#simulator-tab:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2) {
+  color: #fbbf24 !important; /* Price display text */
+}
+
+/* Ensure the statistical/analytical header is dark and highly readable in Dark Mode instead of light gray */
+html.dark div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#simulator-tab:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(1),
+html.dark #simulator-tab .relative > div.flex.flex-wrap.items-center.justify-between {
+  background-color: #0f172a !important; /* Elegant slate-900 absolute dark */
+  border-color: #1e293b !important;       /* Subtle dark border slate-800 */
+  color: #94a3b8 !important;              /* Soft light gray text for labels */
+}
+
+/* Ensure secondary metrics values nested inside are bright and visible in Dark Mode */
+html.dark div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#simulator-tab:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(1) strong,
+html.dark #simulator-tab .relative > div.flex.flex-wrap.items-center.justify-between strong {
+  color: #cbd5e1 !important; /* Default high contrast fallback label */
+}
+
+html.dark div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#simulator-tab:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(1) strong.text-emerald-700,
+html.dark #simulator-tab .relative > div.flex.flex-wrap.items-center.justify-between strong.text-emerald-700,
+html.dark #simulator-tab .relative > div.flex.flex-wrap.items-center.justify-between strong.text-emerald-600 {
+  color: #34d399 !important; /* Bright emerald-400 */
+}
+
+html.dark div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#simulator-tab:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(1) strong.text-rose-700,
+html.dark #simulator-tab .relative > div.flex.flex-wrap.items-center.justify-between strong.text-rose-700,
+html.dark #simulator-tab .relative > div.flex.flex-wrap.items-center.justify-between strong.text-rose-600 {
+  color: #f43f5e !important; /* Bright rose-500 */
+}
+
+html.dark div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#simulator-tab:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(1) strong.text-slate-700,
+html.dark #simulator-tab .relative > div.flex.flex-wrap.items-center.justify-between strong.text-slate-700 {
+  color: #e2e8f0 !important; /* Bright slate-200 */
+}
+
+html.dark div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#simulator-tab:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(1) strong.text-indigo-600,
+html.dark #simulator-tab .relative > div.flex.flex-wrap.items-center.justify-between strong.text-indigo-600 {
+  color: #818cf8 !important; /* Bright indigo-400 */
+}
+
+/* Ensure the educational decipher block (selector 1) is deeply dark and beautifully legible in Dark Mode */
+html.dark div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#simulator-tab:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2) {
+  background-color: #0f172a !important; /* Elegant dark slate-900 background */
+  border-color: #1e293b !important;       /* Subtle border slate-800 */
+}
+
+/* Make strong labels, text, and em tags inside readable and high-contrast */
+html.dark div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#simulator-tab:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2) strong,
+html.dark div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#simulator-tab:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2) em,
+html.dark div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#simulator-tab:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2) p,
+html.dark div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#simulator-tab:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2) span {
+  color: #cbd5e1 !important; /* Soft white/light slate text for legibility */
+}
+
+/* Specific highlight for title of decrypter */
+html.dark div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#simulator-tab:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2) strong.text-indigo-950 {
+  color: #c7d2fe !important; /* Soft indigo-200 */
+}
+
+/* Specific highlights for other nested elements inside children */
+html.dark div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#simulator-tab:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2) strong.text-indigo-900 {
+  color: #a5b4fc !important; /* Bright Indigo-300 */
+}
+
+/* Sentiment highlights */
+html.dark div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#simulator-tab:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2) strong.text-emerald-700 {
+  color: #34d399 !important; /* Gentle emerald green-400 */
+}
+
+html.dark div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#simulator-tab:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2) strong.text-rose-700 {
+  color: #fb7185 !important; /* Light rose-400 */
+}
+
+/* Update inner quote block wrapper to stay dark and legible */
+html.dark div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#simulator-tab:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2) p.bg-white {
+  background-color: #1e293b !important; /* Indigo dark slate-800 background */
+  border-color: #334155 !important;       /* Clean borders slate-700 */
+  color: #e2e8f0 !important;             /* Crisp off-white text */
+}
+
+/* Ensure selected Finance News tab h4 and paragraph text become white in Light Mode */
+html:not(.dark) div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#finance-news-tab:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(1) > h4:nth-of-type(1),
+html:not(.dark) #finance-news-tab .bg-indigo-950 h4,
+html:not(.dark) #finance-news-tab h4.text-indigo-300 {
+  color: #ffffff !important;
+}
+
+html:not(.dark) div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#finance-news-tab:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(1) > p:nth-of-type(1),
+html:not(.dark) #finance-news-tab .bg-indigo-950 p,
+html:not(.dark) #finance-news-tab p.text-indigo-200 {
+  color: #ffffff !important;
+}
+
+/* Infinite scrolling marquee ticker for timezones */
+@keyframes marquee-tz {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-33.33333%); }
+}
+
+.animate-marquee-tz {
+  display: flex;
+  width: max-content;
+  animation: marquee-tz 110s linear infinite;
+}
+
+.animate-marquee-tz:hover {
+  animation-play-state: paused;
+}
+
+/* Infinite scrolling marquee ticker for stocks */
+@keyframes marquee-stocks {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-33.33333%); }
+}
+
+.animate-marquee-stocks {
+  display: flex;
+  width: max-content;
+  animation: marquee-stocks 75s linear infinite;
+}
+
+.animate-marquee-stocks:hover {
+  animation-play-state: paused;
+}
+
+
+
+
+
+
