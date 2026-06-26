@@ -1,6 +1,6 @@
 {
   "name": "Remix: Finance Bridge",
-  "description": "Master the French language through interactive lessons, pronunciation practice, and real-world conversation tools.",
+  "description": "A financial workspace featuring stock analysis, interactive charts, and real-time news powered by Gemini.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
