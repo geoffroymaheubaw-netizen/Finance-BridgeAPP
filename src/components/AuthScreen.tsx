@@ -7,6 +7,12 @@ import {
   auth,
   updateProfile
 } from "../lib/firebase";
+import { 
+  getSupabaseClient, 
+  isSupabaseConfigured, 
+  getSupabaseConfig, 
+  saveSupabaseConfigLocally 
+} from "../lib/supabase";
 import { motion, AnimatePresence } from "motion/react";
 import { Briefcase, Mail, Lock, User as UserIcon, AlertCircle, ArrowRight } from "lucide-react";
 import FinanceBridgeLogo from "./FinanceBridgeLogo";
@@ -24,6 +30,13 @@ export default function AuthScreen({ t, onSuccess }: AuthScreenProps) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
+  const [authEngine, setAuthEngine] = useState<"firebase" | "supabase">(
+    isSupabaseConfigured() ? "supabase" : "firebase"
+  );
+  const [showSupabaseSettings, setShowSupabaseSettings] = useState<boolean>(false);
+  const [supabaseUrl, setSupabaseUrl] = useState<string>(getSupabaseConfig().url);
+  const [supabaseKey, setSupabaseKey] = useState<string>(getSupabaseConfig().key);
+
   // Validate and submit Email auth
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +52,65 @@ export default function AuthScreen({ t, onSuccess }: AuthScreenProps) {
     }
 
     setLoading(true);
+    if (authEngine === "supabase") {
+      const supabase = getSupabaseClient();
+      if (!supabase) {
+        setErrorMsg("Le client Supabase n'est pas initialisé. Veuillez configurer l'URL et la clé Supabase.");
+        setLoading(false);
+        return;
+      }
+      try {
+        if (isSignUp) {
+          const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                username: username
+              }
+            }
+          });
+          if (error) throw error;
+          if (data.user) {
+            localStorage.setItem("finance_bridge_auth_mode", "supabase");
+            onSuccess({
+              uid: data.user.id,
+              email: data.user.email,
+              displayName: username,
+              isSupabase: true
+            }, true, username);
+          } else {
+            throw new Error("Une erreur s'est produite lors de la création du compte.");
+          }
+        } else {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password
+          });
+          if (error) throw error;
+          if (data.user) {
+            localStorage.setItem("finance_bridge_auth_mode", "supabase");
+            const userMetadata = data.user.user_metadata || {};
+            const finalUsername = userMetadata.username || data.user.email?.split("@")[0] || "Trader";
+            onSuccess({
+              uid: data.user.id,
+              email: data.user.email,
+              displayName: finalUsername,
+              isSupabase: true
+            }, false, finalUsername);
+          } else {
+            throw new Error("Une erreur s'est produite lors de la connexion.");
+          }
+        }
+      } catch (err: any) {
+        console.error(err);
+        setErrorMsg(err.message || "Erreur de connexion/inscription Supabase.");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     try {
       if (isSignUp) {
         // Sign Up with Email
@@ -100,6 +172,30 @@ export default function AuthScreen({ t, onSuccess }: AuthScreenProps) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLocalSignIn = () => {
+    setErrorMsg(null);
+    let defaultName = "Geoffroy";
+    try {
+      const storedProfile = localStorage.getItem("finance_bridge_user_profile");
+      if (storedProfile) {
+        const parsed = JSON.parse(storedProfile);
+        if (parsed && parsed.username) {
+          defaultName = parsed.username;
+        }
+      }
+    } catch {}
+
+    const chosenName = username.trim() || defaultName;
+    localStorage.setItem("finance_bridge_auth_mode", "local");
+    localStorage.setItem("finance_bridge_local_username", chosenName);
+
+    onSuccess({
+      uid: "local_user",
+      email: "local@financebridge.app",
+      displayName: chosenName
+    }, true, chosenName);
   };
 
   return (
@@ -188,6 +284,108 @@ export default function AuthScreen({ t, onSuccess }: AuthScreenProps) {
               </button>
             </div>
           </div>
+
+          {/* Moteur de Base de données / Authentification */}
+          <div className="mb-6 bg-slate-100/70 dark:bg-slate-900/40 p-1.5 rounded-xl flex items-center border border-slate-200/55 dark:border-slate-800/40">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 pl-3 pr-2 select-none">Moteur:</span>
+            <button
+              type="button"
+              onClick={() => { setAuthEngine("firebase"); setErrorMsg(null); }}
+              className={`flex-1 py-1.5 px-3 text-center rounded-lg text-[11px] font-black tracking-tight transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                authEngine === "firebase"
+                  ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-700"
+              }`}
+            >
+              <div className={`w-1.5 h-1.5 rounded-full ${authEngine === "firebase" ? "bg-amber-500" : "bg-slate-300 dark:bg-slate-700"}`} />
+              <span>Firebase</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setAuthEngine("supabase"); setErrorMsg(null); }}
+              className={`flex-1 py-1.5 px-3 text-center rounded-lg text-[11px] font-black tracking-tight transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                authEngine === "supabase"
+                  ? "bg-white dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/10 shadow-xs"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-700"
+              }`}
+            >
+              <div className={`w-1.5 h-1.5 rounded-full ${authEngine === "supabase" ? "bg-emerald-500 animate-pulse" : "bg-slate-300 dark:bg-slate-700"}`} />
+              <span>Supabase</span>
+            </button>
+          </div>
+
+          {/* Supabase connection quick configuration panel */}
+          {authEngine === "supabase" && (
+            <div className="mb-6 p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/20 backdrop-blur-xs">
+              <button
+                type="button"
+                onClick={() => setShowSupabaseSettings(!showSupabaseSettings)}
+                className="w-full flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer"
+              >
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span>🛠️ Configuration Supabase</span>
+                  {!isSupabaseConfigured() ? (
+                    <span className="text-[9px] bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded-md font-mono font-black">Requis</span>
+                  ) : (
+                    <span className="text-[9px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-md font-mono font-black">Actif</span>
+                  )}
+                </span>
+                <span className="text-slate-400 font-mono text-[10px]">{showSupabaseSettings ? "Masquer ▲" : "Afficher ▼"}</span>
+              </button>
+
+              <AnimatePresence>
+                {(showSupabaseSettings || !isSupabaseConfigured()) && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden mt-3 space-y-3"
+                  >
+                    <p className="text-[10px] text-slate-500 leading-normal">
+                      Puisque votre site est publié sur GitHub, vous pouvez connecter votre propre instance Supabase gratuite. Entrez les clés ci-dessous, elles seront stockées en toute sécurité directement dans votre navigateur.
+                    </p>
+                    <div>
+                      <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase mb-1">SUPABASE URL</label>
+                      <input
+                        type="text"
+                        value={supabaseUrl}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSupabaseUrl(val);
+                          saveSupabaseConfigLocally(val, supabaseKey);
+                        }}
+                        placeholder="https://your-project-ref.supabase.co"
+                        className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 text-xs font-mono focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono font-bold text-slate-400 uppercase mb-1">SUPABASE ANON KEY</label>
+                      <input
+                        type="password"
+                        value={supabaseKey}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSupabaseKey(val);
+                          saveSupabaseConfigLocally(supabaseUrl, val);
+                        }}
+                        placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                        className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 text-xs font-mono focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+                      />
+                    </div>
+                    <div className="text-[9px] bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-lg text-slate-500 dark:text-slate-400 space-y-1">
+                      <p className="font-bold text-slate-700 dark:text-slate-300">💡 Comment l'obtenir ?</p>
+                      <ol className="list-decimal list-inside space-y-0.5">
+                        <li>Créez un projet gratuit sur <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="text-emerald-500 underline">supabase.com</a></li>
+                        <li>Allez dans <strong>Project Settings</strong> &gt; <strong>API</strong></li>
+                        <li>Copiez <strong>Project URL</strong> et <strong>anon public API Key</strong></li>
+                      </ol>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
 
           {/* Form Content */}
           <div className="mb-6">
@@ -306,6 +504,22 @@ export default function AuthScreen({ t, onSuccess }: AuthScreenProps) {
             </svg>
             <span>{t("btnGoogle")}</span>
           </button>
+
+          {/* Local offline connection button */}
+          <div className="mt-5 pt-5 border-t border-slate-100 dark:border-slate-900/60">
+            <button
+              type="button"
+              onClick={handleLocalSignIn}
+              disabled={loading}
+              className="w-full py-2.5 rounded-xl bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 font-bold text-xs tracking-tight transition flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Se connecter sans compte (Mode Local)</span>
+            </button>
+            <p className="text-[10px] text-center text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
+              Idéal si Firebase ne fonctionne pas. Vos données seront stockées et conservées de manière sécurisée et permanente dans votre propre navigateur.
+            </p>
+          </div>
 
           {/* Helper Footnote to switch tab */}
           <div className="mt-8 text-center text-xs">

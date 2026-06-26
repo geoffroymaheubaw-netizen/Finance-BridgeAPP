@@ -1,6 +1,9 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { UserProfile } from "../types";
 import { Award, Zap, Flame, TrendingUp, BookOpen, ChevronRight } from "lucide-react";
+import { getSupabaseClient } from "../lib/supabase";
+import { db } from "../lib/firebase";
+import { collection, getDocs } from "firebase/firestore";
 
 interface DashboardTabProps {
   profile: UserProfile;
@@ -11,6 +14,122 @@ interface DashboardTabProps {
 }
 
 export default function DashboardTab({ profile, stocks, setTab, lang, t }: DashboardTabProps) {
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [loadingRank, setLoadingRank] = useState<boolean>(true);
+
+  // Fetch and calculate dynamic rankings
+  useEffect(() => {
+    let active = true;
+    const fetchLeaderboard = async () => {
+      setLoadingRank(true);
+      const mode = localStorage.getItem("finance_bridge_auth_mode");
+      
+      let fetchedUsers: any[] = [];
+      
+      try {
+        if (mode === "supabase") {
+          const supabase = getSupabaseClient();
+          if (supabase) {
+            const { data, error } = await supabase
+              .from("profiles")
+              .select("*")
+              .limit(50);
+            
+            if (!error && data) {
+              fetchedUsers = data.map(item => ({
+                username: item.username || "Anonyme",
+                cash: Number(item.cash || 10000),
+                xp: Number(item.xp || 0),
+                level: Number(item.level || 1),
+                portfolio: item.portfolio || []
+              }));
+            }
+          }
+        } else if (mode !== "local") {
+          // Firebase mode
+          try {
+            const querySnapshot = await getDocs(collection(db, "users"));
+            const usersTemp: any[] = [];
+            querySnapshot.forEach((docSnap) => {
+              const data = docSnap.data();
+              usersTemp.push({
+                username: data.username || "Anonyme",
+                cash: Number(data.cash || 10000),
+                xp: Number(data.xp || 0),
+                level: Number(data.level || 1),
+                portfolio: data.portfolio || []
+              });
+            });
+            fetchedUsers = usersTemp;
+          } catch (e) {
+            console.error("Firebase leaderboard fetch error:", e);
+          }
+        }
+      } catch (err) {
+        console.error("Failed fetching leaderboard:", err);
+      }
+
+      if (!active) return;
+
+      // Always include active user to guarantee they see themselves
+      const userExists = fetchedUsers.some(u => u.username === profile.username);
+      if (!userExists) {
+        fetchedUsers.push({
+          username: profile.username || "Vous",
+          cash: profile.cash,
+          xp: profile.xp,
+          level: profile.level,
+          portfolio: profile.portfolio
+        });
+      }
+
+      // If leaderboard has very few users, supplement with legendary traders to make it fun & competitive!
+      const mockLegends = [
+        { username: "Warren Buffett 📈", cash: 15400, xp: 1200, level: 8, portfolio: [] },
+        { username: "Nancy Pelosi 🏛️", cash: 14100, xp: 950, level: 6, portfolio: [] },
+        { username: "Roaring Kitty 🐈", cash: 12800, xp: 850, level: 5, portfolio: [] },
+        { username: "L'Apprenti Trader", cash: 9800, xp: 150, level: 1, portfolio: [] }
+      ];
+
+      mockLegends.forEach(legend => {
+        if (!fetchedUsers.some(u => u.username.split(" ")[0] === legend.username.split(" ")[0])) {
+          fetchedUsers.push(legend);
+        }
+      });
+
+      // Calculate total assets for everyone
+      const valuedUsers = fetchedUsers.map(user => {
+        const stockValue = (user.portfolio || []).reduce((sum: number, item: any) => {
+          const stock = stocks.find(s => s.symbol === item.symbol);
+          const price = stock ? stock.price : (item.avgBuyPrice || 100);
+          return sum + (price * (item.shares || 0));
+        }, 0);
+        
+        const total = user.cash + stockValue;
+        const profit = total - 10000;
+        const profitPercent = (profit / 10000) * 100;
+        
+        return {
+          ...user,
+          totalValue: total,
+          profit,
+          profitPercent
+        };
+      });
+
+      // Sort by total asset value descending
+      valuedUsers.sort((a, b) => b.totalValue - a.totalValue);
+      
+      setLeaderboard(valuedUsers);
+      setLoadingRank(false);
+    };
+
+    fetchLeaderboard();
+    return () => {
+      active = false;
+    };
+  }, [profile, stocks]);
+
   // Calculate total portfolio value
   const totalStockValue = profile.portfolio.reduce((sum, item) => {
     const stock = stocks.find(s => s.symbol === item.symbol);
@@ -242,6 +361,114 @@ export default function DashboardTab({ profile, stocks, setTab, lang, t }: Dashb
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Classement / Leaderboard */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs mt-6 animate-in fade-in duration-350">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <div>
+            <h4 className="font-extrabold text-slate-850 dark:text-slate-100 text-lg flex items-center gap-2">
+              <span className="text-xl">🏆</span>
+              <span>{lang === "fr" ? "Classement des Apprentis Traders" : "Traders Leaderboard"}</span>
+            </h4>
+            <p className="text-slate-400 dark:text-slate-505 text-xs mt-0.5">
+              {lang === "fr" 
+                ? "Classé selon la performance globale du portefeuille à partir de 10 000 $." 
+                : "Ranked by overall portfolio performance starting from $10,000."}
+            </p>
+          </div>
+          <div className="text-right">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-indigo-50 dark:bg-indigo-950/45 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/40">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              {localStorage.getItem("finance_bridge_auth_mode") === "supabase" ? "Supabase DB" : localStorage.getItem("finance_bridge_auth_mode") === "local" ? "Mode Local" : "Firebase DB"}
+            </span>
+          </div>
+        </div>
+
+        {loadingRank ? (
+          <div className="py-12 flex flex-col items-center justify-center gap-3">
+            <div className="w-8 h-8 border-3 border-indigo-600/35 border-t-indigo-600 rounded-full animate-spin" />
+            <p className="text-xs text-slate-400 font-medium">Chargement du classement...</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs min-w-[500px]">
+              <thead>
+                <tr className="border-b border-slate-100 dark:border-slate-800/80 text-slate-400 dark:text-slate-500 uppercase font-mono tracking-wider font-bold text-[10px]">
+                  <th className="py-3 px-2 w-12 text-center">Rang</th>
+                  <th className="py-3 px-4">Utilisateur</th>
+                  <th className="py-3 px-4 text-center">Niveau</th>
+                  <th className="py-3 px-4 text-right">Valeur Actuelle</th>
+                  <th className="py-3 px-4 text-right">Performance / Profit</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                {leaderboard.slice(0, 8).map((user, idx) => {
+                  const isCurrentUser = user.username === profile.username;
+                  const rank = idx + 1;
+                  
+                  // Style medals for top 3
+                  let rankDisplay: React.ReactNode = rank;
+                  if (rank === 1) rankDisplay = <span className="text-lg">🥇</span>;
+                  else if (rank === 2) rankDisplay = <span className="text-lg">🥈</span>;
+                  else if (rank === 3) rankDisplay = <span className="text-lg">🥉</span>;
+
+                  return (
+                    <tr 
+                      key={user.username + idx}
+                      className={`transition ${
+                        isCurrentUser 
+                          ? "bg-indigo-600/5 dark:bg-indigo-500/5 font-bold text-slate-900 dark:text-white" 
+                          : "text-slate-700 dark:text-slate-350 hover:bg-slate-55/40 dark:hover:bg-slate-800/20"
+                      }`}
+                    >
+                      <td className="py-3.5 px-2 text-center font-bold">
+                        {rankDisplay}
+                      </td>
+                      <td className="py-3.5 px-4 flex items-center gap-2">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+                          isCurrentUser 
+                            ? "bg-indigo-600 text-white" 
+                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                        }`}>
+                          {user.username.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <span className="block tracking-tight text-slate-800 dark:text-slate-100 font-semibold flex items-center gap-1">
+                            {user.username}
+                            {isCurrentUser && (
+                              <span className="text-[9px] font-mono bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.2 rounded-full font-bold uppercase">
+                                Vous
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <span className="px-2 py-0.5 rounded-full font-mono font-bold text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                          LVL {user.level}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-800 dark:text-slate-100">
+                        {user.totalValue.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="flex flex-col items-end">
+                          <span className={`font-mono font-bold ${user.profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600"}`}>
+                            {user.profit >= 0 ? "+" : ""}{user.profitPercent.toFixed(2)}%
+                          </span>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+                            {user.profit >= 0 ? "+" : ""}{Math.round(user.profit).toLocaleString()} $
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
