@@ -62,7 +62,7 @@ async function generateContentWithRetry(client: any, params: any, retries = 2, i
       }
 
       // Model failover chain if the current model is having issues or under-provisioned
-      const failoverChain = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.0-flash"];
+      const failoverChain = ["gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-2.5-flash"];
       const currentModel = params.model;
       for (const fallbackModel of failoverChain) {
         if (currentModel !== fallbackModel) {
@@ -121,7 +121,7 @@ async function generateContentStreamWithRetry(client: any, params: any, retries 
       }
 
       // Model failover chain if the current model is having issues or under-provisioned
-      const failoverChain = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.0-flash"];
+      const failoverChain = ["gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-2.5-flash"];
       const currentModel = params.model;
       for (const fallbackModel of failoverChain) {
         if (currentModel !== fallbackModel) {
@@ -607,6 +607,13 @@ async function startServer() {
       if (!message) {
         res.status(400).json({ error: "Le message est obligatoire." });
         return;
+      }
+
+      // Proactively bypass if Gemini is in a 429/billing cooldown or no API key is set
+      const isInCooldown = (Date.now() - last429Time) < 10 * 60 * 1000;
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey || isInCooldown) {
+        throw new Error("La clé d'API Gemini est absente ou en période de refroidissement temporaire (crédits épuisés).");
       }
 
       const client = getAIClient();
