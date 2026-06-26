@@ -2,8 +2,6 @@ import React, { useState, useEffect } from "react";
 import { UserProfile } from "../types";
 import { Award, Zap, Flame, TrendingUp, BookOpen, ChevronRight } from "lucide-react";
 import { getSupabaseClient } from "../lib/supabase";
-import { db } from "../lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
 
 interface DashboardTabProps {
   profile: UserProfile;
@@ -27,42 +25,21 @@ export default function DashboardTab({ profile, stocks, setTab, lang, t }: Dashb
       let fetchedUsers: any[] = [];
       
       try {
-        if (mode === "supabase") {
-          const supabase = getSupabaseClient();
-          if (supabase) {
-            const { data, error } = await supabase
-              .from("profiles")
-              .select("*")
-              .limit(50);
-            
-            if (!error && data) {
-              fetchedUsers = data.map(item => ({
-                username: item.username || "Anonyme",
-                cash: Number(item.cash || 10000),
-                xp: Number(item.xp || 0),
-                level: Number(item.level || 1),
-                portfolio: item.portfolio || []
-              }));
-            }
-          }
-        } else if (mode !== "local") {
-          // Firebase mode
-          try {
-            const querySnapshot = await getDocs(collection(db, "users"));
-            const usersTemp: any[] = [];
-            querySnapshot.forEach((docSnap) => {
-              const data = docSnap.data();
-              usersTemp.push({
-                username: data.username || "Anonyme",
-                cash: Number(data.cash || 10000),
-                xp: Number(data.xp || 0),
-                level: Number(data.level || 1),
-                portfolio: data.portfolio || []
-              });
-            });
-            fetchedUsers = usersTemp;
-          } catch (e) {
-            console.error("Firebase leaderboard fetch error:", e);
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          const { data, error } = await supabase
+            .from("profiles")
+            .select("*")
+            .limit(50);
+          
+          if (!error && data) {
+            fetchedUsers = data.map(item => ({
+              username: item.username || "Anonyme",
+              cash: Number(item.cash || 10000),
+              xp: Number(item.xp || 0),
+              level: Number(item.level || 1),
+              portfolio: item.portfolio || []
+            }));
           }
         }
       } catch (err) {

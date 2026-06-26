@@ -14,8 +14,6 @@ import { Language, LANGUAGES, TRANSLATIONS } from "./translations";
 import { motion, AnimatePresence } from "motion/react";
 import AuthScreen from "./components/AuthScreen";
 import FinanceBridgeLogo from "./components/FinanceBridgeLogo";
-import { auth, db, onAuthStateChanged, signOut, handleFirestoreError, OperationType } from "./lib/firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
 import { getSupabaseClient } from "./lib/supabase";
 
 const STORAGE_KEY = "finance_bridge_user_profile";
@@ -46,15 +44,15 @@ const TICKER_CITIES = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>("dashboard");
-  const [firebaseUser, setFirebaseUser] = useState<any>(null);
+  const [authUser, setAuthUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState<boolean>(true);
 
-  // Subscribe to firebase or supabase or local auth state changes
+  // Subscribe to supabase or local auth state changes
   useEffect(() => {
     const isLocal = localStorage.getItem("finance_bridge_auth_mode") === "local";
     if (isLocal) {
       const storedLocalName = localStorage.getItem("finance_bridge_local_username") || "Geoffroy";
-      setFirebaseUser({
+      setAuthUser({
         uid: "local_user",
         email: "local@financebridge.app",
         displayName: storedLocalName
@@ -80,7 +78,7 @@ export default function App() {
               displayName: finalUsername,
               isSupabase: true
             };
-            setFirebaseUser(supabaseUser);
+            setAuthUser(supabaseUser);
 
             // Fetch profile from Supabase
             try {
@@ -149,7 +147,7 @@ export default function App() {
               console.error("Failed loading Supabase user profile:", err);
             }
           } else {
-            setFirebaseUser(null);
+            setAuthUser(null);
           }
           setAuthLoading(false);
         });
@@ -159,61 +157,17 @@ export default function App() {
         };
       } else {
         localStorage.removeItem("finance_bridge_auth_mode");
+        setAuthUser(null);
+        setAuthLoading(false);
       }
-    }
-
-    // Default to Firebase
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setFirebaseUser(user);
-        const userDocRef = doc(db, "users", user.uid);
-        try {
-          let docSnap;
-          try {
-            docSnap = await getDoc(userDocRef);
-          } catch (err) {
-            handleFirestoreError(err, OperationType.GET, `users/${user.uid}`);
-            return;
-          }
-          if (docSnap.exists()) {
-            setProfile(docSnap.data() as UserProfile);
-          } else {
-            const today = new Date().toISOString().substring(0, 10);
-            const initialProfile: UserProfile = {
-              username: user.displayName || user.email?.split("@")[0] || "Investisseur",
-              xp: 0,
-              level: 1,
-              streak: 1,
-              lastActive: new Date().toISOString(),
-              cash: 10000,
-              completedLessons: [],
-              portfolio: [],
-              transactions: [],
-              portfolioHistory: [{ date: new Date().toLocaleDateString("fr-FR"), value: 10000 }],
-              marketMode: "real",
-              learningHearts: 4,
-              lastHeartsResetDate: today
-            };
-            try {
-              await setDoc(userDocRef, initialProfile);
-            } catch (err) {
-              handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}`);
-            }
-            setProfile(initialProfile);
-          }
-        } catch (e) {
-          console.error("Error reading Firestore profile:", e);
-        }
-      } else {
-        setFirebaseUser(null);
-      }
+    } else {
+      setAuthUser(null);
       setAuthLoading(false);
-    });
-    return () => unsubscribe();
+    }
   }, []);
 
   const handleAuthSuccess = async (user: any, isNewUser: boolean, chosenUsername?: string) => {
-    setFirebaseUser(user);
+    setAuthUser(user);
     if (user.uid === "local_user") {
       const today = new Date().toISOString().substring(0, 10);
       try {
@@ -314,46 +268,6 @@ export default function App() {
         }
       }
       return;
-    }
-
-    const userDocRef = doc(db, "users", user.uid);
-    try {
-      let docSnap;
-      try {
-        docSnap = await getDoc(userDocRef);
-      } catch (err) {
-        handleFirestoreError(err, OperationType.GET, `users/${user.uid}`);
-        return;
-      }
-      if (docSnap.exists()) {
-        const data = docSnap.data() as UserProfile;
-        setProfile(data);
-      } else {
-        const today = new Date().toISOString().substring(0, 10);
-        const initialProfile: UserProfile = {
-          username: chosenUsername || user.displayName || user.email?.split("@")[0] || "Investisseur",
-          xp: 0,
-          level: 1,
-          streak: 1,
-          lastActive: new Date().toISOString(),
-          cash: 10000,
-          completedLessons: [],
-          portfolio: [],
-          transactions: [],
-          portfolioHistory: [{ date: new Date().toLocaleDateString("fr-FR"), value: 10000 }],
-          marketMode: "real",
-          learningHearts: 4,
-          lastHeartsResetDate: today
-        };
-        try {
-          await setDoc(userDocRef, initialProfile);
-        } catch (err) {
-          handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}`);
-        }
-        setProfile(initialProfile);
-      }
-    } catch (e) {
-      console.error("Failed to sync auth success profile with Firestore:", e);
     }
   };
 
@@ -770,14 +684,14 @@ export default function App() {
     }
   }, []);
 
-  // Save profile to storage and Firestore/Supabase whenever it updates
+  // Save profile to storage and Supabase whenever it updates
   useEffect(() => {
-    if (firebaseUser && firebaseUser.uid !== "local_user") {
-      if (firebaseUser.isSupabase) {
+    if (authUser && authUser.uid !== "local_user") {
+      if (authUser.isSupabase) {
         const supabase = getSupabaseClient();
         if (supabase) {
           supabase.from("profiles").upsert({
-            id: firebaseUser.uid,
+            id: authUser.uid,
             username: profile.username,
             xp: profile.xp,
             level: profile.level,
@@ -794,19 +708,10 @@ export default function App() {
             }
           });
         }
-      } else {
-        const userDocRef = doc(db, "users", firebaseUser.uid);
-        setDoc(userDocRef, profile).catch((err) => {
-          try {
-            handleFirestoreError(err, OperationType.WRITE, `users/${firebaseUser.uid}`);
-          } catch (e) {
-            console.error("Error saving profile to Firestore:", e);
-          }
-        });
       }
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
-  }, [profile, firebaseUser]);
+  }, [profile, authUser]);
 
   // Save conversations to storage
   useEffect(() => {
@@ -1203,7 +1108,7 @@ export default function App() {
     );
   }
 
-  if (!firebaseUser) {
+  if (!authUser) {
     return (
       <AuthScreen
         t={t}
@@ -1486,28 +1391,22 @@ export default function App() {
                   </div>
 
                   {/* Sign Out Button */}
-                  {firebaseUser && (
+                  {authUser && (
                     <div className="pt-1">
                       <button
                         type="button"
                         onClick={async () => {
-                          if (firebaseUser.uid === "local_user") {
+                          if (authUser.uid === "local_user") {
                             localStorage.removeItem("finance_bridge_auth_mode");
                             localStorage.removeItem("finance_bridge_local_username");
-                            setFirebaseUser(null);
-                          } else if (firebaseUser.isSupabase) {
+                            setAuthUser(null);
+                          } else if (authUser.isSupabase) {
                             const supabase = getSupabaseClient();
                             if (supabase) {
                               await supabase.auth.signOut();
                             }
                             localStorage.removeItem("finance_bridge_auth_mode");
-                            setFirebaseUser(null);
-                          } else {
-                            try {
-                              await signOut(auth);
-                            } catch (err) {
-                              console.error("Error signing out:", err);
-                            }
+                            setAuthUser(null);
                           }
                         }}
                         className="w-full py-2 px-3 focus:outline-hidden rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-black tracking-wide uppercase transition flex items-center justify-center gap-2 cursor-pointer"
