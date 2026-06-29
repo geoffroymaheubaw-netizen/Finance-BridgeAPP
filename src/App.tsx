@@ -534,39 +534,85 @@ export default function App() {
   useEffect(() => {
     let active = true;
 
+    const fetchBatchWithProxies = async (symbols: string[]): Promise<any[]> => {
+      const cacheBuster = Math.floor(Math.random() * 1000000);
+      const url = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${symbols.join(",")}&nocache=${cacheBuster}`;
+      
+      // 1. Try cors.lol (extremely fast, designed specifically for open API fetches)
+      try {
+        const res = await fetch(`https://cors.lol/?url=${encodeURIComponent(url)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.quoteResponse?.result) {
+            return data.quoteResponse.result;
+          }
+        }
+      } catch (e) {
+        console.warn("cors.lol failed for batch:", symbols, e);
+      }
+
+      // 2. Try corsproxy.io (direct proxy fallback)
+      try {
+        const res = await fetch(`https://corsproxy.io/?url=${encodeURIComponent(url)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.quoteResponse?.result) {
+            return data.quoteResponse.result;
+          }
+        }
+      } catch (e) {
+        console.warn("corsproxy.io failed for batch:", symbols, e);
+      }
+
+      // 3. Try codetabs proxy
+      try {
+        const res = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.quoteResponse?.result) {
+            return data.quoteResponse.result;
+          }
+        }
+      } catch (e) {
+        console.warn("codetabs failed for batch:", symbols, e);
+      }
+
+      // 4. Try allorigins as a final fallback
+      try {
+        const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}&_=${Date.now()}`);
+        if (res.ok) {
+          const json = await res.json();
+          const data = JSON.parse(json.contents);
+          if (data?.quoteResponse?.result) {
+            return data.quoteResponse.result;
+          }
+        }
+      } catch (e) {
+        console.warn("allorigins failed for batch:", symbols, e);
+      }
+
+      return [];
+    };
+
     const fetchRealStocksClientFallback = async () => {
       try {
         const yahooSymbols = INITIAL_STOCKS.map(s => s.symbol === "MC" ? "MC.PA" : s.symbol);
-        // Add a random parameter to the Yahoo Finance API URL to bust any caches on the proxy/server side
-        const cacheBuster = Math.floor(Math.random() * 1000000);
-        const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${yahooSymbols.join(",")}&nocache=${cacheBuster}`;
         
-        let rawData = null;
-
-        // Try CORSProxy.io first as it is fast and direct
-        try {
-          const corsProxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(url)}`;
-          const res = await fetch(corsProxyUrl);
-          if (res.ok) {
-            rawData = await res.json();
-          }
-        } catch (e) {
-          console.warn("corsproxy.io fallback failed, trying allorigins:", e);
+        // Split the 51 symbols into batches of 17 (3 batches total) to avoid length limits and Yahoo restrictions
+        const batchSize = 17;
+        const batches: string[][] = [];
+        for (let i = 0; i < yahooSymbols.length; i += batchSize) {
+          batches.push(yahooSymbols.slice(i, i + batchSize));
         }
 
-        // Fallback to AllOrigins if first proxy fails or returns bad data
-        if (!rawData || !rawData.quoteResponse) {
-          const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}&_=${Date.now()}`;
-          const res = await fetch(allOriginsUrl);
-          if (res.ok) {
-            const json = await res.json();
-            rawData = JSON.parse(json.contents);
-          }
-        }
+        // Fetch batches in parallel
+        const resultsArray = await Promise.all(
+          batches.map(batch => fetchBatchWithProxies(batch))
+        );
 
-        const quotes = rawData?.quoteResponse?.result || [];
+        const quotes = resultsArray.flat().filter(Boolean);
         
-        if (active && Array.isArray(quotes) && quotes.length > 0) {
+        if (active && quotes.length > 0) {
           const quotesMap = new Map<string, any>();
           quotes.forEach((q: any) => {
             if (q && q.symbol) {
