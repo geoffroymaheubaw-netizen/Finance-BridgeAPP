@@ -305,6 +305,12 @@ export default function App() {
         if (parsed.learningHearts === undefined) {
           parsed.learningHearts = 4;
         }
+        if (parsed.aiMode === undefined) {
+          parsed.aiMode = "backend";
+        }
+        if (parsed.geminiApiKey === undefined) {
+          parsed.geminiApiKey = "";
+        }
         if (!parsed.lastHeartsResetDate) {
           parsed.lastHeartsResetDate = today;
         } else if (parsed.lastHeartsResetDate !== today) {
@@ -1038,15 +1044,64 @@ export default function App() {
     );
     setIsGenerating(true);
 
+    const isGitHubPages = window.location.hostname.endsWith("github.io");
+    const useClientSide = profile.aiMode === "client" || isGitHubPages;
+
     try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: text,
-          history: updatedUserMessages.slice(-10) // provide context of past 10 exchanges
-        })
-      });
+      let response: Response;
+
+      if (useClientSide) {
+        if (!profile.geminiApiKey || !profile.geminiApiKey.trim()) {
+          throw new Error("CLIENT_KEY_MISSING");
+        }
+
+        const systemInstruction = `Vous êtes "Finance Bridge AI", un assistant financier virtuel de haute performance et hautement pédagogue. Vos rôles :
+1. Aider et guider les utilisateurs dans l'apprentissage de l'investissement en bourse.
+2. Expliquer de manière simple, claire et accessible les concepts financiers (valeur refuge, dividende, PE Ratio, volatilité, ETF, obligations, ordres au marché/limite).
+3. Rendre la bourse engageante, amusante et décomplexée pour les débutants.
+4. Ajouter un court rappel à la fin si des conseils d'achat d'actions spécifiques sont demandés ("Avertissement : Les informations éducatives fournies ne constituent pas des conseils financiers officiels.").
+
+Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant, comme l'oiseau de Duolingo de la finance. Rédigez des réponses bien espacées en Markdown avec de jolies listes à puces.`;
+
+        const contents: any[] = [];
+        if (updatedUserMessages.length > 1) {
+          // Add context up to 10 previous messages
+          updatedUserMessages.slice(-11, -1).forEach((msg) => {
+            contents.push({
+              role: msg.sender === "user" ? "user" : "model",
+              parts: [{ text: msg.text }]
+            });
+          });
+        }
+        contents.push({
+          role: "user",
+          parts: [{ text: text }]
+        });
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:streamGenerateContent?key=${profile.geminiApiKey.trim()}&alt=sse`;
+        response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents,
+            systemInstruction: {
+              parts: [{ text: systemInstruction }]
+            },
+            generationConfig: {
+              temperature: 0.7
+            }
+          })
+        });
+      } else {
+        response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: text,
+            history: updatedUserMessages.slice(-10) // provide context of past 10 exchanges
+          })
+        });
+      }
 
       if (!response.ok) {
         throw new Error("L'API a retourné un statut invalide.");
@@ -1072,7 +1127,7 @@ export default function App() {
       );
 
       const contentType = response.headers.get("content-type");
-      if (contentType && contentType.includes("text/event-stream")) {
+      if (contentType && (contentType.includes("text/event-stream") || contentType.includes("application/json"))) {
         const reader = response.body?.getReader();
         const decoder = new TextDecoder("utf-8");
         if (!reader) throw new Error("Impossible de lire le flux de réponse.");
@@ -1091,41 +1146,66 @@ export default function App() {
           for (const line of lines) {
             const trimmed = line.trim();
             if (!trimmed) continue;
+            
+            // Handle standard SSE line or raw line
+            let dataStr = trimmed;
             if (trimmed.startsWith("data: ")) {
-              const dataStr = trimmed.substring(6).trim();
-              if (dataStr === "[DONE]") {
-                break;
+              dataStr = trimmed.substring(6).trim();
+            } else if (trimmed.startsWith("data:")) {
+              dataStr = trimmed.substring(5).trim();
+            } else {
+              // Might be a direct JSON chunk in some streaming environments
+              if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+                continue;
               }
-              try {
-                const parsed = JSON.parse(dataStr);
-                if (parsed.text) {
-                  streamingText += parsed.text;
-                  setConversations((prev) => 
-                    prev.map((c) => {
-                      if (c.id === (currentConv ? currentConv.id : activeConversationId)) {
-                        return {
-                          ...c,
-                          messages: [...updatedUserMessages, {
-                            sender: 'ai',
-                            text: streamingText,
-                            timestamp: initialAiReply.timestamp
-                          }]
-                        };
-                      }
-                      return c;
-                    })
-                  );
-                } else if (parsed.error) {
-                  throw new Error(parsed.error);
-                }
-              } catch (err) {
-                console.warn("Could not parse JSON chunk:", dataStr, err);
+            }
+
+            if (dataStr === "[DONE]") {
+              break;
+            }
+
+            try {
+              const parsed = JSON.parse(dataStr);
+              let textChunk = "";
+              if (parsed.text) {
+                textChunk = parsed.text;
+              } else if (parsed?.candidates?.[0]?.content?.parts?.[0]?.text) {
+                textChunk = parsed.candidates[0].content.parts[0].text;
               }
+
+              if (textChunk) {
+                streamingText += textChunk;
+                setConversations((prev) => 
+                  prev.map((c) => {
+                    if (c.id === (currentConv ? currentConv.id : activeConversationId)) {
+                      return {
+                        ...c,
+                        messages: [...updatedUserMessages, {
+                          sender: 'ai',
+                          text: streamingText,
+                          timestamp: initialAiReply.timestamp
+                        }]
+                      };
+                    }
+                    return c;
+                  })
+                );
+              } else if (parsed.error) {
+                throw new Error(parsed.error?.message || JSON.stringify(parsed.error));
+              }
+            } catch (err) {
+              // Non-fatal parse issue or incomplete chunk, can be ignored
             }
           }
         }
       } else {
         const data = await response.json();
+        let fallbackText = "Pardon, je n'ai pas pu analyser la question.";
+        if (data.text) {
+          fallbackText = data.text;
+        } else if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+          fallbackText = data.candidates[0].content.parts[0].text;
+        }
         setConversations((prev) => 
           prev.map((c) => {
             if (c.id === (currentConv ? currentConv.id : activeConversationId)) {
@@ -1133,7 +1213,7 @@ export default function App() {
                 ...c,
                 messages: [...updatedUserMessages, {
                   sender: 'ai',
-                  text: data.text || "Pardon, je n'ai pas pu analyser la question.",
+                  text: fallbackText,
                   timestamp: initialAiReply.timestamp
                 }]
               };
@@ -1144,9 +1224,19 @@ export default function App() {
       }
     } catch (e: any) {
       console.error(e);
+      let errMsg = "Oups ! Je rencontre un problème technique temporaire pour interroger Gemini AI. Veuillez vérifier que votre clé GEMINI_API_KEY est bien renseignée dans le panel Secrets de l'application.";
+      if (e.message === "CLIENT_KEY_MISSING") {
+        errMsg = lang === "fr"
+          ? "Bienvenue sur la version statique de Finance Bridge (publiée sur GitHub Pages) ! 🚀\n\nPour pouvoir échanger avec le Conseiller IA, vous devez simplement renseigner votre clé API Gemini personnelle (gratuite et hautement sécurisée) dans l'onglet de Configuration ⚙️ en haut à droite de l'application.\n\n*Note : Votre clé reste conservée uniquement dans votre navigateur local (localStorage) et n'est jamais transmise à aucun tiers.*"
+          : "Welcome to the static GitHub Pages version of Finance Bridge! 🚀\n\nTo interact with the AI Advisor, you just need to provide your personal Gemini API Key (free and highly secure) in the Configuration tab ⚙️ at the top right of the application.\n\n*Note: Your key is saved strictly in your local browser storage (localStorage) and is never shared with any third-party.*";
+      } else if (useClientSide) {
+        errMsg = lang === "fr"
+          ? "Erreur de connexion directe à Gemini. Veuillez vérifier la validité de votre clé API Gemini personnelle renseignée dans les options de configuration ⚙️."
+          : "Failed to connect to the Gemini API directly. Please verify the validity of your personal Gemini API Key provided in your configuration ⚙️.";
+      }
       const errReply: ChatMessage = {
         sender: 'ai',
-        text: "Oups ! Je rencontre un problème technique temporaire pour interroger Gemini AI. Veuillez vérifier que votre clé GEMINI_API_KEY est bien renseignée dans le panel Secrets de l'application.",
+        text: errMsg,
         timestamp: new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
       };
       setConversations((prev) => 
@@ -1446,6 +1536,44 @@ export default function App() {
                     </select>
                   </div>
 
+                  {/* Mode d'intégration de l'IA (pour GitHub Pages ou Local) */}
+                  <div className="space-y-1.5 pb-2 border-b border-slate-100 dark:border-slate-800">
+                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                      {lang === "fr" ? "Configuration du Conseiller IA 🤖" : "AI Advisor Configuration 🤖"}
+                    </label>
+                    <select
+                      value={profile.aiMode || "backend"}
+                      onChange={(e) => {
+                        const val = e.target.value as "backend" | "client";
+                        setProfile((prev) => ({ ...prev, aiMode: val }));
+                      }}
+                      className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-800 dark:text-white font-bold focus:outline-hidden focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                    >
+                      <option value="backend">☁️ {lang === "fr" ? "Hébergé par défaut" : "Hosted by Default"}</option>
+                      <option value="client">🔑 {lang === "fr" ? "Clé API Gemini personnelle (GitHub)" : "Personal Gemini API Key (GitHub)"}</option>
+                    </select>
+                    
+                    {(profile.aiMode === "client" || window.location.hostname.endsWith("github.io")) && (
+                      <div className="space-y-1 mt-1.5 bg-indigo-50/50 dark:bg-indigo-950/20 p-2.5 rounded-xl border border-indigo-100/50 dark:border-indigo-900/40 animate-in fade-in duration-150">
+                        <label className="text-[10px] font-extrabold text-indigo-600 dark:text-indigo-400 block">
+                          {lang === "fr" ? "Votre Clé API Gemini" : "Your Gemini API Key"}
+                        </label>
+                        <input
+                          type="password"
+                          value={profile.geminiApiKey || ""}
+                          onChange={(e) => setProfile(prev => ({ ...prev, geminiApiKey: e.target.value }))}
+                          className="w-full px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-[11px] text-slate-800 dark:text-white font-bold focus:outline-hidden focus:ring-1 focus:ring-indigo-500 font-mono"
+                          placeholder="AIzaSy..."
+                        />
+                        <p className="text-[9px] text-slate-400 dark:text-slate-500 leading-tight">
+                          {lang === "fr" 
+                            ? "Stockée 100% localement et de manière sécurisée dans votre navigateur (localStorage). Elle n'est jamais envoyée à un tiers."
+                            : "Stored 100% locally and securely in your browser (localStorage). Never shared with anyone."}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Reset Local Progress Button */}
                   <div className="pt-1">
                     <button
@@ -1469,7 +1597,9 @@ export default function App() {
                               portfolioHistory: [{ date: new Date().toLocaleDateString("fr-FR"), value: 10000 }],
                               marketMode: "real",
                               learningHearts: 4,
-                              lastHeartsResetDate: today
+                              lastHeartsResetDate: today,
+                              aiMode: profile.aiMode,
+                              geminiApiKey: profile.geminiApiKey
                             };
                             setProfile(resetProfile);
                             localStorage.setItem(STORAGE_KEY, JSON.stringify(resetProfile));

@@ -85,6 +85,8 @@ export interface UserProfile {
   marketMode?: 'real' | 'continuous';
   learningHearts?: number;
   lastHeartsResetDate?: string; // YYYY-MM-DD
+  geminiApiKey?: string;
+  aiMode?: 'backend' | 'client';
 }
 
 export interface ChatMessage {
