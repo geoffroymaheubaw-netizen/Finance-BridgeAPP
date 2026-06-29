@@ -1,12 +1,7 @@
 import React, { useState } from "react";
-import { 
-  getSupabaseClient, 
-  isSupabaseConfigured, 
-  getSupabaseConfig, 
-  saveSupabaseConfigLocally 
-} from "../lib/supabase";
+import { getSupabaseClient, getSupabaseConfig, saveSupabaseConfig } from "../lib/supabase";
 import { motion, AnimatePresence } from "motion/react";
-import { Briefcase, Mail, Lock, User as UserIcon, AlertCircle, ArrowRight } from "lucide-react";
+import { Mail, Lock, User as UserIcon, AlertCircle, ArrowRight, Settings, ChevronDown, ChevronUp } from "lucide-react";
 import FinanceBridgeLogo from "./FinanceBridgeLogo";
 
 interface AuthScreenProps {
@@ -22,15 +17,30 @@ export default function AuthScreen({ t, onSuccess }: AuthScreenProps) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
-  const [authEngine, setAuthEngine] = useState<"supabase">("supabase");
-  const [showSupabaseSettings, setShowSupabaseSettings] = useState<boolean>(false);
-  const [supabaseUrl, setSupabaseUrl] = useState<string>(getSupabaseConfig().url);
-  const [supabaseKey, setSupabaseKey] = useState<string>(getSupabaseConfig().key);
+  // Supabase Custom Config state
+  const [showConfig, setShowConfig] = useState<boolean>(false);
+  const [configUrl, setConfigUrl] = useState<string>(getSupabaseConfig().url);
+  const [configKey, setConfigKey] = useState<string>(getSupabaseConfig().key);
+  const [configSaved, setConfigSaved] = useState<boolean>(false);
+
+  const handleSaveConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    saveSupabaseConfig(configUrl, configKey);
+    setConfigSaved(true);
+    setTimeout(() => setConfigSaved(false), 3000);
+  };
 
   // Validate and submit Email auth
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      setErrorMsg("Veuillez configurer l'URL et la clé d'API Supabase dans les paramètres ci-dessous ou dans les variables d'environnement.");
+      setShowConfig(true);
+      return;
+    }
 
     if (!email || !password || (isSignUp && !username)) {
       setErrorMsg("Veuillez remplir tous les champs requis.");
@@ -42,12 +52,6 @@ export default function AuthScreen({ t, onSuccess }: AuthScreenProps) {
     }
 
     setLoading(true);
-    const supabase = getSupabaseClient();
-    if (!supabase) {
-      setErrorMsg("Le client Supabase n'est pas initialisé. Veuillez configurer l'URL et la clé Supabase.");
-      setLoading(false);
-      return;
-    }
     try {
       if (isSignUp) {
         const { data, error } = await supabase.auth.signUp({
@@ -59,7 +63,9 @@ export default function AuthScreen({ t, onSuccess }: AuthScreenProps) {
             }
           }
         });
+
         if (error) throw error;
+
         if (data.user) {
           localStorage.setItem("finance_bridge_auth_mode", "supabase");
           onSuccess({
@@ -69,18 +75,20 @@ export default function AuthScreen({ t, onSuccess }: AuthScreenProps) {
             isSupabase: true
           }, true, username);
         } else {
-          throw new Error("Une erreur s'est produite lors de la création du compte.");
+          throw new Error("Une erreur s'est produite lors de l'inscription.");
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
-          password
+          password,
         });
+
         if (error) throw error;
+
         if (data.user) {
           localStorage.setItem("finance_bridge_auth_mode", "supabase");
-          const userMetadata = data.user.user_metadata || {};
-          const finalUsername = userMetadata.username || data.user.email?.split("@")[0] || "Trader";
+          const metadata = data.user.user_metadata || {};
+          const finalUsername = metadata.username || data.user.email?.split("@")[0] || "Trader";
           onSuccess({
             uid: data.user.id,
             email: data.user.email,
@@ -93,7 +101,11 @@ export default function AuthScreen({ t, onSuccess }: AuthScreenProps) {
       }
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || "Erreur de connexion/inscription Supabase.");
+      let errMsg = err.message || "Erreur d'authentification Supabase.";
+      if (err.status === 400 || err.status === 422) {
+        errMsg = "Identifiants invalides ou mot de passe trop court.";
+      }
+      setErrorMsg(errMsg);
     } finally {
       setLoading(false);
     }
@@ -155,8 +167,8 @@ export default function AuthScreen({ t, onSuccess }: AuthScreenProps) {
       </div>
 
       {/* Connection Mode / Form Side */}
-      <div id="auth-form-side" className="flex-1 flex items-center justify-center p-6 md:p-12 relative">
-        <div className="w-full max-w-md">
+      <div id="auth-form-side" className="flex-1 flex flex-col justify-center items-center p-6 md:p-12 relative overflow-y-auto">
+        <div className="w-full max-w-md my-auto">
           
           {/* Header tabs toggle */}
           <div className="flex items-center justify-between mb-8">
@@ -186,8 +198,6 @@ export default function AuthScreen({ t, onSuccess }: AuthScreenProps) {
             </div>
           </div>
 
-
-
           {/* Form Content */}
           <div className="mb-6">
             <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
@@ -207,7 +217,7 @@ export default function AuthScreen({ t, onSuccess }: AuthScreenProps) {
                 className="mb-5 p-3.5 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-400 text-xs rounded-xl flex items-start gap-2.5"
               >
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span className="font-semibold leading-relaxed">{errorMsg}</span>
+                <span className="font-semibold leading-relaxed whitespace-pre-line">{errorMsg}</span>
               </motion.div>
             )}
           </AnimatePresence>
@@ -270,7 +280,7 @@ export default function AuthScreen({ t, onSuccess }: AuthScreenProps) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-600/50 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition shadow-md shadow-indigo-500/10 flex items-center justify-center gap-2 cursor-pointer mt-2"
+              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-600/50 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition shadow-md shadow-indigo-500/10 flex items-center justify-center gap-2 cursor-pointer mt-4"
             >
               {loading ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -297,6 +307,74 @@ export default function AuthScreen({ t, onSuccess }: AuthScreenProps) {
             >
               {isSignUp ? t("btnSignIn") : t("linkSignUp")}
             </button>
+          </div>
+
+          {/* Collapsible Supabase Configuration Panel */}
+          <div className="mt-8 border-t border-slate-200 dark:border-slate-800 pt-4">
+            <button
+              type="button"
+              onClick={() => setShowConfig(!showConfig)}
+              className="w-full flex items-center justify-between text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 text-xs font-mono py-1.5 transition cursor-pointer"
+            >
+              <span className="flex items-center gap-1.5 font-bold">
+                <Settings className="w-3.5 h-3.5" />
+                CONFIGURATION SUPABASE AVANCÉE
+              </span>
+              {showConfig ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+
+            <AnimatePresence>
+              {showConfig && (
+                <motion.form
+                  onSubmit={handleSaveConfig}
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden mt-3 space-y-3"
+                >
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 font-mono">
+                      SUPABASE URL
+                    </label>
+                    <input
+                      type="text"
+                      value={configUrl}
+                      onChange={(e) => setConfigUrl(e.target.value)}
+                      placeholder="https://your-project.supabase.co"
+                      className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-mono focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 font-mono">
+                      SUPABASE ANON KEY
+                    </label>
+                    <input
+                      type="password"
+                      value={configKey}
+                      onChange={(e) => setConfigKey(e.target.value)}
+                      placeholder="your-anon-key-string"
+                      className="w-full px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-mono focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <button
+                      type="submit"
+                      className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-[10px] uppercase font-bold tracking-wider transition cursor-pointer"
+                    >
+                      Enregistrer
+                    </button>
+                    {configSaved && (
+                      <span className="text-[10px] text-emerald-500 font-bold font-mono">
+                        ✓ Enregistré avec succès
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-slate-500 leading-relaxed font-sans">
+                    Les clés saisies ici sont stockées uniquement localement dans votre navigateur pour vos tests.
+                  </p>
+                </motion.form>
+              )}
+            </AnimatePresence>
           </div>
 
         </div>

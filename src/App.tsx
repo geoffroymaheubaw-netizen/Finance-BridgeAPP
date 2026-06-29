@@ -47,124 +47,40 @@ export default function App() {
   const [authUser, setAuthUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState<boolean>(true);
 
-  // Subscribe to supabase auth state changes
+  // Subscribe to Supabase auth state changes
   useEffect(() => {
     const supabase = getSupabaseClient();
-    if (supabase) {
-      // Subscribe to Supabase auth state change
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-        if (session?.user) {
-          const user = session.user;
-          const userMetadata = user.user_metadata || {};
-          const finalUsername = userMetadata.username || user.email?.split("@")[0] || "Trader";
-          
-          const supabaseUser = {
-            uid: user.id,
-            email: user.email,
-            displayName: finalUsername,
-            isSupabase: true
-          };
-          setAuthUser(supabaseUser);
-
-          // Fetch profile from Supabase
-          try {
-            const { data: profileData, error } = await supabase
-              .from("profiles")
-              .select("*")
-              .eq("id", user.id)
-              .single();
-
-            if (error && error.code !== "PGRST116") {
-              console.error("Error fetching Supabase profile:", error);
-            }
-
-            if (profileData) {
-              setProfile({
-                username: profileData.username || finalUsername,
-                xp: Number(profileData.xp || 0),
-                level: Number(profileData.level || 1),
-                streak: Number(profileData.streak || 1),
-                lastActive: profileData.lastActive || new Date().toISOString(),
-                cash: Number(profileData.cash || 10000),
-                completedLessons: profileData.completed_lessons || [],
-                portfolio: profileData.portfolio || [],
-                transactions: profileData.transactions || [],
-                portfolioHistory: profileData.portfolio_history || [{ date: new Date().toLocaleDateString("fr-FR"), value: 10000 }],
-                marketMode: profileData.marketMode || "real",
-                learningHearts: Number(profileData.learning_hearts || 4),
-                lastHeartsResetDate: profileData.last_hearts_reset_date || new Date().toISOString().substring(0, 10)
-              });
-            } else {
-              const today = new Date().toISOString().substring(0, 10);
-              const initialProfile: UserProfile = {
-                username: finalUsername,
-                xp: 0,
-                level: 1,
-                streak: 1,
-                lastActive: new Date().toISOString(),
-                cash: 10000,
-                completedLessons: [],
-                portfolio: [],
-                transactions: [],
-                portfolioHistory: [{ date: new Date().toLocaleDateString("fr-FR"), value: 10000 }],
-                marketMode: "real",
-                learningHearts: 4,
-                lastHeartsResetDate: today
-              };
-              
-              // Write initial profile to Supabase
-              await supabase.from("profiles").upsert({
-                id: user.id,
-                username: initialProfile.username,
-                xp: initialProfile.xp,
-                level: initialProfile.level,
-                streak: initialProfile.streak,
-                cash: initialProfile.cash,
-                completed_lessons: initialProfile.completedLessons,
-                portfolio: initialProfile.portfolio,
-                transactions: initialProfile.transactions,
-                portfolio_history: initialProfile.portfolioHistory,
-                updated_at: new Date().toISOString()
-              });
-              
-              setProfile(initialProfile);
-            }
-          } catch (err) {
-            console.error("Failed loading Supabase user profile:", err);
-          }
-        } else {
-          setAuthUser(null);
-        }
-        setAuthLoading(false);
-      });
-
-      return () => {
-        subscription.unsubscribe();
-      };
-    } else {
-      setAuthUser(null);
+    if (!supabase) {
       setAuthLoading(false);
+      return;
     }
-  }, []);
 
-  const handleAuthSuccess = async (user: any, isNewUser: boolean, chosenUsername?: string) => {
-    setAuthUser(user);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const user = session?.user;
+      if (user) {
+        const metadata = user.user_metadata || {};
+        const finalUsername = metadata.username || user.email?.split("@")[0] || "Trader";
+        const supabaseUser = {
+          uid: user.id,
+          email: user.email,
+          displayName: finalUsername,
+          isSupabase: true
+        };
+        setAuthUser(supabaseUser);
 
-    if (user.isSupabase) {
-      localStorage.setItem("finance_bridge_auth_mode", "supabase");
-      const today = new Date().toISOString().substring(0, 10);
-      const supabase = getSupabaseClient();
-      if (supabase) {
+        // Fetch profile from Supabase
         try {
-          const { data: profileData } = await supabase
-            .from("profiles")
+          const { data, error } = await supabase
+            .from("profiles" as any)
             .select("*")
-            .eq("id", user.uid)
+            .eq("id", user.id)
             .single();
+
+          const profileData = data as any;
 
           if (profileData) {
             setProfile({
-              username: profileData.username || user.displayName || chosenUsername,
+              username: profileData.username || finalUsername,
               xp: Number(profileData.xp || 0),
               level: Number(profileData.level || 1),
               streak: Number(profileData.streak || 1),
@@ -176,11 +92,12 @@ export default function App() {
               portfolioHistory: profileData.portfolio_history || [{ date: new Date().toLocaleDateString("fr-FR"), value: 10000 }],
               marketMode: profileData.marketMode || "real",
               learningHearts: Number(profileData.learning_hearts || 4),
-              lastHeartsResetDate: profileData.last_hearts_reset_date || today
+              lastHeartsResetDate: profileData.last_hearts_reset_date || new Date().toISOString().substring(0, 10)
             });
           } else {
+            const today = new Date().toISOString().substring(0, 10);
             const initialProfile: UserProfile = {
-              username: chosenUsername || user.displayName || user.email?.split("@")[0] || "Trader",
+              username: finalUsername,
               xp: 0,
               level: 1,
               streak: 1,
@@ -194,8 +111,10 @@ export default function App() {
               learningHearts: 4,
               lastHeartsResetDate: today
             };
-            await supabase.from("profiles").upsert({
-              id: user.uid,
+            
+            // Write initial profile to Supabase
+            await supabase.from("profiles" as any).upsert({
+              id: user.id,
               username: initialProfile.username,
               xp: initialProfile.xp,
               level: initialProfile.level,
@@ -205,15 +124,96 @@ export default function App() {
               portfolio: initialProfile.portfolio,
               transactions: initialProfile.transactions,
               portfolio_history: initialProfile.portfolioHistory,
+              marketMode: initialProfile.marketMode,
+              learning_hearts: initialProfile.learningHearts,
+              last_hearts_reset_date: initialProfile.lastHeartsResetDate,
               updated_at: new Date().toISOString()
-            });
+            } as any);
             setProfile(initialProfile);
           }
-        } catch (e) {
-          console.error("Error setting Supabase success profile:", e);
+        } catch (err) {
+          console.error("Failed loading Supabase user profile:", err);
         }
+      } else {
+        setAuthUser(null);
       }
-      return;
+      setAuthLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleAuthSuccess = async (user: any, isNewUser: boolean, chosenUsername?: string) => {
+    setAuthUser(user);
+    localStorage.setItem("finance_bridge_auth_mode", "supabase");
+    const today = new Date().toISOString().substring(0, 10);
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { data } = await supabase
+          .from("profiles" as any)
+          .select("*")
+          .eq("id", user.uid)
+          .single();
+
+        const profileData = data as any;
+
+        if (profileData) {
+          setProfile({
+            username: profileData.username || user.displayName || chosenUsername || "Trader",
+            xp: Number(profileData.xp || 0),
+            level: Number(profileData.level || 1),
+            streak: Number(profileData.streak || 1),
+            lastActive: profileData.lastActive || new Date().toISOString(),
+            cash: Number(profileData.cash || 10000),
+            completedLessons: profileData.completed_lessons || [],
+            portfolio: profileData.portfolio || [],
+            transactions: profileData.transactions || [],
+            portfolioHistory: profileData.portfolio_history || [{ date: new Date().toLocaleDateString("fr-FR"), value: 10000 }],
+            marketMode: profileData.marketMode || "real",
+            learningHearts: Number(profileData.learning_hearts || 4),
+            lastHeartsResetDate: profileData.last_hearts_reset_date || today
+          });
+        } else {
+          const initialProfile: UserProfile = {
+            username: chosenUsername || user.displayName || user.email?.split("@")[0] || "Trader",
+            xp: 0,
+            level: 1,
+            streak: 1,
+            lastActive: new Date().toISOString(),
+            cash: 10000,
+            completedLessons: [],
+            portfolio: [],
+            transactions: [],
+            portfolioHistory: [{ date: new Date().toLocaleDateString("fr-FR"), value: 10000 }],
+            marketMode: "real",
+            learningHearts: 4,
+            lastHeartsResetDate: today
+          };
+          
+          await supabase.from("profiles" as any).upsert({
+            id: user.uid,
+            username: initialProfile.username,
+            xp: initialProfile.xp,
+            level: initialProfile.level,
+            streak: initialProfile.streak,
+            cash: initialProfile.cash,
+            completed_lessons: initialProfile.completedLessons,
+            portfolio: initialProfile.portfolio,
+            transactions: initialProfile.transactions,
+            portfolio_history: initialProfile.portfolioHistory,
+            marketMode: initialProfile.marketMode,
+            learning_hearts: initialProfile.learningHearts,
+            last_hearts_reset_date: initialProfile.lastHeartsResetDate,
+            updated_at: new Date().toISOString()
+          } as any);
+          setProfile(initialProfile);
+        }
+      } catch (e) {
+        console.error("Error setting Supabase success profile:", e);
+      }
     }
   };
 
@@ -719,28 +719,32 @@ export default function App() {
 
   // Save profile to storage and Supabase whenever it updates
   useEffect(() => {
-    if (authUser && authUser.uid !== "local_user") {
-      if (authUser.isSupabase) {
-        const supabase = getSupabaseClient();
-        if (supabase) {
-          supabase.from("profiles").upsert({
-            id: authUser.uid,
-            username: profile.username,
-            xp: profile.xp,
-            level: profile.level,
-            streak: profile.streak,
-            cash: profile.cash,
-            completed_lessons: profile.completedLessons,
-            portfolio: profile.portfolio,
-            transactions: profile.transactions,
-            portfolio_history: profile.portfolioHistory,
-            updated_at: new Date().toISOString()
-          }).then(({ error }) => {
-            if (error) {
-              console.error("Error saving profile to Supabase:", error);
-            }
-          });
-        }
+    if (authUser) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        const saveToSupabase = async () => {
+          try {
+            await supabase.from("profiles" as any).upsert({
+              id: authUser.uid,
+              username: profile.username,
+              xp: profile.xp,
+              level: profile.level,
+              streak: profile.streak,
+              cash: profile.cash,
+              completed_lessons: profile.completedLessons,
+              portfolio: profile.portfolio,
+              transactions: profile.transactions,
+              portfolio_history: profile.portfolioHistory,
+              marketMode: profile.marketMode,
+              learning_hearts: profile.learningHearts,
+              last_hearts_reset_date: profile.lastHeartsResetDate,
+              updated_at: new Date().toISOString()
+            } as any);
+          } catch (error) {
+            console.error("Error saving profile to Supabase:", error);
+          }
+        };
+        saveToSupabase();
       }
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
@@ -1429,9 +1433,13 @@ export default function App() {
                       <button
                         type="button"
                         onClick={async () => {
-                          const supabase = getSupabaseClient();
-                          if (supabase) {
-                            await supabase.auth.signOut();
+                          try {
+                            const supabase = getSupabaseClient();
+                            if (supabase) {
+                              await supabase.auth.signOut();
+                            }
+                          } catch (err) {
+                            console.error("Error logging out from Supabase:", err);
                           }
                           localStorage.removeItem("finance_bridge_auth_mode");
                           setAuthUser(null);
@@ -1456,16 +1464,14 @@ export default function App() {
                           if (btn) {
                             if (btn.getAttribute("data-confirm") === "yes") {
                               // Perform deletion
-                              const supabase = getSupabaseClient();
-                              if (supabase) {
-                                try {
-                                  // Delete user's row from the Supabase profiles database table
+                              try {
+                                const supabase = getSupabaseClient();
+                                if (supabase) {
                                   await supabase.from("profiles").delete().eq("id", authUser.uid);
-                                  // Log them out
                                   await supabase.auth.signOut();
-                                } catch (err) {
-                                  console.error("Error deleting Supabase profile:", err);
                                 }
+                              } catch (err) {
+                                console.error("Error deleting Supabase profile:", err);
                               }
                               localStorage.removeItem("finance_bridge_auth_mode");
                               localStorage.removeItem(STORAGE_KEY);

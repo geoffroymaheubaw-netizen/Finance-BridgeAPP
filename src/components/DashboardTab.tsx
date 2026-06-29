@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { UserProfile } from "../types";
 import { Award, Zap, Flame, TrendingUp, BookOpen, ChevronRight } from "lucide-react";
-import { getSupabaseClient } from "../lib/supabase";
 
 interface DashboardTabProps {
   profile: UserProfile;
