@@ -30,16 +30,6 @@ export default function AuthScreen({ t, onSuccess }: AuthScreenProps) {
     setTimeout(() => setConfigSaved(false), 3000);
   };
 
-  const handleContinueAsGuest = () => {
-    localStorage.setItem("finance_bridge_auth_mode", "guest");
-    onSuccess({
-      uid: "guest-user",
-      email: "guest@example.com",
-      displayName: "Invité (Mode Local)",
-      isGuest: true
-    }, false, "Invité");
-  };
-
   // Validate and submit Email auth
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -303,19 +293,6 @@ export default function AuthScreen({ t, onSuccess }: AuthScreenProps) {
             </button>
           </form>
 
-          <div className="relative flex py-3 items-center">
-            <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
-            <span className="flex-shrink mx-4 text-slate-400 text-[10px] font-mono font-bold uppercase tracking-wider">OU</span>
-            <div className="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleContinueAsGuest}
-            className="w-full py-3 border border-dashed border-slate-300 dark:border-slate-800 hover:border-indigo-500/50 hover:bg-slate-100/50 dark:hover:bg-slate-900/50 text-slate-600 dark:text-slate-300 font-bold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <span>Continuer sans compte (Mode Invité / Hors-ligne)</span>
-          </button>
 
           {/* Helper Footnote to switch tab */}
           <div className="mt-8 text-center text-xs">
