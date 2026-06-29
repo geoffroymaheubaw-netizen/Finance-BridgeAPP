@@ -986,6 +986,10 @@ Veuillez respecter le schéma JSON requis.`;
         }
       });
 
+      if (Object.keys(resultsMap).length === 0) {
+        return res.status(502).json({ error: "All live stock requests failed on server, client should fallback", fallback: INITIAL_STOCKS });
+      }
+
       // Merge and update stock rates
       const updatedStocks = INITIAL_STOCKS.map((stock) => {
         const live = resultsMap[stock.symbol];
@@ -1016,11 +1020,8 @@ Veuillez respecter le schéma JSON requis.`;
       lastStocksFetch = now;
       res.json(updatedStocks);
     } catch (error: any) {
-      console.warn(`[Prices API - Graceful Fallback] Using initial static data for stocks: ${error.message}`);
-      if (!stocksCache) {
-        stocksCache = INITIAL_STOCKS;
-      }
-      res.json(stocksCache);
+      console.warn(`[Prices API] Failed to fetch real-time stocks: ${error.message}`);
+      res.status(502).json({ error: "Failed to fetch real-time stocks", fallback: INITIAL_STOCKS });
     }
   });
 

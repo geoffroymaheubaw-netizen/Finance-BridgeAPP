@@ -18,21 +18,26 @@ export function getSupabaseConfig(): SupabaseConfig {
 let supabaseInstance: ReturnType<typeof createClient> | null = null;
 
 export function getSupabaseClient() {
-  const { url, key } = getSupabaseConfig();
-  if (!url || !key) {
+  try {
+    const { url, key } = getSupabaseConfig();
+    if (!url || !key || url === "undefined" || key === "undefined") {
+      return null;
+    }
+    
+    if (!supabaseInstance) {
+      supabaseInstance = createClient(url, key, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+        }
+      });
+    }
+    return supabaseInstance;
+  } catch (error) {
+    console.error("Failed to initialize Supabase client:", error);
     return null;
   }
-  
-  if (!supabaseInstance) {
-    supabaseInstance = createClient(url, key, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-      }
-    });
-  }
-  return supabaseInstance;
 }
 
 export function saveSupabaseConfig(url: string, key: string) {
