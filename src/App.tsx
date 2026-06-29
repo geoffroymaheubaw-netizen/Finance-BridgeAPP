@@ -47,119 +47,100 @@ export default function App() {
   const [authUser, setAuthUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState<boolean>(true);
 
-  // Subscribe to supabase or local auth state changes
+  // Subscribe to supabase auth state changes
   useEffect(() => {
-    const isLocal = localStorage.getItem("finance_bridge_auth_mode") === "local";
-    if (isLocal) {
-      const storedLocalName = localStorage.getItem("finance_bridge_local_username") || "Geoffroy";
-      setAuthUser({
-        uid: "local_user",
-        email: "local@financebridge.app",
-        displayName: storedLocalName
-      });
-      setAuthLoading(false);
-      return;
-    }
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      // Subscribe to Supabase auth state change
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (session?.user) {
+          const user = session.user;
+          const userMetadata = user.user_metadata || {};
+          const finalUsername = userMetadata.username || user.email?.split("@")[0] || "Trader";
+          
+          const supabaseUser = {
+            uid: user.id,
+            email: user.email,
+            displayName: finalUsername,
+            isSupabase: true
+          };
+          setAuthUser(supabaseUser);
 
-    const isSupabaseMode = localStorage.getItem("finance_bridge_auth_mode") === "supabase";
-    if (isSupabaseMode) {
-      const supabase = getSupabaseClient();
-      if (supabase) {
-        // Subscribe to Supabase auth state change
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-          if (session?.user) {
-            const user = session.user;
-            const userMetadata = user.user_metadata || {};
-            const finalUsername = userMetadata.username || user.email?.split("@")[0] || "Trader";
-            
-            const supabaseUser = {
-              uid: user.id,
-              email: user.email,
-              displayName: finalUsername,
-              isSupabase: true
-            };
-            setAuthUser(supabaseUser);
+          // Fetch profile from Supabase
+          try {
+            const { data: profileData, error } = await supabase
+              .from("profiles")
+              .select("*")
+              .eq("id", user.id)
+              .single();
 
-            // Fetch profile from Supabase
-            try {
-              const { data: profileData, error } = await supabase
-                .from("profiles")
-                .select("*")
-                .eq("id", user.id)
-                .single();
-
-              if (error && error.code !== "PGRST116") {
-                console.error("Error fetching Supabase profile:", error);
-              }
-
-              if (profileData) {
-                setProfile({
-                  username: profileData.username || finalUsername,
-                  xp: Number(profileData.xp || 0),
-                  level: Number(profileData.level || 1),
-                  streak: Number(profileData.streak || 1),
-                  lastActive: profileData.lastActive || new Date().toISOString(),
-                  cash: Number(profileData.cash || 10000),
-                  completedLessons: profileData.completed_lessons || [],
-                  portfolio: profileData.portfolio || [],
-                  transactions: profileData.transactions || [],
-                  portfolioHistory: profileData.portfolio_history || [{ date: new Date().toLocaleDateString("fr-FR"), value: 10000 }],
-                  marketMode: profileData.marketMode || "real",
-                  learningHearts: Number(profileData.learning_hearts || 4),
-                  lastHeartsResetDate: profileData.last_hearts_reset_date || new Date().toISOString().substring(0, 10)
-                });
-              } else {
-                const today = new Date().toISOString().substring(0, 10);
-                const initialProfile: UserProfile = {
-                  username: finalUsername,
-                  xp: 0,
-                  level: 1,
-                  streak: 1,
-                  lastActive: new Date().toISOString(),
-                  cash: 10000,
-                  completedLessons: [],
-                  portfolio: [],
-                  transactions: [],
-                  portfolioHistory: [{ date: new Date().toLocaleDateString("fr-FR"), value: 10000 }],
-                  marketMode: "real",
-                  learningHearts: 4,
-                  lastHeartsResetDate: today
-                };
-                
-                // Write initial profile to Supabase
-                await supabase.from("profiles").upsert({
-                  id: user.id,
-                  username: initialProfile.username,
-                  xp: initialProfile.xp,
-                  level: initialProfile.level,
-                  streak: initialProfile.streak,
-                  cash: initialProfile.cash,
-                  completed_lessons: initialProfile.completedLessons,
-                  portfolio: initialProfile.portfolio,
-                  transactions: initialProfile.transactions,
-                  portfolio_history: initialProfile.portfolioHistory,
-                  updated_at: new Date().toISOString()
-                });
-                
-                setProfile(initialProfile);
-              }
-            } catch (err) {
-              console.error("Failed loading Supabase user profile:", err);
+            if (error && error.code !== "PGRST116") {
+              console.error("Error fetching Supabase profile:", error);
             }
-          } else {
-            setAuthUser(null);
-          }
-          setAuthLoading(false);
-        });
 
-        return () => {
-          subscription.unsubscribe();
-        };
-      } else {
-        localStorage.removeItem("finance_bridge_auth_mode");
-        setAuthUser(null);
+            if (profileData) {
+              setProfile({
+                username: profileData.username || finalUsername,
+                xp: Number(profileData.xp || 0),
+                level: Number(profileData.level || 1),
+                streak: Number(profileData.streak || 1),
+                lastActive: profileData.lastActive || new Date().toISOString(),
+                cash: Number(profileData.cash || 10000),
+                completedLessons: profileData.completed_lessons || [],
+                portfolio: profileData.portfolio || [],
+                transactions: profileData.transactions || [],
+                portfolioHistory: profileData.portfolio_history || [{ date: new Date().toLocaleDateString("fr-FR"), value: 10000 }],
+                marketMode: profileData.marketMode || "real",
+                learningHearts: Number(profileData.learning_hearts || 4),
+                lastHeartsResetDate: profileData.last_hearts_reset_date || new Date().toISOString().substring(0, 10)
+              });
+            } else {
+              const today = new Date().toISOString().substring(0, 10);
+              const initialProfile: UserProfile = {
+                username: finalUsername,
+                xp: 0,
+                level: 1,
+                streak: 1,
+                lastActive: new Date().toISOString(),
+                cash: 10000,
+                completedLessons: [],
+                portfolio: [],
+                transactions: [],
+                portfolioHistory: [{ date: new Date().toLocaleDateString("fr-FR"), value: 10000 }],
+                marketMode: "real",
+                learningHearts: 4,
+                lastHeartsResetDate: today
+              };
+              
+              // Write initial profile to Supabase
+              await supabase.from("profiles").upsert({
+                id: user.id,
+                username: initialProfile.username,
+                xp: initialProfile.xp,
+                level: initialProfile.level,
+                streak: initialProfile.streak,
+                cash: initialProfile.cash,
+                completed_lessons: initialProfile.completedLessons,
+                portfolio: initialProfile.portfolio,
+                transactions: initialProfile.transactions,
+                portfolio_history: initialProfile.portfolioHistory,
+                updated_at: new Date().toISOString()
+              });
+              
+              setProfile(initialProfile);
+            }
+          } catch (err) {
+            console.error("Failed loading Supabase user profile:", err);
+          }
+        } else {
+          setAuthUser(null);
+        }
         setAuthLoading(false);
-      }
+      });
+
+      return () => {
+        subscription.unsubscribe();
+      };
     } else {
       setAuthUser(null);
       setAuthLoading(false);
@@ -168,41 +149,6 @@ export default function App() {
 
   const handleAuthSuccess = async (user: any, isNewUser: boolean, chosenUsername?: string) => {
     setAuthUser(user);
-    if (user.uid === "local_user") {
-      const today = new Date().toISOString().substring(0, 10);
-      try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (chosenUsername) {
-            parsed.username = chosenUsername;
-          }
-          setProfile(parsed);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
-        } else {
-          const initialProfile: UserProfile = {
-            username: chosenUsername || "Geoffroy",
-            xp: 0,
-            level: 1,
-            streak: 1,
-            lastActive: new Date().toISOString(),
-            cash: 10000,
-            completedLessons: [],
-            portfolio: [],
-            transactions: [],
-            portfolioHistory: [{ date: new Date().toLocaleDateString("fr-FR"), value: 10000 }],
-            marketMode: "real",
-            learningHearts: 4,
-            lastHeartsResetDate: today
-          };
-          setProfile(initialProfile);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(initialProfile));
-        }
-      } catch (e) {
-        console.error("Local profile error:", e);
-      }
-      return;
-    }
 
     if (user.isSupabase) {
       localStorage.setItem("finance_bridge_auth_mode", "supabase");
@@ -1396,18 +1342,12 @@ export default function App() {
                       <button
                         type="button"
                         onClick={async () => {
-                          if (authUser.uid === "local_user") {
-                            localStorage.removeItem("finance_bridge_auth_mode");
-                            localStorage.removeItem("finance_bridge_local_username");
-                            setAuthUser(null);
-                          } else if (authUser.isSupabase) {
-                            const supabase = getSupabaseClient();
-                            if (supabase) {
-                              await supabase.auth.signOut();
-                            }
-                            localStorage.removeItem("finance_bridge_auth_mode");
-                            setAuthUser(null);
+                          const supabase = getSupabaseClient();
+                          if (supabase) {
+                            await supabase.auth.signOut();
                           }
+                          localStorage.removeItem("finance_bridge_auth_mode");
+                          setAuthUser(null);
                         }}
                         className="w-full py-2 px-3 focus:outline-hidden rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-black tracking-wide uppercase transition flex items-center justify-center gap-2 cursor-pointer"
                       >
@@ -1429,28 +1369,20 @@ export default function App() {
                           if (btn) {
                             if (btn.getAttribute("data-confirm") === "yes") {
                               // Perform deletion
-                              if (authUser.uid === "local_user") {
-                                // Clear all local user data
-                                localStorage.removeItem("finance_bridge_auth_mode");
-                                localStorage.removeItem("finance_bridge_local_username");
-                                localStorage.removeItem(STORAGE_KEY);
-                                setAuthUser(null);
-                              } else if (authUser.isSupabase) {
-                                const supabase = getSupabaseClient();
-                                if (supabase) {
-                                  try {
-                                    // Delete user's row from the Supabase profiles database table
-                                    await supabase.from("profiles").delete().eq("id", authUser.uid);
-                                    // Log them out
-                                    await supabase.auth.signOut();
-                                  } catch (err) {
-                                    console.error("Error deleting Supabase profile:", err);
-                                  }
+                              const supabase = getSupabaseClient();
+                              if (supabase) {
+                                try {
+                                  // Delete user's row from the Supabase profiles database table
+                                  await supabase.from("profiles").delete().eq("id", authUser.uid);
+                                  // Log them out
+                                  await supabase.auth.signOut();
+                                } catch (err) {
+                                  console.error("Error deleting Supabase profile:", err);
                                 }
-                                localStorage.removeItem("finance_bridge_auth_mode");
-                                localStorage.removeItem(STORAGE_KEY);
-                                setAuthUser(null);
                               }
+                              localStorage.removeItem("finance_bridge_auth_mode");
+                              localStorage.removeItem(STORAGE_KEY);
+                              setAuthUser(null);
                               btn.setAttribute("data-confirm", "no");
                               btn.innerHTML = `<span>✔ ${lang === "fr" ? "Compte supprimé !" : "Account Deleted!"}</span>`;
                             } else {
