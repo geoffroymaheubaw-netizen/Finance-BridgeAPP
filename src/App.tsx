@@ -85,7 +85,6 @@ export default function App() {
 
       const res = supabase.auth.onAuthStateChange(async (event, session) => {
         try {
-          clearTimeout(failsafeTimeout);
           const user = session?.user;
           if (user) {
             const metadata = user.user_metadata || {};
@@ -170,6 +169,7 @@ export default function App() {
         } catch (callbackErr) {
           console.error("Error in Supabase auth state callback:", callbackErr);
         } finally {
+          clearTimeout(failsafeTimeout);
           setAuthLoading(false);
         }
       });
