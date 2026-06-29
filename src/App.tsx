@@ -1235,7 +1235,7 @@ export default function App() {
       {/* Top Banner Header layout */}
       <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-50 text-white">
         {/* Infinite Scrolling Timezone Ticker */}
-        <div className="bg-slate-950/90 border-b border-slate-800/80 py-2.5 overflow-hidden relative select-none text-[11px] font-medium tracking-wide text-white">
+        <div className="bg-slate-950/90 border-b border-slate-800/80 py-2.5 overflow-hidden relative select-none text-[11px] font-medium tracking-wide text-white !text-white">
           <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-slate-950 to-transparent z-10 pointer-events-none" />
           <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-slate-950 to-transparent z-10 pointer-events-none" />
           <div className="animate-marquee-tz flex items-center gap-12 whitespace-nowrap">
@@ -1243,20 +1243,20 @@ export default function App() {
               const isOpen = isCityMarketOpen(city.tz, city.code, liveDate);
               const zoned = getZonedDateTime(city.tz, liveDate);
               return (
-                <div key={idx} className="flex items-center gap-2.5 text-white hover:text-white transition duration-150 cursor-pointer shrink-0">
+                <div key={idx} className="flex items-center gap-2.5 !text-white hover:!text-white transition duration-150 cursor-pointer shrink-0">
                   <span className="text-sm">{city.emoji}</span>
-                  <span className="font-bold text-white">{city.name}</span>
-                  <span className="font-mono bg-slate-800 text-white px-2 py-0.5 rounded font-extrabold text-[10.5px] tracking-normal">
+                  <span className="font-bold !text-white">{city.name}</span>
+                  <span className="font-mono bg-slate-800 !text-white px-2 py-0.5 rounded font-extrabold text-[10.5px] tracking-normal">
                     {zoned ? zoned.timeString : "--:--:--"}
                   </span>
-                  <span className="text-[9.5px] font-bold text-white font-mono tracking-wider">({city.code})</span>
+                  <span className="text-[9.5px] font-bold !text-white font-mono tracking-wider">({city.code})</span>
                   {isOpen ? (
-                    <span className="flex items-center gap-1 text-[9px] font-extrabold text-white bg-white/10 px-2 py-0.5 rounded-full border border-white/20 uppercase">
+                    <span className="flex items-center gap-1 text-[9px] font-extrabold !text-white bg-white/10 px-2 py-0.5 rounded-full border border-white/20 uppercase">
                       <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
                       {t("marketOpenShort")}
                     </span>
                   ) : (
-                    <span className="flex items-center gap-1 text-[9px] font-extrabold text-white bg-white/10 px-2 py-0.5 rounded-full border border-white/20 uppercase">
+                    <span className="flex items-center gap-1 text-[9px] font-extrabold !text-white bg-white/10 px-2 py-0.5 rounded-full border border-white/20 uppercase">
                       <span className="w-1.5 h-1.5 bg-white rounded-full" />
                       {t("marketClosedShort")}
                     </span>
@@ -1268,7 +1268,7 @@ export default function App() {
         </div>
 
         {/* Infinite Scrolling Stocks Ticker */}
-        <div className="bg-slate-900 border-b border-slate-800/50 py-2.5 overflow-hidden relative select-none text-[11px] font-medium tracking-wide text-white">
+        <div className="bg-slate-900 border-b border-slate-800/50 py-2.5 overflow-hidden relative select-none text-[11px] font-medium tracking-wide text-white !text-white">
           <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-slate-900 to-transparent z-10 pointer-events-none" />
           <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-slate-900 to-transparent z-10 pointer-events-none" />
           <div className="animate-marquee-stocks flex items-center gap-12 whitespace-nowrap">
@@ -1279,18 +1279,18 @@ export default function App() {
               return [...displayStocks, ...displayStocks, ...displayStocks].map((stock, idx) => {
                 const isPos = stock.change >= 0;
                 return (
-                  <div key={idx} className="flex items-center gap-2.5 text-white hover:text-white transition duration-150 cursor-pointer shrink-0">
-                    <span className="font-black text-white font-mono text-xs">{stock.symbol}</span>
-                    <span className="text-white text-[10px] hidden sm:inline max-w-[100px] truncate">{stock.name}</span>
-                    <span className="font-mono bg-slate-800 text-white px-2 py-0.5 rounded font-extrabold text-[10.5px]">
+                  <div key={idx} className="flex items-center gap-2.5 !text-white hover:!text-white transition duration-150 cursor-pointer shrink-0">
+                    <span className="font-black !text-white font-mono text-xs">{stock.symbol}</span>
+                    <span className="!text-white text-[10px] hidden sm:inline max-w-[100px] truncate">{stock.name}</span>
+                    <span className="font-mono bg-slate-800 !text-white px-2 py-0.5 rounded font-extrabold text-[10.5px]">
                       {stock.price.toFixed(2)} $
                     </span>
                     {isPos ? (
-                      <span className="flex items-center gap-1 text-[9px] font-extrabold text-white bg-white/10 px-2 py-0.5 rounded-full border border-white/20 uppercase">
+                      <span className="flex items-center gap-1 text-[9px] font-extrabold !text-white bg-white/10 px-2 py-0.5 rounded-full border border-white/20 uppercase">
                         ▲ +{stock.change.toFixed(2)}%
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 text-[9px] font-extrabold text-white bg-white/10 px-2 py-0.5 rounded-full border border-white/20 uppercase">
+                      <span className="flex items-center gap-1 text-[9px] font-extrabold !text-white bg-white/10 px-2 py-0.5 rounded-full border border-white/20 uppercase">
                         ▼ {stock.change.toFixed(2)}%
                       </span>
                     )}
