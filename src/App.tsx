@@ -477,57 +477,80 @@ export default function App() {
     const fetchRealStocksClientFallback = async () => {
       try {
         const yahooSymbols = INITIAL_STOCKS.map(s => s.symbol === "MC" ? "MC.PA" : s.symbol);
-        const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${yahooSymbols.join(",")}`;
-        const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-        const res = await fetch(allOriginsUrl);
-        if (res.ok) {
-          const json = await res.json();
-          const rawData = JSON.parse(json.contents);
-          const quotes = rawData?.quoteResponse?.result || [];
-          
-          if (active && Array.isArray(quotes) && quotes.length > 0) {
-            const quotesMap = new Map<string, any>();
-            quotes.forEach((q: any) => {
-              if (q && q.symbol) {
-                const appSymbol = q.symbol === "MC.PA" ? "MC" : q.symbol;
-                quotesMap.set(appSymbol, q);
-              }
-            });
+        // Add a random parameter to the Yahoo Finance API URL to bust any caches on the proxy/server side
+        const cacheBuster = Math.floor(Math.random() * 1000000);
+        const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${yahooSymbols.join(",")}&nocache=${cacheBuster}`;
+        
+        let rawData = null;
 
-            setStocks(prevStocks => {
-              return prevStocks.map(stock => {
-                const live = quotesMap.get(stock.symbol);
-                if (!live) return stock;
-
-                const price = live.regularMarketPrice ? parseFloat(live.regularMarketPrice.toFixed(2)) : stock.price;
-                const change = live.regularMarketChangePercent ? parseFloat(live.regularMarketChangePercent.toFixed(2)) : stock.change;
-                const low24h = live.regularMarketDayLow ? parseFloat(live.regularMarketDayLow.toFixed(2)) : price;
-                const high24h = live.regularMarketDayHigh ? parseFloat(live.regularMarketDayHigh.toFixed(2)) : price;
-                const volumeNum = live.regularMarketVolume;
-                
-                let volume = stock.volume;
-                if (volumeNum) {
-                  if (volumeNum >= 1_000_000_000) volume = `${(volumeNum / 1_000_000_000).toFixed(1)}B`;
-                  else if (volumeNum >= 1_000_000) volume = `${(volumeNum / 1_000_000).toFixed(1)}M`;
-                  else if (volumeNum >= 1000) volume = `${(volumeNum / 1000).toFixed(1)}K`;
-                  else volume = volumeNum.toString();
-                }
-
-                const scale = price / stock.price;
-                const history = stock.history.map((hPrice) => parseFloat((hPrice * scale).toFixed(2)));
-
-                return {
-                  ...stock,
-                  price,
-                  change,
-                  low24h,
-                  high24h,
-                  volume,
-                  history
-                };
-              });
-            });
+        // Try CORSProxy.io first as it is fast and direct
+        try {
+          const corsProxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(url)}`;
+          const res = await fetch(corsProxyUrl);
+          if (res.ok) {
+            rawData = await res.json();
           }
+        } catch (e) {
+          console.warn("corsproxy.io fallback failed, trying allorigins:", e);
+        }
+
+        // Fallback to AllOrigins if first proxy fails or returns bad data
+        if (!rawData || !rawData.quoteResponse) {
+          const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}&_=${Date.now()}`;
+          const res = await fetch(allOriginsUrl);
+          if (res.ok) {
+            const json = await res.json();
+            rawData = JSON.parse(json.contents);
+          }
+        }
+
+        const quotes = rawData?.quoteResponse?.result || [];
+        
+        if (active && Array.isArray(quotes) && quotes.length > 0) {
+          const quotesMap = new Map<string, any>();
+          quotes.forEach((q: any) => {
+            if (q && q.symbol) {
+              const appSymbol = q.symbol === "MC.PA" ? "MC" : q.symbol;
+              quotesMap.set(appSymbol, q);
+            }
+          });
+
+          setStocks(prevStocks => {
+            return prevStocks.map(stock => {
+              const live = quotesMap.get(stock.symbol);
+              if (!live) return stock;
+
+              const price = live.regularMarketPrice ? parseFloat(live.regularMarketPrice.toFixed(2)) : stock.price;
+              const change = live.regularMarketChangePercent ? parseFloat(live.regularMarketChangePercent.toFixed(2)) : stock.change;
+              const low24h = live.regularMarketDayLow ? parseFloat(live.regularMarketDayLow.toFixed(2)) : price;
+              const high24h = live.regularMarketDayHigh ? parseFloat(live.regularMarketDayHigh.toFixed(2)) : price;
+              const volumeNum = live.regularMarketVolume;
+              
+              let volume = stock.volume;
+              if (volumeNum) {
+                if (volumeNum >= 1_000_000_000) volume = `${(volumeNum / 1_000_000_000).toFixed(1)}B`;
+                else if (volumeNum >= 1_000_000) volume = `${(volumeNum / 1_000_000).toFixed(1)}M`;
+                else if (volumeNum >= 1000) volume = `${(volumeNum / 1000).toFixed(1)}K`;
+                else volume = volumeNum.toString();
+              }
+
+              // Use original static values from INITIAL_STOCKS to perform scaling
+              // This avoids cumulative rounding errors and graph drift when scaling iteratively
+              const originalStock = INITIAL_STOCKS.find(s => s.symbol === stock.symbol) || stock;
+              const scale = price / originalStock.price;
+              const history = originalStock.history.map((hPrice) => parseFloat((hPrice * scale).toFixed(2)));
+
+              return {
+                ...stock,
+                price,
+                change,
+                low24h,
+                high24h,
+                volume,
+                history
+              };
+            });
+          });
         }
       } catch (err) {
         console.warn("Could not sync real-time stocks from client fallback:", err);
