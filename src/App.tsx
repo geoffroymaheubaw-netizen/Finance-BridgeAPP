@@ -470,9 +470,70 @@ export default function App() {
     });
   }, [stocks, profile.cash, profile.portfolio]);
 
-  // Synchronise stock prices with actual real-life values from Yahoo Finance via server proxy
+  // Synchronise stock prices with actual real-life values from Yahoo Finance via server proxy (with client-side fallback for static GitHub Pages)
   useEffect(() => {
     let active = true;
+
+    const fetchRealStocksClientFallback = async () => {
+      try {
+        const yahooSymbols = INITIAL_STOCKS.map(s => s.symbol === "MC" ? "MC.PA" : s.symbol);
+        const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${yahooSymbols.join(",")}`;
+        const allOriginsUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+        const res = await fetch(allOriginsUrl);
+        if (res.ok) {
+          const json = await res.json();
+          const rawData = JSON.parse(json.contents);
+          const quotes = rawData?.quoteResponse?.result || [];
+          
+          if (active && Array.isArray(quotes) && quotes.length > 0) {
+            const quotesMap = new Map<string, any>();
+            quotes.forEach((q: any) => {
+              if (q && q.symbol) {
+                const appSymbol = q.symbol === "MC.PA" ? "MC" : q.symbol;
+                quotesMap.set(appSymbol, q);
+              }
+            });
+
+            setStocks(prevStocks => {
+              return prevStocks.map(stock => {
+                const live = quotesMap.get(stock.symbol);
+                if (!live) return stock;
+
+                const price = live.regularMarketPrice ? parseFloat(live.regularMarketPrice.toFixed(2)) : stock.price;
+                const change = live.regularMarketChangePercent ? parseFloat(live.regularMarketChangePercent.toFixed(2)) : stock.change;
+                const low24h = live.regularMarketDayLow ? parseFloat(live.regularMarketDayLow.toFixed(2)) : price;
+                const high24h = live.regularMarketDayHigh ? parseFloat(live.regularMarketDayHigh.toFixed(2)) : price;
+                const volumeNum = live.regularMarketVolume;
+                
+                let volume = stock.volume;
+                if (volumeNum) {
+                  if (volumeNum >= 1_000_000_000) volume = `${(volumeNum / 1_000_000_000).toFixed(1)}B`;
+                  else if (volumeNum >= 1_000_000) volume = `${(volumeNum / 1_000_000).toFixed(1)}M`;
+                  else if (volumeNum >= 1000) volume = `${(volumeNum / 1000).toFixed(1)}K`;
+                  else volume = volumeNum.toString();
+                }
+
+                const scale = price / stock.price;
+                const history = stock.history.map((hPrice) => parseFloat((hPrice * scale).toFixed(2)));
+
+                return {
+                  ...stock,
+                  price,
+                  change,
+                  low24h,
+                  high24h,
+                  volume,
+                  history
+                };
+              });
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("Could not sync real-time stocks from client fallback:", err);
+      }
+    };
+
     const fetchRealStocks = async () => {
       try {
         const response = await fetch("/api/stocks");
@@ -481,9 +542,12 @@ export default function App() {
           if (active && Array.isArray(data) && data.length > 0) {
             setStocks(data);
           }
+        } else {
+          await fetchRealStocksClientFallback();
         }
       } catch (error) {
-        console.warn("Could not sync real-time stocks:", error);
+        console.warn("Could not sync real-time stocks via server proxy, using client fallback:", error);
+        await fetchRealStocksClientFallback();
       }
     };
 
