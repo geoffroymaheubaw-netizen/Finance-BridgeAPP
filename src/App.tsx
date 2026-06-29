@@ -534,129 +534,94 @@ export default function App() {
   useEffect(() => {
     let active = true;
 
-    const fetchBatchWithProxies = async (symbols: string[]): Promise<any[]> => {
-      const cacheBuster = Math.floor(Math.random() * 1000000);
-      const url = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${symbols.join(",")}&nocache=${cacheBuster}`;
+    const fetchSingleWithProxies = async (symbol: string): Promise<any> => {
+      const url = `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
       
-      // 1. Try cors.lol (extremely fast, designed specifically for open API fetches)
-      try {
-        const res = await fetch(`https://cors.lol/?url=${encodeURIComponent(url)}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.quoteResponse?.result) {
-            return data.quoteResponse.result;
-          }
-        }
-      } catch (e) {
-        console.warn("cors.lol failed for batch:", symbols, e);
-      }
+      const proxies = [
+        `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+        `https://cors.lol/?url=${encodeURIComponent(url)}`,
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+      ];
 
-      // 2. Try corsproxy.io (direct proxy fallback)
-      try {
-        const res = await fetch(`https://corsproxy.io/?url=${encodeURIComponent(url)}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.quoteResponse?.result) {
-            return data.quoteResponse.result;
+      for (const proxyUrl of proxies) {
+        try {
+          const res = await fetch(proxyUrl);
+          if (res.ok) {
+            const data = await res.json();
+            const meta = data?.chart?.result?.[0]?.meta;
+            if (meta) {
+              return meta;
+            }
           }
+        } catch (e) {
+          // try next proxy
         }
-      } catch (e) {
-        console.warn("corsproxy.io failed for batch:", symbols, e);
       }
-
-      // 3. Try codetabs proxy
-      try {
-        const res = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.quoteResponse?.result) {
-            return data.quoteResponse.result;
-          }
-        }
-      } catch (e) {
-        console.warn("codetabs failed for batch:", symbols, e);
-      }
-
-      // 4. Try allorigins as a final fallback
-      try {
-        const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}&_=${Date.now()}`);
-        if (res.ok) {
-          const json = await res.json();
-          const data = JSON.parse(json.contents);
-          if (data?.quoteResponse?.result) {
-            return data.quoteResponse.result;
-          }
-        }
-      } catch (e) {
-        console.warn("allorigins failed for batch:", symbols, e);
-      }
-
-      return [];
+      return null;
     };
 
     const fetchRealStocksClientFallback = async () => {
       try {
-        const yahooSymbols = INITIAL_STOCKS.map(s => s.symbol === "MC" ? "MC.PA" : s.symbol);
+        const yahooSymbolsMap: Record<string, string> = {
+          AAPL: "AAPL", MSFT: "MSFT", AMZN: "AMZN", NVDA: "NVDA", GOOGL: "GOOGL",
+          META: "META", TSLA: "TSLA", NKE: "NKE", DIS: "DIS", MC: "MC.PA",
+          OR: "OR.PA", KER: "KER.PA", ASML: "ASML", SAP: "SAP", V: "V", MA: "MA",
+          KO: "KO", PEP: "PEP", PG: "PG", WMT: "WMT", COST: "COST", NFLX: "NFLX",
+          ADBE: "ADBE", CSCO: "CSCO", SBUX: "SBUX", "TTE.PA": "TTE.PA", "AIR.PA": "AIR.PA"
+        };
         
-        // Split the 51 symbols into batches of 17 (3 batches total) to avoid length limits and Yahoo restrictions
-        const batchSize = 17;
-        const batches: string[][] = [];
-        for (let i = 0; i < yahooSymbols.length; i += batchSize) {
-          batches.push(yahooSymbols.slice(i, i + batchSize));
-        }
-
-        // Fetch batches in parallel
-        const resultsArray = await Promise.all(
-          batches.map(batch => fetchBatchWithProxies(batch))
-        );
-
-        const quotes = resultsArray.flat().filter(Boolean);
+        const symbolsToFetch = Object.entries(yahooSymbolsMap);
         
-        if (active && quotes.length > 0) {
-          const quotesMap = new Map<string, any>();
-          quotes.forEach((q: any) => {
-            if (q && q.symbol) {
-              const appSymbol = q.symbol === "MC.PA" ? "MC" : q.symbol;
-              quotesMap.set(appSymbol, q);
-            }
-          });
+        // Fetch in smaller batches to avoid rate limit or slow performance on client browser
+        const batchSize = 9;
+        for (let i = 0; i < symbolsToFetch.length; i += batchSize) {
+          const batch = symbolsToFetch.slice(i, i + batchSize);
+          
+          await Promise.all(
+            batch.map(async ([appSymbol, yahooSymbol]) => {
+              const meta = await fetchSingleWithProxies(yahooSymbol);
+              if (active && meta) {
+                const price = meta.regularMarketPrice ? parseFloat(meta.regularMarketPrice.toFixed(2)) : null;
+                if (price !== null) {
+                  const prevClose = meta.chartPreviousClose || price;
+                  const change = parseFloat((((price - prevClose) / prevClose) * 100).toFixed(2));
+                  const low24h = meta.regularMarketDayLow ? parseFloat(meta.regularMarketDayLow.toFixed(2)) : price;
+                  const high24h = meta.regularMarketDayHigh ? parseFloat(meta.regularMarketDayHigh.toFixed(2)) : price;
+                  const volumeNum = meta.regularMarketVolume;
+                  
+                  let volume = "";
+                  if (volumeNum) {
+                    if (volumeNum >= 1_000_000_000) volume = `${(volumeNum / 1_000_000_000).toFixed(1)}B`;
+                    else if (volumeNum >= 1_000_000) volume = `${(volumeNum / 1_000_000).toFixed(1)}M`;
+                    else if (volumeNum >= 1000) volume = `${(volumeNum / 1000).toFixed(1)}K`;
+                    else volume = volumeNum.toString();
+                  }
 
-          setStocks(prevStocks => {
-            return prevStocks.map(stock => {
-              const live = quotesMap.get(stock.symbol);
-              if (!live) return stock;
+                  setStocks(prevStocks => {
+                    return prevStocks.map(stock => {
+                      if (stock.symbol !== appSymbol) return stock;
+                      
+                      const originalStock = INITIAL_STOCKS.find(s => s.symbol === stock.symbol) || stock;
+                      const scale = price / originalStock.price;
+                      const history = originalStock.history.map((hPrice) => parseFloat((hPrice * scale).toFixed(2)));
 
-              const price = live.regularMarketPrice ? parseFloat(live.regularMarketPrice.toFixed(2)) : stock.price;
-              const change = live.regularMarketChangePercent ? parseFloat(live.regularMarketChangePercent.toFixed(2)) : stock.change;
-              const low24h = live.regularMarketDayLow ? parseFloat(live.regularMarketDayLow.toFixed(2)) : price;
-              const high24h = live.regularMarketDayHigh ? parseFloat(live.regularMarketDayHigh.toFixed(2)) : price;
-              const volumeNum = live.regularMarketVolume;
-              
-              let volume = stock.volume;
-              if (volumeNum) {
-                if (volumeNum >= 1_000_000_000) volume = `${(volumeNum / 1_000_000_000).toFixed(1)}B`;
-                else if (volumeNum >= 1_000_000) volume = `${(volumeNum / 1_000_000).toFixed(1)}M`;
-                else if (volumeNum >= 1000) volume = `${(volumeNum / 1000).toFixed(1)}K`;
-                else volume = volumeNum.toString();
+                      return {
+                        ...stock,
+                        price,
+                        change,
+                        low24h,
+                        high24h,
+                        volume: volume || stock.volume,
+                        history
+                      };
+                    });
+                  });
+                }
               }
-
-              // Use original static values from INITIAL_STOCKS to perform scaling
-              // This avoids cumulative rounding errors and graph drift when scaling iteratively
-              const originalStock = INITIAL_STOCKS.find(s => s.symbol === stock.symbol) || stock;
-              const scale = price / originalStock.price;
-              const history = originalStock.history.map((hPrice) => parseFloat((hPrice * scale).toFixed(2)));
-
-              return {
-                ...stock,
-                price,
-                change,
-                low24h,
-                high24h,
-                volume,
-                history
-              };
-            });
-          });
+            })
+          );
+          
+          await new Promise(r => setTimeout(r, 100));
         }
       } catch (err) {
         console.warn("Could not sync real-time stocks from client fallback:", err);

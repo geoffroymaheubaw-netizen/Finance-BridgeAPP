@@ -941,53 +941,71 @@ Veuillez respecter le schéma JSON requis.`;
         "ENGI.PA": "ENGI.PA"
       };
 
-      const promises = Object.entries(symbolsMap).map(async ([symbol, yahooSymbol]) => {
-        const url = `https://query2.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=1d&range=1d`;
-        try {
-          const response = await fetch(url, {
-            headers: {
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
-            },
-            signal: AbortSignal.timeout(4000)
-          });
-          if (!response.ok) {
-            return { symbol, error: true };
-          }
-          const data = await response.json();
-          const meta = data?.chart?.result?.[0]?.meta;
-          if (meta) {
-            const price = parseFloat(meta.regularMarketPrice.toFixed(2));
-            const prevClose = meta.chartPreviousClose || price;
-            const change = parseFloat((((price - prevClose) / prevClose) * 100).toFixed(2));
-            const low24h = meta.regularMarketDayLow ? parseFloat(meta.regularMarketDayLow.toFixed(2)) : price;
-            const high24h = meta.regularMarketDayHigh ? parseFloat(meta.regularMarketDayHigh.toFixed(2)) : price;
-            const volumeNum = meta.regularMarketVolume;
-            
-            let volume = "";
-            if (volumeNum) {
-              if (volumeNum >= 1_000_000_000) volume = `${(volumeNum / 1_000_000_000).toFixed(1)}B`;
-              else if (volumeNum >= 1_000_000) volume = `${(volumeNum / 1_000_000).toFixed(1)}M`;
-              else if (volumeNum >= 1000) volume = `${(volumeNum / 1000).toFixed(1)}K`;
-              else volume = volumeNum.toString();
-            }
-            return { symbol, price, change, low24h, high24h, volume };
-          }
-        } catch (e) {
-          // Keep default on error
+      const uniqueYahooSymbols = Array.from(new Set(Object.values(symbolsMap)));
+      const resultsMap: Record<string, any> = {};
+
+      // Helper function to split into smaller chunks
+      const chunkArray = <T>(arr: T[], size: number): T[][] => {
+        const chunks: T[][] = [];
+        for (let i = 0; i < arr.length; i += size) {
+          chunks.push(arr.slice(i, i + size));
         }
-        return { symbol, error: true };
+        return chunks;
+      };
+
+      const reverseSymbolsMap: Record<string, string> = {};
+      Object.entries(symbolsMap).forEach(([symbol, yahooSymbol]) => {
+        reverseSymbolsMap[yahooSymbol] = symbol;
       });
 
-      const results = await Promise.all(promises);
-      const resultsMap: Record<string, any> = {};
-      results.forEach((r) => {
-        if (!r.error) {
-          resultsMap[r.symbol] = r;
-        }
-      });
+      // Split the 48 unique symbols into 6 chunks of 8 to prevent slamming Yahoo
+      const symbolChunks = chunkArray(uniqueYahooSymbols, 8);
+      
+      for (const chunk of symbolChunks) {
+        await Promise.all(
+          chunk.map(async (yahooSymbol) => {
+            const url = `https://query2.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=1d&range=1d`;
+            try {
+              const response = await fetch(url, {
+                headers: {
+                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
+                },
+                signal: AbortSignal.timeout(4000)
+              });
+              if (response.ok) {
+                const data: any = await response.json();
+                const meta = data?.chart?.result?.[0]?.meta;
+                if (meta) {
+                  const price = parseFloat(meta.regularMarketPrice.toFixed(2));
+                  const prevClose = meta.chartPreviousClose || price;
+                  const change = parseFloat((((price - prevClose) / prevClose) * 100).toFixed(2));
+                  const low24h = meta.regularMarketDayLow ? parseFloat(meta.regularMarketDayLow.toFixed(2)) : price;
+                  const high24h = meta.regularMarketDayHigh ? parseFloat(meta.regularMarketDayHigh.toFixed(2)) : price;
+                  const volumeNum = meta.regularMarketVolume;
+                  
+                  let volume = "";
+                  if (volumeNum) {
+                    if (volumeNum >= 1_000_000_000) volume = `${(volumeNum / 1_000_000_000).toFixed(1)}B`;
+                    else if (volumeNum >= 1_000_000) volume = `${(volumeNum / 1_000_000).toFixed(1)}M`;
+                    else if (volumeNum >= 1000) volume = `${(volumeNum / 1000).toFixed(1)}K`;
+                    else volume = volumeNum.toString();
+                  }
+
+                  const internalSymbol = reverseSymbolsMap[yahooSymbol] || yahooSymbol;
+                  resultsMap[internalSymbol] = { price, change, low24h, high24h, volume };
+                }
+              }
+            } catch (err: any) {
+              console.warn(`[Prices API] Failed to fetch ${yahooSymbol}:`, err.message);
+            }
+          })
+        );
+        // Small stagger pause between chunks
+        await new Promise((resolve) => setTimeout(resolve, 80));
+      }
 
       if (Object.keys(resultsMap).length === 0) {
-        return res.status(502).json({ error: "All live stock requests failed on server, client should fallback", fallback: INITIAL_STOCKS });
+        throw new Error("No live stock quotes were successfully fetched.");
       }
 
       // Merge and update stock rates
@@ -1021,7 +1039,12 @@ Veuillez respecter le schéma JSON requis.`;
       res.json(updatedStocks);
     } catch (error: any) {
       console.warn(`[Prices API] Failed to fetch real-time stocks: ${error.message}`);
-      res.status(502).json({ error: "Failed to fetch real-time stocks", fallback: INITIAL_STOCKS });
+      // Return cached version if available, otherwise fallback list
+      if (stocksCache) {
+        res.json(stocksCache);
+      } else {
+        res.status(502).json({ error: "Failed to fetch real-time stocks", fallback: INITIAL_STOCKS });
+      }
     }
   });
 
