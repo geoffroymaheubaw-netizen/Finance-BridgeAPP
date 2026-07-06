@@ -1054,9 +1054,12 @@ export default function App() {
 
     const isGitHubPages = window.location.hostname.endsWith("github.io");
     const isVercel = window.location.hostname.includes("vercel.app");
+    // Ensure that Vite's build-time search-and-replace matches these exactly, without any optional chaining (?) that would prevent substitution
     const envGeminiKey = 
-      (import.meta as any).env?.VITE_GEMINI_API_KEY || 
-      (typeof process !== "undefined" ? (process.env?.VITE_GEMINI_API_KEY || process.env?.GEMINI_API_KEY) : undefined);
+      ((import.meta as any).env || {}).VITE_GEMINI_API_KEY || 
+      process.env.VITE_GEMINI_API_KEY || 
+      process.env.GEMINI_API_KEY || 
+      "";
     const useClientSide = profile.aiMode === "client" || isGitHubPages || isVercel || !!envGeminiKey;
 
     try {
