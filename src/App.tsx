@@ -1045,13 +1045,16 @@ export default function App() {
     setIsGenerating(true);
 
     const isGitHubPages = window.location.hostname.endsWith("github.io");
-    const useClientSide = profile.aiMode === "client" || isGitHubPages;
+    const isVercel = window.location.hostname.includes("vercel.app");
+    const envGeminiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+    const useClientSide = profile.aiMode === "client" || isGitHubPages || isVercel || !!envGeminiKey;
 
     try {
       let response: Response;
 
       if (useClientSide) {
-        if (!profile.geminiApiKey || !profile.geminiApiKey.trim()) {
+        const apiKey = (profile.geminiApiKey && profile.geminiApiKey.trim()) || (envGeminiKey && envGeminiKey.trim());
+        if (!apiKey) {
           throw new Error("CLIENT_KEY_MISSING");
         }
 
@@ -1078,7 +1081,7 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
           parts: [{ text: text }]
         });
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:streamGenerateContent?key=${profile.geminiApiKey.trim()}&alt=sse`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:streamGenerateContent?key=${apiKey}&alt=sse`;
         response = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1550,10 +1553,10 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
                       className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-800 dark:text-white font-bold focus:outline-hidden focus:ring-1 focus:ring-indigo-500 cursor-pointer"
                     >
                       <option value="backend">☁️ {lang === "fr" ? "Hébergé par défaut" : "Hosted by Default"}</option>
-                      <option value="client">🔑 {lang === "fr" ? "Clé API Gemini personnelle (GitHub)" : "Personal Gemini API Key (GitHub)"}</option>
+                      <option value="client">🔑 {lang === "fr" ? "Clé API Gemini personnelle (GitHub / Vercel)" : "Personal Gemini API Key (GitHub / Vercel)"}</option>
                     </select>
                     
-                    {(profile.aiMode === "client" || window.location.hostname.endsWith("github.io")) && (
+                    {(profile.aiMode === "client" || window.location.hostname.endsWith("github.io") || window.location.hostname.includes("vercel.app")) && (
                       <div className="space-y-1 mt-1.5 bg-indigo-50/50 dark:bg-indigo-950/20 p-2.5 rounded-xl border border-indigo-100/50 dark:border-indigo-900/40 animate-in fade-in duration-150">
                         <label className="text-[10px] font-extrabold text-indigo-600 dark:text-indigo-400 block">
                           {lang === "fr" ? "Votre Clé API Gemini" : "Your Gemini API Key"}
@@ -1563,7 +1566,7 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
                           value={profile.geminiApiKey || ""}
                           onChange={(e) => setProfile(prev => ({ ...prev, geminiApiKey: e.target.value }))}
                           className="w-full px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-[11px] text-slate-800 dark:text-white font-bold focus:outline-hidden focus:ring-1 focus:ring-indigo-500 font-mono"
-                          placeholder="AIzaSy..."
+                          placeholder={lang === "fr" ? "AIzaSy... ou AQ..." : "AIzaSy... or AQ..."}
                         />
                         <p className="text-[9px] text-slate-400 dark:text-slate-500 leading-tight">
                           {lang === "fr" 
