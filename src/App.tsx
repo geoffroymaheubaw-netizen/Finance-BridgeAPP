@@ -108,7 +108,8 @@ export default function App() {
               const profileData = data as any;
 
               if (profileData) {
-                setProfile({
+                setProfile(prev => ({
+                  ...prev,
                   username: profileData.username || finalUsername,
                   xp: Number(profileData.xp || 0),
                   level: Number(profileData.level || 1),
@@ -122,7 +123,7 @@ export default function App() {
                   marketMode: profileData.marketMode || "real",
                   learningHearts: Number(profileData.learning_hearts || 4),
                   lastHeartsResetDate: profileData.last_hearts_reset_date || new Date().toISOString().substring(0, 10)
-                });
+                }));
               } else {
                 const today = new Date().toISOString().substring(0, 10);
                 const initialProfile: UserProfile = {
@@ -158,7 +159,10 @@ export default function App() {
                   last_hearts_reset_date: initialProfile.lastHeartsResetDate,
                   updated_at: new Date().toISOString()
                 } as any);
-                setProfile(initialProfile);
+                setProfile(prev => ({
+                  ...prev,
+                  ...initialProfile
+                }));
               }
             } catch (err) {
               console.error("Failed loading Supabase user profile:", err);
@@ -221,7 +225,8 @@ export default function App() {
         const profileData = data as any;
 
         if (profileData) {
-          setProfile({
+          setProfile(prev => ({
+            ...prev,
             username: profileData.username || user.displayName || chosenUsername || "Trader",
             xp: Number(profileData.xp || 0),
             level: Number(profileData.level || 1),
@@ -235,7 +240,7 @@ export default function App() {
             marketMode: profileData.marketMode || "real",
             learningHearts: Number(profileData.learning_hearts || 4),
             lastHeartsResetDate: profileData.last_hearts_reset_date || today
-          });
+          }));
         } else {
           const initialProfile: UserProfile = {
             username: chosenUsername || user.displayName || user.email?.split("@")[0] || "Trader",
@@ -269,7 +274,10 @@ export default function App() {
             last_hearts_reset_date: initialProfile.lastHeartsResetDate,
             updated_at: new Date().toISOString()
           } as any);
-          setProfile(initialProfile);
+          setProfile(prev => ({
+            ...prev,
+            ...initialProfile
+          }));
         }
       } catch (e) {
         console.error("Error setting Supabase success profile:", e);
@@ -1046,7 +1054,9 @@ export default function App() {
 
     const isGitHubPages = window.location.hostname.endsWith("github.io");
     const isVercel = window.location.hostname.includes("vercel.app");
-    const envGeminiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+    const envGeminiKey = 
+      (import.meta as any).env?.VITE_GEMINI_API_KEY || 
+      (typeof process !== "undefined" ? (process.env?.VITE_GEMINI_API_KEY || process.env?.GEMINI_API_KEY) : undefined);
     const useClientSide = profile.aiMode === "client" || isGitHubPages || isVercel || !!envGeminiKey;
 
     try {
