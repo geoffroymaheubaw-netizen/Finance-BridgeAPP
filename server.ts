@@ -944,64 +944,67 @@ Veuillez respecter le schéma JSON requis.`;
       const uniqueYahooSymbols = Array.from(new Set(Object.values(symbolsMap)));
       const resultsMap: Record<string, any> = {};
 
-      // Helper function to split into smaller chunks
-      const chunkArray = <T>(arr: T[], size: number): T[][] => {
-        const chunks: T[][] = [];
-        for (let i = 0; i < arr.length; i += size) {
-          chunks.push(arr.slice(i, i + size));
-        }
-        return chunks;
-      };
-
       const reverseSymbolsMap: Record<string, string> = {};
       Object.entries(symbolsMap).forEach(([symbol, yahooSymbol]) => {
         reverseSymbolsMap[yahooSymbol] = symbol;
       });
 
-      // Split the 48 unique symbols into 6 chunks of 8 to prevent slamming Yahoo
-      const symbolChunks = chunkArray(uniqueYahooSymbols, 8);
+      const symbolsList = uniqueYahooSymbols.join(",");
+      const url = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${symbolsList}`;
       
-      for (const chunk of symbolChunks) {
-        await Promise.all(
-          chunk.map(async (yahooSymbol) => {
-            const url = `https://query2.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=1d&range=1d`;
-            try {
-              const response = await fetch(url, {
-                headers: {
-                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
-                },
-                signal: AbortSignal.timeout(4000)
-              });
-              if (response.ok) {
-                const data: any = await response.json();
-                const meta = data?.chart?.result?.[0]?.meta;
-                if (meta) {
-                  const price = parseFloat(meta.regularMarketPrice.toFixed(2));
-                  const prevClose = meta.chartPreviousClose || price;
-                  const change = parseFloat((((price - prevClose) / prevClose) * 100).toFixed(2));
-                  const low24h = meta.regularMarketDayLow ? parseFloat(meta.regularMarketDayLow.toFixed(2)) : price;
-                  const high24h = meta.regularMarketDayHigh ? parseFloat(meta.regularMarketDayHigh.toFixed(2)) : price;
-                  const volumeNum = meta.regularMarketVolume;
-                  
-                  let volume = "";
-                  if (volumeNum) {
-                    if (volumeNum >= 1_000_000_000) volume = `${(volumeNum / 1_000_000_000).toFixed(1)}B`;
-                    else if (volumeNum >= 1_000_000) volume = `${(volumeNum / 1_000_000).toFixed(1)}M`;
-                    else if (volumeNum >= 1000) volume = `${(volumeNum / 1000).toFixed(1)}K`;
-                    else volume = volumeNum.toString();
-                  }
+      const endpoints = [
+        url,
+        `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+      ];
 
-                  const internalSymbol = reverseSymbolsMap[yahooSymbol] || yahooSymbol;
-                  resultsMap[internalSymbol] = { price, change, low24h, high24h, volume };
-                }
-              }
-            } catch (err: any) {
-              console.warn(`[Prices API] Failed to fetch ${yahooSymbol}:`, err.message);
+      let quoteResponse = null;
+      for (const endpoint of endpoints) {
+        try {
+          const response = await fetch(endpoint, {
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
+            },
+            signal: AbortSignal.timeout(6000)
+          });
+          if (response.ok) {
+            const data: any = await response.json();
+            const result = data?.quoteResponse?.result;
+            if (result && Array.isArray(result) && result.length > 0) {
+              quoteResponse = result;
+              break;
             }
-          })
-        );
-        // Small stagger pause between chunks
-        await new Promise((resolve) => setTimeout(resolve, 80));
+          }
+        } catch (err: any) {
+          console.warn(`[Prices API] Failed to fetch from endpoint ${endpoint}:`, err.message);
+        }
+      }
+
+      if (quoteResponse && Array.isArray(quoteResponse)) {
+        quoteResponse.forEach((quote: any) => {
+          if (quote && quote.symbol) {
+            const price = quote.regularMarketPrice ? parseFloat(quote.regularMarketPrice.toFixed(2)) : null;
+            if (price !== null) {
+              const change = quote.regularMarketChangePercent !== undefined 
+                ? parseFloat(quote.regularMarketChangePercent.toFixed(2)) 
+                : 0;
+              const low24h = quote.regularMarketDayLow ? parseFloat(quote.regularMarketDayLow.toFixed(2)) : price;
+              const high24h = quote.regularMarketDayHigh ? parseFloat(quote.regularMarketDayHigh.toFixed(2)) : price;
+              const volumeNum = quote.regularMarketVolume;
+              
+              let volume = "";
+              if (volumeNum) {
+                if (volumeNum >= 1_000_000_000) volume = `${(volumeNum / 1_000_000_000).toFixed(1)}B`;
+                else if (volumeNum >= 1_000_000) volume = `${(volumeNum / 1_000_000).toFixed(1)}M`;
+                else if (volumeNum >= 1000) volume = `${(volumeNum / 1000).toFixed(1)}K`;
+                else volume = volumeNum.toString();
+              }
+
+              const internalSymbol = reverseSymbolsMap[quote.symbol] || quote.symbol;
+              resultsMap[internalSymbol] = { price, change, low24h, high24h, volume };
+            }
+          }
+        });
       }
 
       if (Object.keys(resultsMap).length === 0) {
