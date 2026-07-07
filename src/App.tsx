@@ -402,6 +402,7 @@ export default function App() {
 
   // Live stock ticker rates
   const [stocks, setStocks] = useState<Stock[]>(INITIAL_STOCKS);
+  const [stocksApiSource, setStocksApiSource] = useState<string>("fetching");
 
   interface StopLossAlert {
     id: string;
@@ -559,45 +560,60 @@ export default function App() {
           ADBE: "ADBE", CSCO: "CSCO", SBUX: "SBUX", "TTE.PA": "TTE.PA", "AIR.PA": "AIR.PA"
         };
         
-        const symbolsList = Object.values(yahooSymbolsMap).join(",");
-        const url = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${symbolsList}`;
-        
-        const proxies = [
-          `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
-          `https://cors.lol/?url=${encodeURIComponent(url)}`,
-          `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
-        ];
-
-        let quoteResponse = null;
-        for (const proxyUrl of proxies) {
-          try {
-            const res = await fetch(proxyUrl);
-            if (res.ok) {
-              const data = await res.json();
-              const result = data?.quoteResponse?.result;
-              if (result && Array.isArray(result) && result.length > 0) {
-                quoteResponse = result;
-                break;
-              }
-            }
-          } catch (e) {
-            // try next proxy
-          }
+        const uniqueSymbols = Array.from(new Set(Object.values(yahooSymbolsMap)));
+        const batchSize = 10;
+        const batches: string[][] = [];
+        for (let i = 0; i < uniqueSymbols.length; i += batchSize) {
+          batches.push(uniqueSymbols.slice(i, i + batchSize));
         }
 
-        if (!quoteResponse) {
-          console.warn("All proxies failed to fetch quoteResponse");
+        const allResults: any[] = [];
+
+        await Promise.all(
+          batches.map(async (batch) => {
+            const symbolsList = batch.join(",");
+            const url = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${symbolsList}`;
+            
+            const proxies = [
+              `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+              `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+              `https://cors.lol/?url=${encodeURIComponent(url)}`,
+              `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+              url
+            ];
+
+            for (const proxyUrl of proxies) {
+              try {
+                const res = await fetch(proxyUrl);
+                if (res.ok) {
+                  const data = await res.json();
+                  const result = data?.quoteResponse?.result;
+                  if (result && Array.isArray(result) && result.length > 0) {
+                    allResults.push(...result);
+                    return; // Succeeded for this batch!
+                  }
+                }
+              } catch (e) {
+                // Try next proxy
+              }
+            }
+          })
+        );
+
+        if (allResults.length === 0) {
+          console.warn("All proxies failed to fetch quoteResponse in client fallback");
           return;
         }
 
         const quotesBySymbol = new Map<string, any>();
-        for (const quote of quoteResponse) {
+        for (const quote of allResults) {
           if (quote?.symbol) {
             quotesBySymbol.set(quote.symbol, quote);
           }
         }
 
         if (active) {
+          setStocksApiSource("client-fallback");
           setStocks(prevStocks => {
             return prevStocks.map(stock => {
               const yahooSymbol = yahooSymbolsMap[stock.symbol] || stock.symbol;
@@ -649,6 +665,8 @@ export default function App() {
       try {
         const response = await fetch("/api/stocks");
         if (response.ok) {
+          const src = response.headers.get("X-Prices-Source") || "server";
+          if (active) setStocksApiSource(src);
           const contentType = response.headers.get("content-type");
           if (contentType && contentType.includes("application/json")) {
             const data = await response.json();
