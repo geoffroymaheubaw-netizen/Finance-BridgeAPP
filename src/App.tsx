@@ -547,6 +547,8 @@ export default function App() {
   // Synchronise stock prices with actual real-life values from Yahoo Finance via server proxy (with client-side fallback for static GitHub Pages)
   useEffect(() => {
     let active = true;
+    let isFetching = false;
+    let hasFetchedFallback = false;
 
     const fetchSingleWithProxies = async (symbol: string): Promise<any> => {
       const url = `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
@@ -643,19 +645,36 @@ export default function App() {
     };
 
     const fetchRealStocks = async () => {
+      if (isFetching) return;
+      isFetching = true;
       try {
         const response = await fetch("/api/stocks");
         if (response.ok) {
-          const data = await response.json();
-          if (active && Array.isArray(data) && data.length > 0) {
-            setStocks(data);
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const data = await response.json();
+            if (active && Array.isArray(data) && data.length > 0) {
+              setStocks(data);
+              isFetching = false;
+              return;
+            }
           }
-        } else {
+        }
+        
+        // If server API did not return JSON, use client-side fallback
+        // BUT only run the heavy browser-side proxy sync once on startup to avoid rate-limiting & freezes!
+        if (!hasFetchedFallback) {
+          hasFetchedFallback = true;
           await fetchRealStocksClientFallback();
         }
       } catch (error) {
         console.warn("Could not sync real-time stocks via server proxy, using client fallback:", error);
-        await fetchRealStocksClientFallback();
+        if (!hasFetchedFallback) {
+          hasFetchedFallback = true;
+          await fetchRealStocksClientFallback();
+        }
+      } finally {
+        isFetching = false;
       }
     };
 
