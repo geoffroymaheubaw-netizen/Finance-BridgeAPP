@@ -548,33 +548,6 @@ export default function App() {
   useEffect(() => {
     let active = true;
     let isFetching = false;
-    let hasFetchedFallback = false;
-
-    const fetchSingleWithProxies = async (symbol: string): Promise<any> => {
-      const url = `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
-      
-      const proxies = [
-        `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
-        `https://cors.lol/?url=${encodeURIComponent(url)}`,
-        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
-      ];
-
-      for (const proxyUrl of proxies) {
-        try {
-          const res = await fetch(proxyUrl);
-          if (res.ok) {
-            const data = await res.json();
-            const meta = data?.chart?.result?.[0]?.meta;
-            if (meta) {
-              return meta;
-            }
-          }
-        } catch (e) {
-          // try next proxy
-        }
-      }
-      return null;
-    };
 
     const fetchRealStocksClientFallback = async () => {
       try {
@@ -586,58 +559,84 @@ export default function App() {
           ADBE: "ADBE", CSCO: "CSCO", SBUX: "SBUX", "TTE.PA": "TTE.PA", "AIR.PA": "AIR.PA"
         };
         
-        const symbolsToFetch = Object.entries(yahooSymbolsMap);
+        const symbolsList = Object.values(yahooSymbolsMap).join(",");
+        const url = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${symbolsList}`;
         
-        // Fetch in smaller batches to avoid rate limit or slow performance on client browser
-        const batchSize = 9;
-        for (let i = 0; i < symbolsToFetch.length; i += batchSize) {
-          const batch = symbolsToFetch.slice(i, i + batchSize);
-          
-          await Promise.all(
-            batch.map(async ([appSymbol, yahooSymbol]) => {
-              const meta = await fetchSingleWithProxies(yahooSymbol);
-              if (active && meta) {
-                const price = meta.regularMarketPrice ? parseFloat(meta.regularMarketPrice.toFixed(2)) : null;
-                if (price !== null) {
-                  const prevClose = meta.chartPreviousClose || price;
-                  const change = parseFloat((((price - prevClose) / prevClose) * 100).toFixed(2));
-                  const low24h = meta.regularMarketDayLow ? parseFloat(meta.regularMarketDayLow.toFixed(2)) : price;
-                  const high24h = meta.regularMarketDayHigh ? parseFloat(meta.regularMarketDayHigh.toFixed(2)) : price;
-                  const volumeNum = meta.regularMarketVolume;
-                  
-                  let volume = "";
-                  if (volumeNum) {
-                    if (volumeNum >= 1_000_000_000) volume = `${(volumeNum / 1_000_000_000).toFixed(1)}B`;
-                    else if (volumeNum >= 1_000_000) volume = `${(volumeNum / 1_000_000).toFixed(1)}M`;
-                    else if (volumeNum >= 1000) volume = `${(volumeNum / 1000).toFixed(1)}K`;
-                    else volume = volumeNum.toString();
-                  }
+        const proxies = [
+          `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+          `https://cors.lol/?url=${encodeURIComponent(url)}`,
+          `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+        ];
 
-                  setStocks(prevStocks => {
-                    return prevStocks.map(stock => {
-                      if (stock.symbol !== appSymbol) return stock;
-                      
-                      const originalStock = INITIAL_STOCKS.find(s => s.symbol === stock.symbol) || stock;
-                      const scale = price / originalStock.price;
-                      const history = originalStock.history.map((hPrice) => parseFloat((hPrice * scale).toFixed(2)));
-
-                      return {
-                        ...stock,
-                        price,
-                        change,
-                        low24h,
-                        high24h,
-                        volume: volume || stock.volume,
-                        history
-                      };
-                    });
-                  });
-                }
+        let quoteResponse = null;
+        for (const proxyUrl of proxies) {
+          try {
+            const res = await fetch(proxyUrl);
+            if (res.ok) {
+              const data = await res.json();
+              const result = data?.quoteResponse?.result;
+              if (result && Array.isArray(result) && result.length > 0) {
+                quoteResponse = result;
+                break;
               }
-            })
-          );
-          
-          await new Promise(r => setTimeout(r, 100));
+            }
+          } catch (e) {
+            // try next proxy
+          }
+        }
+
+        if (!quoteResponse) {
+          console.warn("All proxies failed to fetch quoteResponse");
+          return;
+        }
+
+        const quotesBySymbol = new Map<string, any>();
+        for (const quote of quoteResponse) {
+          if (quote?.symbol) {
+            quotesBySymbol.set(quote.symbol, quote);
+          }
+        }
+
+        if (active) {
+          setStocks(prevStocks => {
+            return prevStocks.map(stock => {
+              const yahooSymbol = yahooSymbolsMap[stock.symbol] || stock.symbol;
+              const quote = quotesBySymbol.get(yahooSymbol);
+              if (!quote) return stock;
+
+              const price = quote.regularMarketPrice ? parseFloat(quote.regularMarketPrice.toFixed(2)) : null;
+              if (price === null) return stock;
+
+              const change = quote.regularMarketChangePercent !== undefined 
+                ? parseFloat(quote.regularMarketChangePercent.toFixed(2)) 
+                : stock.change;
+              const low24h = quote.regularMarketDayLow ? parseFloat(quote.regularMarketDayLow.toFixed(2)) : price;
+              const high24h = quote.regularMarketDayHigh ? parseFloat(quote.regularMarketDayHigh.toFixed(2)) : price;
+              const volumeNum = quote.regularMarketVolume;
+
+              let volume = "";
+              if (volumeNum) {
+                if (volumeNum >= 1_000_000_000) volume = `${(volumeNum / 1_000_000_000).toFixed(1)}B`;
+                else if (volumeNum >= 1_000_000) volume = `${(volumeNum / 1_000_000).toFixed(1)}M`;
+                else if (volumeNum >= 1000) volume = `${(volumeNum / 1000).toFixed(1)}K`;
+                else volume = volumeNum.toString();
+              }
+
+              const originalStock = INITIAL_STOCKS.find(s => s.symbol === stock.symbol) || stock;
+              const scale = price / originalStock.price;
+              const history = originalStock.history.map((hPrice) => parseFloat((hPrice * scale).toFixed(2)));
+
+              return {
+                ...stock,
+                price,
+                change,
+                low24h,
+                high24h,
+                volume: volume || stock.volume,
+                history
+              };
+            });
+          });
         }
       } catch (err) {
         console.warn("Could not sync real-time stocks from client fallback:", err);
@@ -662,17 +661,10 @@ export default function App() {
         }
         
         // If server API did not return JSON, use client-side fallback
-        // BUT only run the heavy browser-side proxy sync once on startup to avoid rate-limiting & freezes!
-        if (!hasFetchedFallback) {
-          hasFetchedFallback = true;
-          await fetchRealStocksClientFallback();
-        }
+        await fetchRealStocksClientFallback();
       } catch (error) {
         console.warn("Could not sync real-time stocks via server proxy, using client fallback:", error);
-        if (!hasFetchedFallback) {
-          hasFetchedFallback = true;
-          await fetchRealStocksClientFallback();
-        }
+        await fetchRealStocksClientFallback();
       } finally {
         isFetching = false;
       }
