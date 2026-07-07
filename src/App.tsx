@@ -697,6 +697,29 @@ export default function App() {
       clearInterval(interval);
     };
   }, []);
+
+  const fetchStockHistory = async (symbol: string) => {
+    // Find stock and check if real history (>30 points) has already been fetched
+    const stock = stocks.find((s) => s.symbol === symbol);
+    if (!stock || stock.history.length > 30) return;
+
+    try {
+      const response = await fetch(`/api/stocks/history/${symbol}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data && Array.isArray(data.history) && data.history.length > 0) {
+          setStocks((prevStocks) =>
+            prevStocks.map((s) =>
+              s.symbol === symbol ? { ...s, history: data.history } : s
+            )
+          );
+        }
+      }
+    } catch (err) {
+      console.warn(`[History Sync] Failed to fetch history for ${symbol}:`, err);
+    }
+  };
+
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<string>("");
   const [parisTime, setParisTime] = useState<any>(() => getZonedDateTime("Europe/Paris"));
@@ -1849,6 +1872,7 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
               onUpdateStopLoss={handleUpdateStopLoss}
               lang={lang}
               t={t}
+              onSelectStock={fetchStockHistory}
             />
           )}
 

@@ -1266,6 +1266,60 @@ Veuillez respecter le schéma JSON requis.`;
     }
   });
 
+  // API Route: Real-time historical prices for individual stocks
+  app.get("/api/stocks/history/:symbol", async (req, res) => {
+    const symbol = req.params.symbol.toUpperCase();
+    const twelveDataApiKey = (req.headers['x-twelve-data-key'] as string) || process.env.TWELVE_DATA_API_KEY;
+
+    if (!twelveDataApiKey) {
+      return res.status(400).json({ error: "Twelve Data API key is missing." });
+    }
+
+    try {
+      const symbolsMap: Record<string, string> = {
+        AAPL: "AAPL", MSFT: "MSFT", NVDA: "NVDA", TSLA: "TSLA", GOOGL: "GOOGL",
+        AMZN: "AMZN", NFLX: "NFLX", COIN: "COIN", META: "META", AMD: "AMD",
+        DIS: "DIS", ASML: "ASML", V: "V", LLY: "LLY", MC: "MC.PA", "OR.PA": "OR.PA",
+        JPM: "JPM", WMT: "WMT", JNJ: "JNJ", PG: "PG", XOM: "XOM", COST: "COST",
+        MA: "MA", ADBE: "ADBE", CRM: "CRM", CVX: "CVX", BAC: "BAC", PEP: "PEP",
+        KO: "KO", MRK: "MRK", TSM: "TSM", AVGO: "AVGO", QCOM: "QCOM", ORCL: "ORCL",
+        NKE: "NKE", MCD: "MCD", INTC: "INTC", IBM: "IBM", CSCO: "CSCO", GE: "GE",
+        SBUX: "SBUX", "TTE.PA": "TTE.PA", "SAN.PA": "SAN.PA", "AIR.PA": "AIR.PA",
+        "RMS.PA": "RMS.PA", "BNP.PA": "BNP.PA", "CS.PA": "CS.PA", "RNO.PA": "RNO.PA",
+        "AIRF.PA": "AIRF.PA", "ENGI.PA": "ENGI.PA"
+      };
+
+      const querySymbol = symbolsMap[symbol] || symbol;
+      const url = `https://api.twelvedata.com/time_series?symbol=${querySymbol}&interval=1day&outputsize=350&apikey=${twelveDataApiKey}`;
+
+      console.log(`[Prices API] Fetching real time_series for ${querySymbol} from Twelve Data...`);
+      const response = await fetch(url, { signal: AbortSignal.timeout(6000) });
+      if (!response.ok) {
+        throw new Error(`Twelve Data response code: ${response.status}`);
+      }
+
+      const data: any = await response.json();
+      if (data.status === "error" || !data.values || !Array.isArray(data.values)) {
+        throw new Error(data.message || "Invalid response format from Twelve Data");
+      }
+
+      // Parse values, reverse them so they are chronological (oldest to newest)
+      const prices = data.values
+        .map((item: any) => parseFloat(item.close))
+        .filter((price: number) => !isNaN(price))
+        .reverse();
+
+      if (prices.length === 0) {
+        throw new Error("No valid price history values parsed from Twelve Data");
+      }
+
+      res.json({ symbol, history: prices });
+    } catch (err: any) {
+      console.error(`[Prices API] Failed to fetch historical data for ${symbol}:`, err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // API Route: Healthcheck and system constants
   app.get("/api/health", (req, res) => {
     res.json({ status: "healthy", timestamp: new Date().toISOString() });

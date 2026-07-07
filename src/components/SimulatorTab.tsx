@@ -40,6 +40,9 @@ export function interpolateArray(arr: number[], targetLength: number): number[] 
 // Generates incredibly realistic high-density historical curves for all stock tickers
 export function getTimeframeData(stock: Stock, tf: string): { prices: number[]; labels: [string, string, string] } {
   const currentPrice = stock.price;
+  const historyToUse = stock.history || [];
+  const hasRealHistory = historyToUse.length > 30; // Real historical data loaded from Twelve Data has length 350
+
   const random = getSeededRandom(`${stock.symbol}-${tf}`);
 
   let N = 60;
@@ -77,23 +80,42 @@ export function getTimeframeData(stock: Stock, tf: string): { prices: number[]; 
       break;
     case "1M":
       // Smooth the real stock.history and make it 120 points!
+      const history30 = hasRealHistory ? historyToUse.slice(-30) : historyToUse;
       return {
-        prices: interpolateArray(stock.history, 120).map(p => parseFloat(p.toFixed(2))),
+        prices: interpolateArray(history30, 120).map(p => parseFloat(p.toFixed(2))),
         labels: ["Il y a 30 jours", "Il y a 15 jours", "Aujourd'hui"]
       };
     case "3M":
+      if (hasRealHistory) {
+        return {
+          prices: historyToUse.slice(-150).map(p => parseFloat(p.toFixed(2))),
+          labels: ["Il y a 3 mois", "Il y a 45 j.", "Aujourd'hui"]
+        };
+      }
       N = 150; // 150 data points
       volatility = 0.008;
       drift = 0.0004;
       labels = ["Il y a 3 mois", "Il y a 45 j.", "Aujourd'hui"];
       break;
     case "6M":
+      if (hasRealHistory) {
+        return {
+          prices: historyToUse.slice(-180).map(p => parseFloat(p.toFixed(2))),
+          labels: ["Il y a 6 mois", "Il y a 3 mois", "Aujourd'hui"]
+        };
+      }
       N = 180; // 180 data points
       volatility = 0.012;
       drift = 0.0006;
       labels = ["Il y a 6 mois", "Il y a 3 mois", "Aujourd'hui"];
       break;
     case "1A":
+      if (hasRealHistory) {
+        return {
+          prices: historyToUse.slice(-250).map(p => parseFloat(p.toFixed(2))),
+          labels: ["Il y a 1 an", "Il y a 6 mois", "Aujourd'hui"]
+        };
+      }
       N = 250; // 250 trading days
       volatility = 0.018;
       drift = 0.001;
@@ -104,6 +126,12 @@ export function getTimeframeData(stock: Stock, tf: string): { prices: number[]; 
       labels = ["Il y a 1 an", "Il y a 6 mois", "Aujourd'hui"];
       break;
     case "Tout":
+      if (hasRealHistory) {
+        return {
+          prices: historyToUse.slice(-350).map(p => parseFloat(p.toFixed(2))),
+          labels: ["Entrée en Bourse", "Moyen Terme", "Aujourd'hui"]
+        };
+      }
       N = 350; // 350 data points
       volatility = 0.024;
       drift = 0.002;
@@ -155,10 +183,18 @@ interface SimulatorTabProps {
   onUpdateStopLoss: (symbol: string, stopLoss?: number | null) => void;
   lang: string;
   t: (key: string) => string;
+  onSelectStock?: (symbol: string) => void;
 }
 
-export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLoss, lang, t }: SimulatorTabProps) {
+export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLoss, lang, t, onSelectStock }: SimulatorTabProps) {
   const [selectedSymbol, setSelectedSymbol] = useState<string>("AAPL");
+
+  React.useEffect(() => {
+    if (onSelectStock && selectedSymbol) {
+      onSelectStock(selectedSymbol);
+    }
+  }, [selectedSymbol, onSelectStock]);
+
   const [guidedLearningActive, setGuidedLearningActive] = useState<boolean>(true);
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
   const [tradeShares, setTradeShares] = useState<number>(1);
