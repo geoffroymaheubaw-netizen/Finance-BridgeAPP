@@ -86,6 +86,8 @@ export interface UserProfile {
   learningHearts?: number;
   lastHeartsResetDate?: string; // YYYY-MM-DD
   geminiApiKey?: string;
+  twelveDataApiKey?: string;
+  finnhubApiKey?: string;
   aiMode?: 'backend' | 'client';
 }
 

@@ -319,6 +319,12 @@ export default function App() {
         if (parsed.geminiApiKey === undefined) {
           parsed.geminiApiKey = "";
         }
+        if (parsed.twelveDataApiKey === undefined) {
+          parsed.twelveDataApiKey = "";
+        }
+        if (parsed.finnhubApiKey === undefined) {
+          parsed.finnhubApiKey = "";
+        }
         if (!parsed.lastHeartsResetDate) {
           parsed.lastHeartsResetDate = today;
         } else if (parsed.lastHeartsResetDate !== today) {
@@ -343,7 +349,10 @@ export default function App() {
       portfolioHistory: [{ date: new Date().toLocaleDateString("fr-FR"), value: 10000 }],
       marketMode: "real",
       learningHearts: 4,
-      lastHeartsResetDate: today
+      lastHeartsResetDate: today,
+      geminiApiKey: "",
+      twelveDataApiKey: "",
+      finnhubApiKey: ""
     };
   });
 
@@ -663,7 +672,14 @@ export default function App() {
       if (isFetching) return;
       isFetching = true;
       try {
-        const response = await fetch("/api/stocks");
+        const headers: Record<string, string> = {};
+        if (profile.twelveDataApiKey) {
+          headers["x-twelve-data-key"] = profile.twelveDataApiKey;
+        }
+        if (profile.finnhubApiKey) {
+          headers["x-finnhub-key"] = profile.finnhubApiKey;
+        }
+        const response = await fetch("/api/stocks", { headers });
         if (response.ok) {
           const src = response.headers.get("X-Prices-Source") || "server";
           if (active) setStocksApiSource(src);
@@ -696,7 +712,7 @@ export default function App() {
       active = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [profile.twelveDataApiKey, profile.finnhubApiKey]);
 
   const fetchStockHistory = async (symbol: string) => {
     // Find stock and check if real history (>30 points) has already been fetched
@@ -704,7 +720,14 @@ export default function App() {
     if (!stock || stock.history.length > 30) return;
 
     try {
-      const response = await fetch(`/api/stocks/history/${symbol}`);
+      const headers: Record<string, string> = {};
+      if (profile.twelveDataApiKey) {
+        headers["x-twelve-data-key"] = profile.twelveDataApiKey;
+      }
+      if (profile.finnhubApiKey) {
+        headers["x-finnhub-key"] = profile.finnhubApiKey;
+      }
+      const response = await fetch(`/api/stocks/history/${symbol}`, { headers });
       if (response.ok) {
         const data = await response.json();
         if (data && Array.isArray(data.history) && data.history.length > 0) {
@@ -1490,6 +1513,20 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
               </div>
             </div>
 
+            {/* Pricing data source */}
+            <div className="hidden md:flex items-center gap-1.5 bg-slate-800 px-3.5 py-1.5 rounded-xl border border-slate-700/50 text-slate-300">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] font-mono font-extrabold tracking-wider text-slate-200 uppercase">
+                {lang === "fr" ? "Flux : " : "Feed: "}
+                {stocksApiSource === "twelve-data" ? "Twelve Data" : 
+                 stocksApiSource === "finnhub" ? "Finnhub" : 
+                 stocksApiSource === "rapidapi" ? "RapidAPI" : 
+                 stocksApiSource === "fallback-proxy" ? "Yahoo Finance" : 
+                 stocksApiSource === "client-fallback" ? "Yahoo" : 
+                 stocksApiSource === "fetching" ? "Connexion..." : "Simulation"}
+              </span>
+            </div>
+
             {/* Settings Button & Theme Popover Menu */}
             <div className="relative">
               <button
@@ -1586,6 +1623,8 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
                     />
                   </div>
 
+
+
                   {/* Market Simulation Mode Selector */}
                   <div className="space-y-1.5 pb-2 border-b border-slate-100 dark:border-slate-800">
                     <label className="text-xs font-bold text-slate-500 dark:text-slate-400">
@@ -1630,7 +1669,9 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
                               learningHearts: 4,
                               lastHeartsResetDate: today,
                               aiMode: profile.aiMode,
-                              geminiApiKey: profile.geminiApiKey
+                              geminiApiKey: profile.geminiApiKey,
+                              twelveDataApiKey: profile.twelveDataApiKey,
+                              finnhubApiKey: profile.finnhubApiKey
                             };
                             setProfile(resetProfile);
                             localStorage.setItem(STORAGE_KEY, JSON.stringify(resetProfile));
