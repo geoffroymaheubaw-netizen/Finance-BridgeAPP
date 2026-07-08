@@ -554,7 +554,7 @@ export default function App() {
     });
   }, [stocks, profile.cash, profile.portfolio]);
 
-  // Synchronise stock prices with actual real-life values from Yahoo Finance via server proxy (with client-side fallback for static GitHub Pages)
+  // Synchronise stock prices with actual real-life values from Yahoo Finance via server proxy (with client-side fallback for static Vercel/GitHub Pages deployments)
   useEffect(() => {
     let active = true;
     let isFetching = false;
@@ -570,6 +570,124 @@ export default function App() {
         };
         
         const uniqueSymbols = Array.from(new Set(Object.values(yahooSymbolsMap)));
+
+        // 1. Try Twelve Data direct client fetch if key is present
+        if (profile.twelveDataApiKey) {
+          console.log("[Client Fallback] Fetching direct from Twelve Data using user's API Key...");
+          const batchSize = 8;
+          const batches: string[][] = [];
+          for (let i = 0; i < uniqueSymbols.length; i += batchSize) {
+            batches.push(uniqueSymbols.slice(i, i + batchSize));
+          }
+          const resultsMap: Record<string, any> = {};
+          try {
+            await Promise.all(
+              batches.map(async (batch) => {
+                const symbolsList = batch.join(",");
+                const url = `https://api.twelvedata.com/quote?symbol=${symbolsList}&apikey=${profile.twelveDataApiKey}`;
+                const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+                if (response.ok) {
+                  const data = await response.json();
+                  const quotes = batch.length === 1 && data && data.symbol ? { [batch[0]]: data } : data;
+                  if (quotes && typeof quotes === "object") {
+                    Object.entries(quotes).forEach(([symbol, quoteObj]: [string, any]) => {
+                      if (quoteObj && !quoteObj.status && (quoteObj.close || quoteObj.price)) {
+                        const priceVal = parseFloat(quoteObj.close || quoteObj.price);
+                        if (!isNaN(priceVal)) {
+                          const change = quoteObj.percent_change ? parseFloat(quoteObj.percent_change) : 0;
+                          const low24h = quoteObj.low ? parseFloat(quoteObj.low) : priceVal;
+                          const high24h = quoteObj.high ? parseFloat(quoteObj.high) : priceVal;
+                          resultsMap[symbol.toUpperCase()] = { price: priceVal, change, low24h, high24h };
+                        }
+                      }
+                    });
+                  }
+                }
+              })
+            );
+            if (Object.keys(resultsMap).length > 0) {
+              if (active) {
+                setStocksApiSource("client-twelve-data");
+                setStocks(prevStocks => {
+                  return prevStocks.map(stock => {
+                    const yahooSymbol = yahooSymbolsMap[stock.symbol] || stock.symbol;
+                    const live = resultsMap[yahooSymbol.toUpperCase()];
+                    if (!live) return stock;
+                    const scale = live.price / stock.price;
+                    const history = stock.history.map(hPrice => parseFloat((hPrice * scale).toFixed(2)));
+                    return {
+                      ...stock,
+                      price: live.price,
+                      change: live.change,
+                      low24h: live.low24h,
+                      high24h: live.high24h,
+                      history,
+                      basePrice: live.price,
+                      baseChange: live.change
+                    };
+                  });
+                });
+                return; // Succeeded!
+              }
+            }
+          } catch (e) {
+            console.warn("Client-side Twelve Data fetch failed:", e);
+          }
+        }
+
+        // 2. Try Finnhub direct client fetch if key is present (CORS friendly)
+        if (profile.finnhubApiKey) {
+          console.log("[Client Fallback] Fetching direct from Finnhub using user's API Key...");
+          const resultsMap: Record<string, any> = {};
+          try {
+            const sliceSymbols = uniqueSymbols.slice(0, 12); 
+            await Promise.all(
+              sliceSymbols.map(async (yahooSymbol) => {
+                const url = `https://finnhub.io/api/v1/quote?symbol=${yahooSymbol}&token=${profile.finnhubApiKey}`;
+                const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
+                if (response.ok) {
+                  const data = await response.json();
+                  if (data && data.c) {
+                    const priceVal = parseFloat(data.c);
+                    const change = data.dp ? parseFloat(data.dp) : 0;
+                    const low24h = data.l ? parseFloat(data.l) : priceVal;
+                    const high24h = data.h ? parseFloat(data.h) : priceVal;
+                    resultsMap[yahooSymbol] = { price: priceVal, change, low24h, high24h };
+                  }
+                }
+              })
+            );
+            if (Object.keys(resultsMap).length > 0) {
+              if (active) {
+                setStocksApiSource("client-finnhub");
+                setStocks(prevStocks => {
+                  return prevStocks.map(stock => {
+                    const yahooSymbol = yahooSymbolsMap[stock.symbol] || stock.symbol;
+                    const live = resultsMap[yahooSymbol];
+                    if (!live) return stock;
+                    const scale = live.price / stock.price;
+                    const history = stock.history.map(hPrice => parseFloat((hPrice * scale).toFixed(2)));
+                    return {
+                      ...stock,
+                      price: live.price,
+                      change: live.change,
+                      low24h: live.low24h,
+                      high24h: live.high24h,
+                      history,
+                      basePrice: live.price,
+                      baseChange: live.change
+                    };
+                  });
+                });
+                return; // Succeeded!
+              }
+            }
+          } catch (e) {
+            console.warn("Client-side Finnhub fetch failed:", e);
+          }
+        }
+
+        // 3. Fallback to public CORS proxies for Yahoo Finance
         const batchSize = 10;
         const batches: string[][] = [];
         for (let i = 0; i < uniqueSymbols.length; i += batchSize) {
@@ -610,7 +728,19 @@ export default function App() {
         );
 
         if (allResults.length === 0) {
-          console.warn("All proxies failed to fetch quoteResponse in client fallback");
+          console.warn("All proxies failed to fetch quoteResponse in client fallback. Using deterministic simulation.");
+          if (active) {
+            setStocksApiSource("client-simulation");
+            setStocks(prevStocks => {
+              return prevStocks.map(stock => {
+                return {
+                  ...stock,
+                  basePrice: stock.basePrice || stock.price,
+                  baseChange: stock.baseChange !== undefined ? stock.baseChange : stock.change
+                };
+              });
+            });
+          }
           return;
         }
 
@@ -658,7 +788,9 @@ export default function App() {
                 low24h,
                 high24h,
                 volume: volume || stock.volume,
-                history
+                history,
+                basePrice: price,
+                baseChange: change
               };
             });
           });
@@ -687,7 +819,12 @@ export default function App() {
           if (contentType && contentType.includes("application/json")) {
             const data = await response.json();
             if (active && Array.isArray(data) && data.length > 0) {
-              setStocks(data);
+              const stocksWithBase = data.map((stock: any) => ({
+                ...stock,
+                basePrice: stock.basePrice || stock.price,
+                baseChange: stock.baseChange !== undefined ? stock.baseChange : stock.change
+              }));
+              setStocks(stocksWithBase);
               isFetching = false;
               return;
             }
@@ -938,7 +1075,7 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Periodic visual Stock tick adjustments to simulate live trading hours
+  // Periodic visual Stock tick adjustments to simulate live trading hours (perfectly synchronized between windows)
   useEffect(() => {
     const tickInterval = setInterval(() => {
       setStocks((prevStocks) =>
@@ -949,19 +1086,34 @@ export default function App() {
             return stock; // Freeze position changes when market is closed
           }
 
+          const basePrice = stock.basePrice || stock.price;
+          const baseChange = stock.baseChange !== undefined ? stock.baseChange : stock.change;
+
           // Volatility factor based on ticker: higher for COIN/TSLA, lower for MSFT/AAPL
           const volFactor = stock.symbol === "COIN" ? 0.015 : stock.symbol === "TSLA" ? 0.012 : 0.006;
-          const percentageMove = (Math.random() - 0.49) * 2 * volFactor; // slight upward drift
-          const rawNewPrice = stock.price * (1 + percentageMove);
+          
+          // Generate a smooth deterministic fluctuation based on symbol and current timestamp
+          // This keeps all open windows/browsers perfectly synchronized down to the second!
+          const nowSeconds = Math.floor(Date.now() / 5000) * 5;
+          let symbolHash = 0;
+          for (let i = 0; i < stock.symbol.length; i++) {
+            symbolHash += stock.symbol.charCodeAt(i) * (i + 1);
+          }
+
+          // Smooth multi-frequency wave calculation (combination of sine/cosine waves)
+          const waveValue = Math.sin(nowSeconds * 0.05 + symbolHash) * 0.4 + 
+                            Math.sin(nowSeconds * 0.01 + symbolHash * 2) * 0.3 +
+                            Math.cos(nowSeconds * 0.002 + symbolHash * 3) * 0.3; // between -1 and 1
+
+          const percentageMove = waveValue * volFactor; // dynamic percentage move
+          const rawNewPrice = basePrice * (1 + percentageMove);
           const newPrice = parseFloat(rawNewPrice.toFixed(2));
 
           // Today change recalculating
-          const todayDelta = percentageMove * 100 + stock.change;
+          const todayDelta = baseChange + (percentageMove * 100);
           const cappedDelta = parseFloat(Math.min(15, Math.max(-15, todayDelta)).toFixed(2));
 
           // Update the last element of the 30-day history (today's live price)
-          // instead of shifting and sliding the array. Shifting would discard daily close data
-          // and cause visual snapping when the 15-second Yahoo Finance sync scales the base history.
           const newHistory = [...stock.history];
           if (newHistory.length > 0) {
             newHistory[newHistory.length - 1] = newPrice;
@@ -1544,7 +1696,7 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
               </button>
 
               {isSettingsOpen && (
-                <div className="absolute right-0 mt-2.5 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-xl z-50 text-slate-800 dark:text-slate-100 animate-in fade-in duration-200 space-y-4">
+                <div className="absolute right-0 mt-2.5 w-72 sm:w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-xl z-50 text-slate-800 dark:text-slate-100 animate-in fade-in duration-200 space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
                     <span className="font-bold text-xs uppercase tracking-wider text-slate-400 dark:text-slate-500">{t("configTitle")}</span>
                     <button
@@ -1642,6 +1794,8 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
                       <option value="continuous">⚡ {t("marketModeContinuous")}</option>
                     </select>
                   </div>
+
+
 
 
                   {/* Reset Local Progress Button */}

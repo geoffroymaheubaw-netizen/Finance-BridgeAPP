@@ -8,6 +8,7 @@ import { INITIAL_STOCKS } from "./src/data";
 dotenv.config();
 
 let aiClient: GoogleGenAI | null = null;
+let isGeminiDisabledPermanently = false; // Cache 403 / permission denied errors to prevent useless retries
 
 function getAIClient() {
   if (!aiClient) {
@@ -29,6 +30,9 @@ function getAIClient() {
 
 // Wrapper for generateContent with automatic retry on 503/UNAVAILABLE or heavy load errors and model failover
 async function generateContentWithRetry(client: any, params: any, retries = 2, initialDelayMs = 1000): Promise<any> {
+  if (isGeminiDisabledPermanently) {
+    throw new Error("Gemini is disabled due to previous permanent 403 PERMISSION_DENIED error.");
+  }
   let attempt = 0;
   let delay = initialDelayMs;
   while (true) {
@@ -38,6 +42,17 @@ async function generateContentWithRetry(client: any, params: any, retries = 2, i
       attempt++;
       const errorMessage = String(err.message || "").toLowerCase();
       
+      const isForbidden = errorMessage.includes("403") || 
+                          errorMessage.includes("permission_denied") || 
+                          errorMessage.includes("denied access") ||
+                          errorMessage.includes("denied_access") ||
+                          (err.status && err.status === 403);
+      if (isForbidden) {
+        isGeminiDisabledPermanently = true;
+        console.warn(`[Gemini API] Permanent permission denial (403) detected. Disabling Gemini calls and defaulting to offline local fallback.`);
+        throw err;
+      }
+
       const isQuotaExceeded = errorMessage.includes("429") || 
                               errorMessage.includes("quota") || 
                               errorMessage.includes("limit") ||
@@ -88,6 +103,9 @@ async function generateContentWithRetry(client: any, params: any, retries = 2, i
 
 // Wrapper for generateContentStream with automatic retry on 503/UNAVAILABLE or heavy load errors and model failover
 async function generateContentStreamWithRetry(client: any, params: any, retries = 2, initialDelayMs = 1000): Promise<any> {
+  if (isGeminiDisabledPermanently) {
+    throw new Error("Gemini is disabled due to previous permanent 403 PERMISSION_DENIED error.");
+  }
   let attempt = 0;
   let delay = initialDelayMs;
   while (true) {
@@ -96,6 +114,17 @@ async function generateContentStreamWithRetry(client: any, params: any, retries 
     } catch (err: any) {
       attempt++;
       const errorMessage = String(err.message || "").toLowerCase();
+
+      const isForbidden = errorMessage.includes("403") || 
+                          errorMessage.includes("permission_denied") || 
+                          errorMessage.includes("denied access") ||
+                          errorMessage.includes("denied_access") ||
+                          (err.status && err.status === 403);
+      if (isForbidden) {
+        isGeminiDisabledPermanently = true;
+        console.warn(`[Gemini API Stream] Permanent permission denial (403) detected. Disabling Gemini calls and defaulting to offline local fallback.`);
+        throw err;
+      }
 
       const isQuotaExceeded = errorMessage.includes("429") || 
                               errorMessage.includes("quota") || 
@@ -609,11 +638,11 @@ async function startServer() {
         return;
       }
 
-      // Proactively bypass if Gemini is in a 429/billing cooldown or no API key is set
+      // Proactively bypass if Gemini is in a 429/billing cooldown, is permanently disabled, or no API key is set
       const isInCooldown = (Date.now() - last429Time) < 10 * 60 * 1000;
       const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey || isInCooldown) {
-        throw new Error("La clé d'API Gemini est absente ou en période de refroidissement temporaire (crédits épuisés).");
+      if (!apiKey || isInCooldown || isGeminiDisabledPermanently) {
+        throw new Error("La clé d'API Gemini est absente, désactivée en raison de restrictions de permissions, ou en période de refroidissement temporaire (crédits épuisés).");
       }
 
       const client = getAIClient();
@@ -758,12 +787,12 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
 
       xmlText = await feedRes.text();
 
-      // Check if Gemini is currently in a 429 cooldown, or process.env.GEMINI_API_KEY is missing
+      // Check if Gemini is currently in a 429 cooldown, or process.env.GEMINI_API_KEY is missing, or permanently disabled
       const isInCooldown = (Date.now() - last429Time) < 10 * 60 * 1000;
       const apiKey = process.env.GEMINI_API_KEY;
 
-      if (!apiKey || isInCooldown) {
-        console.log(`[News API] Gemini is in cooldown or key is missing. Attempting localized XML RSS parsing for ${uppercaseSymbol}...`);
+      if (!apiKey || isInCooldown || isGeminiDisabledPermanently) {
+        console.log(`[News API] Gemini is in cooldown, key is missing, or permanently disabled. Attempting localized XML RSS parsing for ${uppercaseSymbol}...`);
         const parsedItems = parseYahooRSS(xmlText, uppercaseSymbol);
         if (parsedItems.length > 0) {
           console.log(`[News API] Successfully parsed ${parsedItems.length} live RSS news without Gemini.`);
