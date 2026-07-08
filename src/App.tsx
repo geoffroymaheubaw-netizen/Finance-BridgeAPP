@@ -562,11 +562,56 @@ export default function App() {
     const fetchRealStocksClientFallback = async () => {
       try {
         const yahooSymbolsMap: Record<string, string> = {
-          AAPL: "AAPL", MSFT: "MSFT", AMZN: "AMZN", NVDA: "NVDA", GOOGL: "GOOGL",
-          META: "META", TSLA: "TSLA", NKE: "NKE", DIS: "DIS", MC: "MC.PA",
-          OR: "OR.PA", KER: "KER.PA", ASML: "ASML", SAP: "SAP", V: "V", MA: "MA",
-          KO: "KO", PEP: "PEP", PG: "PG", WMT: "WMT", COST: "COST", NFLX: "NFLX",
-          ADBE: "ADBE", CSCO: "CSCO", SBUX: "SBUX", "TTE.PA": "TTE.PA", "AIR.PA": "AIR.PA"
+          AAPL: "AAPL",
+          MSFT: "MSFT",
+          NVDA: "NVDA",
+          TSLA: "TSLA",
+          GOOGL: "GOOGL",
+          AMZN: "AMZN",
+          NFLX: "NFLX",
+          COIN: "COIN",
+          META: "META",
+          AMD: "AMD",
+          DIS: "DIS",
+          ASML: "ASML",
+          V: "V",
+          LLY: "LLY",
+          MC: "MC.PA",
+          "OR.PA": "OR.PA",
+          JPM: "JPM",
+          WMT: "WMT",
+          JNJ: "JNJ",
+          PG: "PG",
+          XOM: "XOM",
+          COST: "COST",
+          MA: "MA",
+          ADBE: "ADBE",
+          CRM: "CRM",
+          CVX: "CVX",
+          BAC: "BAC",
+          PEP: "PEP",
+          KO: "KO",
+          MRK: "MRK",
+          TSM: "TSM",
+          AVGO: "AVGO",
+          QCOM: "QCOM",
+          ORCL: "ORCL",
+          NKE: "NKE",
+          MCD: "MCD",
+          INTC: "INTC",
+          IBM: "IBM",
+          CSCO: "CSCO",
+          GE: "GE",
+          SBUX: "SBUX",
+          "TTE.PA": "TTE.PA",
+          "SAN.PA": "SAN.PA",
+          "AIR.PA": "AIR.PA",
+          "RMS.PA": "RMS.PA",
+          "BNP.PA": "BNP.PA",
+          "CS.PA": "CS.PA",
+          "RNO.PA": "RNO.PA",
+          "AIRF.PA": "AIRF.PA",
+          "ENGI.PA": "ENGI.PA"
         };
         
         const uniqueSymbols = Array.from(new Set(Object.values(yahooSymbolsMap)));
@@ -1087,9 +1132,10 @@ export default function App() {
       setStocks((prevStocks) =>
         prevStocks.map((stock) => {
           // Check if market is currently open for this stock
-          const isStockOpen = isMarketOpenForStock(stock.symbol, profile.marketMode || "real");
-          if (!isStockOpen) {
-            return stock; // Freeze position changes when market is closed
+          const modeToCheck = profile.marketMode === "continuous" ? "continuous" : "real";
+          const isStockOpen = isMarketOpenForStock(stock.symbol, modeToCheck);
+          if (!isStockOpen || profile.marketMode === "exact") {
+            return stock; // Freeze position changes when market is closed or when exact real-time mode is requested
           }
 
           const basePrice = stock.basePrice || stock.price;
@@ -1545,8 +1591,9 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
     });
   };
 
-  const isParisOpen = isMarketOpenForType("EU", profile.marketMode || "real");
-  const isNyOpen = isMarketOpenForType("US", profile.marketMode || "real");
+  const modeForMarketStatus = profile.marketMode === "continuous" ? "continuous" : "real";
+  const isParisOpen = isMarketOpenForType("EU", modeForMarketStatus);
+  const isNyOpen = isMarketOpenForType("US", modeForMarketStatus);
 
   if (authLoading) {
     return (
@@ -1791,12 +1838,13 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
                     <select
                       value={profile.marketMode || "real"}
                       onChange={(e) => {
-                        const val = e.target.value as "real" | "continuous";
+                        const val = e.target.value as "real" | "continuous" | "exact";
                         setProfile((prev) => ({ ...prev, marketMode: val }));
                       }}
                       className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-800 dark:text-white font-bold focus:outline-hidden focus:ring-1 focus:ring-indigo-500 cursor-pointer"
                     >
                       <option value="real">⏱️ {t("marketModeReal")}</option>
+                      <option value="exact">🎯 {t("marketModeExact")}</option>
                       <option value="continuous">⚡ {t("marketModeContinuous")}</option>
                     </select>
                   </div>

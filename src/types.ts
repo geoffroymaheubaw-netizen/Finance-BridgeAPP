@@ -82,7 +82,7 @@ export interface UserProfile {
   portfolio: PortfolioItem[];
   transactions: Transaction[];
   portfolioHistory: { date: string; value: number }[];
-  marketMode?: 'real' | 'continuous';
+  marketMode?: 'real' | 'continuous' | 'exact';
   learningHearts?: number;
   lastHeartsResetDate?: string; // YYYY-MM-DD
   geminiApiKey?: string;

@@ -86,7 +86,7 @@ export function getStockMarket(symbol: string): MarketType {
  * - EU Market: Monday to Friday, 09:00 - 17:30 CET
  * - Continuous Mode: 24/7 Sandbox trading
  */
-export function isMarketOpenForType(market: MarketType, mode: 'real' | 'continuous', date = new Date()): boolean {
+export function isMarketOpenForType(market: MarketType, mode: 'real' | 'continuous' | 'exact', date = new Date()): boolean {
   if (mode === 'continuous') return true;
 
   if (market === 'EU') {
@@ -107,6 +107,6 @@ export function isMarketOpenForType(market: MarketType, mode: 'real' | 'continuo
 /**
  * Checks if the market of a given stock is open.
  */
-export function isMarketOpenForStock(symbol: string, mode: 'real' | 'continuous', date = new Date()): boolean {
+export function isMarketOpenForStock(symbol: string, mode: 'real' | 'continuous' | 'exact', date = new Date()): boolean {
   return isMarketOpenForType(getStockMarket(symbol), mode, date);
 }
