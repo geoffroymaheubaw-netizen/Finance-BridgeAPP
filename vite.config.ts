@@ -12,6 +12,12 @@ export default defineConfig(() => {
       'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify(process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || ""),
       'process.env.VITE_GEMINI_API_KEY': JSON.stringify(process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || ""),
       'process.env.GEMINI_API_KEY': JSON.stringify(process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || ""),
+      'import.meta.env.VITE_FINNHUB_API_KEY': JSON.stringify(process.env.VITE_FINNHUB_API_KEY || process.env.FINNHUB_API_KEY || ""),
+      'process.env.VITE_FINNHUB_API_KEY': JSON.stringify(process.env.VITE_FINNHUB_API_KEY || process.env.FINNHUB_API_KEY || ""),
+      'process.env.FINNHUB_API_KEY': JSON.stringify(process.env.FINNHUB_API_KEY || process.env.VITE_FINNHUB_API_KEY || ""),
+      'import.meta.env.VITE_TWELVE_DATA_API_KEY': JSON.stringify(process.env.VITE_TWELVE_DATA_API_KEY || process.env.TWELVE_DATA_API_KEY || ""),
+      'process.env.VITE_TWELVE_DATA_API_KEY': JSON.stringify(process.env.VITE_TWELVE_DATA_API_KEY || process.env.TWELVE_DATA_API_KEY || ""),
+      'process.env.TWELVE_DATA_API_KEY': JSON.stringify(process.env.TWELVE_DATA_API_KEY || process.env.VITE_TWELVE_DATA_API_KEY || ""),
     },
     resolve: {
       alias: {

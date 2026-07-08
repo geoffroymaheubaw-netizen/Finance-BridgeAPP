@@ -571,9 +571,23 @@ export default function App() {
         
         const uniqueSymbols = Array.from(new Set(Object.values(yahooSymbolsMap)));
 
+        const envTwelveDataKey = 
+          ((import.meta as any).env || {}).VITE_TWELVE_DATA_API_KEY || 
+          process.env.VITE_TWELVE_DATA_API_KEY || 
+          process.env.TWELVE_DATA_API_KEY || 
+          "";
+        const envFinnhubKey = 
+          ((import.meta as any).env || {}).VITE_FINNHUB_API_KEY || 
+          process.env.VITE_FINNHUB_API_KEY || 
+          process.env.FINNHUB_API_KEY || 
+          "";
+
+        const twelveKey = (profile.twelveDataApiKey && profile.twelveDataApiKey.trim()) || (envTwelveDataKey && envTwelveDataKey.trim());
+        const finnhubKey = (profile.finnhubApiKey && profile.finnhubApiKey.trim()) || (envFinnhubKey && envFinnhubKey.trim());
+
         // 1. Try Twelve Data direct client fetch if key is present
-        if (profile.twelveDataApiKey) {
-          console.log("[Client Fallback] Fetching direct from Twelve Data using user's API Key...");
+        if (twelveKey) {
+          console.log("[Client Fallback] Fetching direct from Twelve Data using API Key...");
           const batchSize = 8;
           const batches: string[][] = [];
           for (let i = 0; i < uniqueSymbols.length; i += batchSize) {
@@ -584,7 +598,7 @@ export default function App() {
             await Promise.all(
               batches.map(async (batch) => {
                 const symbolsList = batch.join(",");
-                const url = `https://api.twelvedata.com/quote?symbol=${symbolsList}&apikey=${profile.twelveDataApiKey}`;
+                const url = `https://api.twelvedata.com/quote?symbol=${symbolsList}&apikey=${twelveKey}`;
                 const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
                 if (response.ok) {
                   const data = await response.json();
@@ -636,14 +650,14 @@ export default function App() {
         }
 
         // 2. Try Finnhub direct client fetch if key is present (CORS friendly)
-        if (profile.finnhubApiKey) {
-          console.log("[Client Fallback] Fetching direct from Finnhub using user's API Key...");
+        if (finnhubKey) {
+          console.log("[Client Fallback] Fetching direct from Finnhub using API Key...");
           const resultsMap: Record<string, any> = {};
           try {
             const sliceSymbols = uniqueSymbols.slice(0, 12); 
             await Promise.all(
               sliceSymbols.map(async (yahooSymbol) => {
-                const url = `https://finnhub.io/api/v1/quote?symbol=${yahooSymbol}&token=${profile.finnhubApiKey}`;
+                const url = `https://finnhub.io/api/v1/quote?symbol=${yahooSymbol}&token=${finnhubKey}`;
                 const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
                 if (response.ok) {
                   const data = await response.json();
