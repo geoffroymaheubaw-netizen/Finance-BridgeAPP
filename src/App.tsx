@@ -585,9 +585,94 @@ export default function App() {
         const twelveKey = (profile.twelveDataApiKey && profile.twelveDataApiKey.trim()) || (envTwelveDataKey && envTwelveDataKey.trim());
         const finnhubKey = (profile.finnhubApiKey && profile.finnhubApiKey.trim()) || (envFinnhubKey && envFinnhubKey.trim());
 
-        // 1. Try Twelve Data direct client fetch if key is present
+        // 1. Primary Source: Yahoo Finance via public CORS proxies (Fetches ALL 27 US & European stocks in a single high-accuracy request)
+        console.log("[Client Fallback] Querying real-time Yahoo Finance via public CORS proxies...");
+        const symbolsList = uniqueSymbols.join(",");
+        const url = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${symbolsList}`;
+        
+        const proxies = [
+          `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+          `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+          `https://cors.lol/?url=${encodeURIComponent(url)}`,
+          `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+          url
+        ];
+
+        let yahooResults: any[] = [];
+        for (const proxyUrl of proxies) {
+          try {
+            const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(6000) });
+            if (res.ok) {
+              const data = await res.json();
+              const result = data?.quoteResponse?.result;
+              if (result && Array.isArray(result) && result.length > 0) {
+                yahooResults = result;
+                break; // Succeeded!
+              }
+            }
+          } catch (e) {
+            // Try next proxy
+          }
+        }
+
+        if (yahooResults.length > 0) {
+          const quotesBySymbol = new Map<string, any>();
+          for (const quote of yahooResults) {
+            if (quote?.symbol) {
+              quotesBySymbol.set(quote.symbol, quote);
+            }
+          }
+
+          if (active) {
+            setStocksApiSource("client-fallback");
+            setStocks(prevStocks => {
+              return prevStocks.map(stock => {
+                const yahooSymbol = yahooSymbolsMap[stock.symbol] || stock.symbol;
+                const quote = quotesBySymbol.get(yahooSymbol);
+                if (!quote) return stock;
+
+                const price = quote.regularMarketPrice ? parseFloat(quote.regularMarketPrice.toFixed(2)) : null;
+                if (price === null) return stock;
+
+                const change = quote.regularMarketChangePercent !== undefined 
+                  ? parseFloat(quote.regularMarketChangePercent.toFixed(2)) 
+                  : stock.change;
+                const low24h = quote.regularMarketDayLow ? parseFloat(quote.regularMarketDayLow.toFixed(2)) : price;
+                const high24h = quote.regularMarketDayHigh ? parseFloat(quote.regularMarketDayHigh.toFixed(2)) : price;
+                const volumeNum = quote.regularMarketVolume;
+
+                let volume = "";
+                if (volumeNum) {
+                  if (volumeNum >= 1_000_000_000) volume = `${(volumeNum / 1_000_000_000).toFixed(1)}B`;
+                  else if (volumeNum >= 1_000_000) volume = `${(volumeNum / 1_000_000).toFixed(1)}M`;
+                  else if (volumeNum >= 1000) volume = `${(volumeNum / 1000).toFixed(1)}K`;
+                  else volume = volumeNum.toString();
+                }
+
+                const originalStock = INITIAL_STOCKS.find(s => s.symbol === stock.symbol) || stock;
+                const scale = price / originalStock.price;
+                const history = originalStock.history.map((hPrice) => parseFloat((hPrice * scale).toFixed(2)));
+
+                return {
+                  ...stock,
+                  price,
+                  change,
+                  low24h,
+                  high24h,
+                  volume: volume || stock.volume,
+                  history,
+                  basePrice: price,
+                  baseChange: change
+                };
+              });
+            });
+            return; // Succeeded!
+          }
+        }
+
+        // 2. Fallback: Twelve Data direct client fetch if key is present
         if (twelveKey) {
-          console.log("[Client Fallback] Fetching direct from Twelve Data using API Key...");
+          console.log("[Client Fallback] Yahoo failed. Fetching from Twelve Data using API Key...");
           const batchSize = 8;
           const batches: string[][] = [];
           for (let i = 0; i < uniqueSymbols.length; i += batchSize) {
@@ -645,30 +730,31 @@ export default function App() {
               }
             }
           } catch (e) {
-            console.warn("Client-side Twelve Data fetch failed:", e);
+            console.warn("Twelve Data fetch failed:", e);
           }
         }
 
-        // 2. Try Finnhub direct client fetch if key is present (CORS friendly)
+        // 3. Fallback: Finnhub direct client fetch if key is present
         if (finnhubKey) {
-          console.log("[Client Fallback] Fetching direct from Finnhub using API Key...");
+          console.log("[Client Fallback] Yahoo/Twelve failed. Fetching from Finnhub using API Key...");
           const resultsMap: Record<string, any> = {};
           try {
-            const sliceSymbols = uniqueSymbols.slice(0, 12); 
             await Promise.all(
-              sliceSymbols.map(async (yahooSymbol) => {
+              uniqueSymbols.map(async (yahooSymbol) => {
                 const url = `https://finnhub.io/api/v1/quote?symbol=${yahooSymbol}&token=${finnhubKey}`;
-                const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
-                if (response.ok) {
-                  const data = await response.json();
-                  if (data && data.c) {
-                    const priceVal = parseFloat(data.c);
-                    const change = data.dp ? parseFloat(data.dp) : 0;
-                    const low24h = data.l ? parseFloat(data.l) : priceVal;
-                    const high24h = data.h ? parseFloat(data.h) : priceVal;
-                    resultsMap[yahooSymbol] = { price: priceVal, change, low24h, high24h };
+                try {
+                  const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
+                  if (response.ok) {
+                    const data = await response.json();
+                    if (data && data.c) {
+                      const priceVal = parseFloat(data.c);
+                      const change = data.dp ? parseFloat(data.dp) : 0;
+                      const low24h = data.l ? parseFloat(data.l) : priceVal;
+                      const high24h = data.h ? parseFloat(data.h) : priceVal;
+                      resultsMap[yahooSymbol] = { price: priceVal, change, low24h, high24h };
+                    }
                   }
-                }
+                } catch {}
               })
             );
             if (Object.keys(resultsMap).length > 0) {
@@ -697,114 +783,20 @@ export default function App() {
               }
             }
           } catch (e) {
-            console.warn("Client-side Finnhub fetch failed:", e);
+            console.warn("Finnhub fetch failed:", e);
           }
         }
 
-        // 3. Fallback to public CORS proxies for Yahoo Finance
-        const batchSize = 10;
-        const batches: string[][] = [];
-        for (let i = 0; i < uniqueSymbols.length; i += batchSize) {
-          batches.push(uniqueSymbols.slice(i, i + batchSize));
-        }
-
-        const allResults: any[] = [];
-
-        await Promise.all(
-          batches.map(async (batch) => {
-            const symbolsList = batch.join(",");
-            const url = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${symbolsList}`;
-            
-            const proxies = [
-              `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
-              `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-              `https://cors.lol/?url=${encodeURIComponent(url)}`,
-              `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-              url
-            ];
-
-            for (const proxyUrl of proxies) {
-              try {
-                const res = await fetch(proxyUrl);
-                if (res.ok) {
-                  const data = await res.json();
-                  const result = data?.quoteResponse?.result;
-                  if (result && Array.isArray(result) && result.length > 0) {
-                    allResults.push(...result);
-                    return; // Succeeded for this batch!
-                  }
-                }
-              } catch (e) {
-                // Try next proxy
-              }
-            }
-          })
-        );
-
-        if (allResults.length === 0) {
-          console.warn("All proxies failed to fetch quoteResponse in client fallback. Using deterministic simulation.");
-          if (active) {
-            setStocksApiSource("client-simulation");
-            setStocks(prevStocks => {
-              return prevStocks.map(stock => {
-                return {
-                  ...stock,
-                  basePrice: stock.basePrice || stock.price,
-                  baseChange: stock.baseChange !== undefined ? stock.baseChange : stock.change
-                };
-              });
-            });
-          }
-          return;
-        }
-
-        const quotesBySymbol = new Map<string, any>();
-        for (const quote of allResults) {
-          if (quote?.symbol) {
-            quotesBySymbol.set(quote.symbol, quote);
-          }
-        }
-
+        // 4. Ultimate Fallback: Local Simulation
+        console.warn("All client fallback sources failed. Using simulation.");
         if (active) {
-          setStocksApiSource("client-fallback");
+          setStocksApiSource("client-simulation");
           setStocks(prevStocks => {
             return prevStocks.map(stock => {
-              const yahooSymbol = yahooSymbolsMap[stock.symbol] || stock.symbol;
-              const quote = quotesBySymbol.get(yahooSymbol);
-              if (!quote) return stock;
-
-              const price = quote.regularMarketPrice ? parseFloat(quote.regularMarketPrice.toFixed(2)) : null;
-              if (price === null) return stock;
-
-              const change = quote.regularMarketChangePercent !== undefined 
-                ? parseFloat(quote.regularMarketChangePercent.toFixed(2)) 
-                : stock.change;
-              const low24h = quote.regularMarketDayLow ? parseFloat(quote.regularMarketDayLow.toFixed(2)) : price;
-              const high24h = quote.regularMarketDayHigh ? parseFloat(quote.regularMarketDayHigh.toFixed(2)) : price;
-              const volumeNum = quote.regularMarketVolume;
-
-              let volume = "";
-              if (volumeNum) {
-                if (volumeNum >= 1_000_000_000) volume = `${(volumeNum / 1_000_000_000).toFixed(1)}B`;
-                else if (volumeNum >= 1_000_000) volume = `${(volumeNum / 1_000_000).toFixed(1)}M`;
-                else if (volumeNum >= 1000) volume = `${(volumeNum / 1000).toFixed(1)}K`;
-                else volume = volumeNum.toString();
-              }
-
-              const originalStock = INITIAL_STOCKS.find(s => s.symbol === stock.symbol) || stock;
-              const scale = price / originalStock.price;
-              const history = originalStock.history.map((hPrice) => parseFloat((hPrice * scale).toFixed(2)));
-
               return {
                 ...stock,
-                price,
-                change,
-                low24h,
-                high24h,
-                volume: volume || stock.volume,
-                history,
-                basePrice: price,
-                baseChange: change
+                basePrice: stock.basePrice || stock.price,
+                baseChange: stock.baseChange !== undefined ? stock.baseChange : stock.change
               };
             });
           });
@@ -1104,7 +1096,7 @@ export default function App() {
           const baseChange = stock.baseChange !== undefined ? stock.baseChange : stock.change;
 
           // Volatility factor based on ticker: higher for COIN/TSLA, lower for MSFT/AAPL
-          const volFactor = stock.symbol === "COIN" ? 0.015 : stock.symbol === "TSLA" ? 0.012 : 0.006;
+          const volFactor = stock.symbol === "COIN" ? 0.001 : stock.symbol === "TSLA" ? 0.0008 : 0.0004;
           
           // Generate a smooth deterministic fluctuation based on symbol and current timestamp
           // This keeps all open windows/browsers perfectly synchronized down to the second!
