@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Stock, UserProfile, PortfolioItem } from "../types";
 import { ArrowUpRight, ArrowDownRight, DollarSign, Briefcase, History, TrendingUp, Info, Newspaper, Maximize2, Minimize2, ZoomIn, ZoomOut, RotateCcw, Search, Layers, GraduationCap, Star } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { getStockMarket, isMarketOpenForStock } from "../utils";
+import { getStockMarket, isMarketOpenForStock, getZonedDateTime } from "../utils";
 
 // Stable LCG pseudo-random generator
 function getSeededRandom(seedStr: string) {
@@ -37,6 +37,35 @@ export function interpolateArray(arr: number[], targetLength: number): number[] 
   return result;
 }
 
+/**
+ * Calculates the index up to which the 1-Day (1J) chart should render,
+ * representing only the available trading data up to the current real time.
+ */
+export function get1DCurrentDayLimit(symbol: string, marketMode: string, totalPoints: number): number {
+  const isUS = !symbol.endsWith(".PA") && symbol !== "MC";
+  const zone = isUS ? "America/New_York" : "Europe/Paris";
+  
+  const isOpen = isMarketOpenForStock(symbol, marketMode as any);
+  
+  if (marketMode === "continuous") {
+    const { hour, minute } = getZonedDateTime(zone);
+    const currMinutes = hour * 60 + minute;
+    const progress = currMinutes / 1440; // 24 hours
+    return Math.max(1, Math.min(totalPoints, Math.ceil(progress * totalPoints)));
+  } else if (isOpen) {
+    const { hour, minute } = getZonedDateTime(zone);
+    const currMinutes = hour * 60 + minute;
+    const openMinutes = isUS ? 9 * 60 + 30 : 9 * 60;
+    const totalDuration = isUS ? 390 : 510; // US: 390 mins, EU: 510 mins
+    const elapsed = Math.max(0, currMinutes - openMinutes);
+    const progress = Math.min(1, elapsed / totalDuration);
+    return Math.max(1, Math.min(totalPoints, Math.ceil(progress * totalPoints)));
+  } else {
+    // Closed, show entire session completed
+    return totalPoints;
+  }
+}
+
 // Generates incredibly realistic high-density historical curves for all stock tickers
 export function getTimeframeData(stock: Stock, tf: string): { prices: number[]; labels: [string, string, string] } {
   const currentPrice = stock.price;
@@ -65,9 +94,9 @@ export function getTimeframeData(stock: Stock, tf: string): { prices: number[]; 
       labels = ["Il y a 24 h", "Il y a 12 h", "Maintenant"];
       break;
     case "1J":
-      N = 78; // 78 data points
-      volatility = 0.0018;
-      drift = 0.0001;
+      N = 390; // 390 data points
+      volatility = 0.0008;
+      drift = 0.00002;
       labels = stock.symbol.endsWith(".PA") || stock.symbol === "MC" 
         ? ["09:00", "13:15", "17:30"] 
         : ["09:30", "13:00", "16:00"];
@@ -420,19 +449,23 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
         return { y, value };
       });
 
-      const primPathString = primPoints.map(p => `${p.x},${p.y}`).join(" L ");
-      const compPathString = compPoints.map(p => `${p.x},${p.y}`).join(" L ");
-      const primAreaString = `${primPoints[0].x},${height - padBottom} L ${primPathString} L ${primPoints[primPoints.length - 1].x},${height - padBottom} Z`;
-      const compAreaString = `${compPoints[0].x},${height - padBottom} L ${compPathString} L ${compPoints[compPoints.length - 1].x},${height - padBottom} Z`;
+      const visibleCount = timeframe === "1J" ? get1DCurrentDayLimit(selectedStock.symbol, profile.marketMode || "real", cleanHistory.length) : cleanHistory.length;
+      const visiblePrimPoints = primPoints.slice(0, visibleCount);
+      const visibleCompPoints = compPoints.slice(0, visibleCount);
+
+      const primPathString = visiblePrimPoints.map(p => `${p.x},${p.y}`).join(" L ");
+      const compPathString = visibleCompPoints.map(p => `${p.x},${p.y}`).join(" L ");
+      const primAreaString = visiblePrimPoints.length > 0 ? `${visiblePrimPoints[0].x},${height - padBottom} L ${primPathString} L ${visiblePrimPoints[visiblePrimPoints.length - 1].x},${height - padBottom} Z` : "";
+      const compAreaString = visibleCompPoints.length > 0 ? `${visibleCompPoints[0].x},${height - padBottom} L ${compPathString} L ${visibleCompPoints[visibleCompPoints.length - 1].x},${height - padBottom} Z` : "";
 
       const idxHovered = hoveredPrice?.index ?? null;
 
       // Tooltip translation labels
-      const labelForTooltip = timeframe === "1m" ? `Minute ${idxHovered! + 1}` : timeframe === "1h" ? `Heure ${idxHovered! + 1}` : timeframe === "1J" ? `Séc ${idxHovered! + 1}` : `Jour ${idxHovered! + 1}`;
+      const labelForTooltip = timeframe === "1m" ? `Minute ${idxHovered! + 1}` : timeframe === "1h" ? `Heure ${idxHovered! + 1}` : timeframe === "1J" ? `Séance ${idxHovered! + 1}` : `Jour ${idxHovered! + 1}`;
 
       // Live ending performance value
-      const primLatestPerf = primPerfs[primPerfs.length - 1];
-      const compLatestPerf = compPerfs[compPerfs.length - 1];
+      const primLatestPerf = primPerfs[visibleCount - 1];
+      const compLatestPerf = compPerfs[visibleCount - 1];
       const liveYPrim = height - padBottom - ((primLatestPerf - min) / range) * chartHeight;
       const liveYComp = height - padBottom - ((compLatestPerf - min) / range) * chartHeight;
 
@@ -602,7 +635,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             />
 
             {/* Interactive slices */}
-            {primPoints.map((p) => {
+            {visiblePrimPoints.map((p) => {
               const stepX = chartWidth / primLengthMinusOne;
               return (
                 <rect
@@ -621,11 +654,11 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             })}
 
             {/* Hover vertical timeline bar */}
-            {idxHovered !== null && primPoints[idxHovered] && (
+            {idxHovered !== null && visiblePrimPoints[idxHovered] && (
               <line
-                x1={primPoints[idxHovered].x}
+                x1={visiblePrimPoints[idxHovered].x}
                 y1={padTop}
-                x2={primPoints[idxHovered].x}
+                x2={visiblePrimPoints[idxHovered].x}
                 y2={height - padBottom}
                 stroke="#64748b"
                 strokeWidth="1"
@@ -635,19 +668,19 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             )}
 
             {/* Highlighted circles on hover */}
-            {idxHovered !== null && primPoints[idxHovered] && compPoints[idxHovered] && (
+            {idxHovered !== null && visiblePrimPoints[idxHovered] && visibleCompPoints[idxHovered] && (
               <>
                 <circle
-                  cx={primPoints[idxHovered].x}
-                  cy={primPoints[idxHovered].y}
+                  cx={visiblePrimPoints[idxHovered].x}
+                  cy={visiblePrimPoints[idxHovered].y}
                   r="5"
                   fill="#6366f1"
                   stroke="#ffffff"
                   strokeWidth="1.5"
                 />
                 <circle
-                  cx={compPoints[idxHovered].x}
-                  cy={compPoints[idxHovered].y}
+                  cx={visibleCompPoints[idxHovered].x}
+                  cy={visibleCompPoints[idxHovered].y}
                   r="5"
                   fill="#f59e0b"
                   stroke="#ffffff"
@@ -745,6 +778,10 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
       );
     }
 
+    // Compute 1D real-time bounds and slice history
+    const visibleCount = timeframe === "1J" ? get1DCurrentDayLimit(selectedStock.symbol, profile.marketMode || "real", cleanHistory.length) : cleanHistory.length;
+    const visibleHistory = cleanHistory.slice(0, visibleCount);
+
     // Generate candlesticks data
     const candles = cleanHistory.map((val, idx) => {
       const openPrice = idx === 0 ? val * 0.995 : cleanHistory[idx - 1];
@@ -757,18 +794,19 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
       
       return { openPrice, closePrice, highPrice, lowPrice, val, idx };
     });
+    const visibleCandles = candles.slice(0, visibleCount);
 
-    // Compute min/max viewport limits based on active chart helper
+    // Compute min/max viewport limits based on active chart helper and only visible data points
     let min = 0;
     let max = 0;
     if (chartType === 'CANDLESTICK') {
-      const lows = candles.map(c => c.lowPrice).filter(v => typeof v === 'number' && !isNaN(v));
-      const highs = candles.map(c => c.highPrice).filter(v => typeof v === 'number' && !isNaN(v));
+      const lows = visibleCandles.map(c => c.lowPrice).filter(v => typeof v === 'number' && !isNaN(v));
+      const highs = visibleCandles.map(c => c.highPrice).filter(v => typeof v === 'number' && !isNaN(v));
       min = lows.length > 0 ? Math.min(...lows) * 0.99 : selectedStock.price * 0.9;
       max = highs.length > 0 ? Math.max(...highs) * 1.01 : selectedStock.price * 1.1;
     } else {
-      min = Math.min(...cleanHistory) * 0.985;
-      max = Math.max(...cleanHistory) * 1.015;
+      min = Math.min(...visibleHistory) * 0.985;
+      max = Math.max(...visibleHistory) * 1.015;
     }
 
     if (isNaN(min) || !isFinite(min)) min = selectedStock.price * 0.9;
@@ -878,25 +916,30 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                   const y = height - padBottom - ((val - min) / range) * chartHeight;
                   return { x, y };
                 });
-                const pathString = points.map(p => `${p.x},${p.y}`).join(" L ");
-                const areaString = `${points[0].x},${height - padBottom} L ${pathString} L ${points[points.length - 1].x},${height - padBottom} Z`;
+                const visiblePoints = points.slice(0, visibleCount);
+                const pathString = visiblePoints.map(p => `${p.x},${p.y}`).join(" L ");
+                const areaString = visiblePoints.length > 0 
+                  ? `${visiblePoints[0].x},${height - padBottom} L ${pathString} L ${visiblePoints[visiblePoints.length - 1].x},${height - padBottom} Z`
+                  : "";
                 return (
                   <>
-                    <path d={`M ${areaString}`} fill="url(#chartGlow)" />
-                    <path
-                      d={`M ${pathString}`}
-                      fill="none"
-                      stroke={isPositive ? "#059669" : "#e11d48"}
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
+                    {areaString && <path d={`M ${areaString}`} fill="url(#chartGlow)" />}
+                    {pathString && (
+                      <path
+                        d={`M ${pathString}`}
+                        fill="none"
+                        stroke={isPositive ? "#059669" : "#e11d48"}
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    )}
                   </>
                 );
               })()}
 
               {/* Data Points */}
-              {cleanHistory.map((val, idx) => {
+              {cleanHistory.slice(0, visibleCount).map((val, idx) => {
                 const x = padLeft + (idx / historyLengthMinusOne) * chartWidth;
                 const y = height - padBottom - ((val - min) / range) * chartHeight;
                 const isHovered = hoveredPrice?.index === idx;
@@ -919,7 +962,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
           ) : (
             <>
               {/* CANDLESTICK PLOT */}
-              {candles.map((c) => {
+              {candles.slice(0, visibleCount).map((c) => {
                 const x = padLeft + (c.idx / historyLengthMinusOne) * chartWidth;
                 
                 // Map prices to Y coordinates
@@ -1101,6 +1144,12 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
     const prices = rawPrices.slice(startIndex, endIndex);
     const historyLengthMinusOne = Math.max(1, prices.length - 1);
 
+    const currentDayLimit = timeframe === "1J" ? get1DCurrentDayLimit(selectedStock.symbol, profile.marketMode || "real", N) : N;
+    const activeEndIndex = timeframe === "1J" ? Math.min(endIndex, currentDayLimit) : endIndex;
+    const activePointsCount = timeframe === "1J" ? Math.max(0, activeEndIndex - startIndex) : prices.length;
+    
+    const visibleZoomPrices = prices.slice(0, activePointsCount);
+
     // Filter comparisons if active
     const comparisonStock = compareSymbol ? stocks.find(s => s.symbol === compareSymbol) : null;
     const comparisonHistory = comparisonStock ? getTimeframeData(comparisonStock, timeframe).prices : [];
@@ -1108,7 +1157,9 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
     const compPrices = comparisonStock ? cleanComparisonHistory.slice(startIndex, endIndex) : [];
 
     // Check if positive over the visible interval
-    const isIntervalPositive = prices[prices.length - 1] >= prices[0];
+    const isIntervalPositive = visibleZoomPrices.length > 0 
+      ? visibleZoomPrices[visibleZoomPrices.length - 1] >= visibleZoomPrices[0]
+      : true;
 
     // Compute SVG lines & gradients over this zoomed-in slice
     let min = 0;
@@ -1122,8 +1173,11 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
       const primPerfs = prices.map(h => ((h - primInit) / primInit) * 100);
       const compPerfs = compPrices.map(c => ((c - compInit) / compInit) * 100);
 
-      const minPerf = Math.min(...primPerfs, ...compPerfs);
-      const maxPerf = Math.max(...primPerfs, ...compPerfs);
+      const visiblePrimPerfs = primPerfs.slice(0, activePointsCount);
+      const visibleCompPerfs = compPerfs.slice(0, activePointsCount);
+
+      const minPerf = Math.min(...visiblePrimPerfs, ...visibleCompPerfs);
+      const maxPerf = Math.max(...visiblePrimPerfs, ...visibleCompPerfs);
 
       let minPerfVal = minPerf;
       let maxPerfVal = maxPerf;
@@ -1150,6 +1204,9 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
         return { x, y, perf, idx, rawPrice: compPrices[idx] };
       });
 
+      const visiblePrimPoints = primPoints.slice(0, activePointsCount);
+      const visibleCompPoints = compPoints.slice(0, activePointsCount);
+
       const gridLevels = [0, 0.25, 0.5, 0.75, 1];
       const gridLines = gridLevels.map((ratio) => {
         const y = padTop + ratio * chartHeight;
@@ -1157,10 +1214,10 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
         return { y, value };
       });
 
-      const primPathString = primPoints.map(p => `${p.x},${p.y}`).join(" L ");
-      const compPathString = compPoints.map(p => `${p.x},${p.y}`).join(" L ");
-      const primAreaString = `${primPoints[0].x},${height - padBottom} L ${primPathString} L ${primPoints[primPoints.length - 1].x},${height - padBottom} Z`;
-      const compAreaString = `${compPoints[0].x},${height - padBottom} L ${compPathString} L ${compPoints[compPoints.length - 1].x},${height - padBottom} Z`;
+      const primPathString = visiblePrimPoints.map(p => `${p.x},${p.y}`).join(" L ");
+      const compPathString = visibleCompPoints.map(p => `${p.x},${p.y}`).join(" L ");
+      const primAreaString = visiblePrimPoints.length > 0 ? `${visiblePrimPoints[0].x},${height - padBottom} L ${primPathString} L ${visiblePrimPoints[visiblePrimPoints.length - 1].x},${height - padBottom} Z` : "";
+      const compAreaString = visibleCompPoints.length > 0 ? `${visibleCompPoints[0].x},${height - padBottom} L ${compPathString} L ${visibleCompPoints[visibleCompPoints.length - 1].x},${height - padBottom} Z` : "";
 
       const idxHovered = hoveredZoomPrice?.index ?? null;
 
@@ -1199,8 +1256,8 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
               <span>Amplitude : <span className="text-slate-300 font-bold">{(maxPerfVal - minPerfVal).toFixed(2)}%</span></span>
             </div>
             <div className="flex gap-2">
-              <span className="text-indigo-400 font-bold font-mono">{selectedStock.symbol} : {primPerfs[primPerfs.length - 1] >= 0 ? "+" : ""}{primPerfs[primPerfs.length - 1].toFixed(2)}%</span>
-              <span className="text-amber-400 font-bold font-mono">{comparisonStock.symbol} : {compPerfs[compPerfs.length - 1] >= 0 ? "+" : ""}{compPerfs[compPerfs.length - 1].toFixed(2)}%</span>
+              <span className="text-indigo-400 font-bold font-mono">{selectedStock.symbol} : {activePointsCount > 0 && primPerfs[activePointsCount - 1] >= 0 ? "+" : ""}{(activePointsCount > 0 ? primPerfs[activePointsCount - 1] : 0).toFixed(2)}%</span>
+              <span className="text-amber-400 font-bold font-mono">{comparisonStock.symbol} : {activePointsCount > 0 && compPerfs[activePointsCount - 1] >= 0 ? "+" : ""}{(activePointsCount > 0 ? compPerfs[activePointsCount - 1] : 0).toFixed(2)}%</span>
             </div>
           </div>
 
@@ -1273,7 +1330,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             />
 
             {/* Mouse over slice trigger helpers */}
-            {primPoints.map((p) => {
+            {visiblePrimPoints.map((p) => {
               const stepX = chartWidth / historyLengthMinusOne;
               return (
                 <rect
@@ -1290,11 +1347,11 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             })}
 
             {/* Timeline Vertical hover guide line */}
-            {idxHovered !== null && primPoints[idxHovered] && (
+            {idxHovered !== null && visiblePrimPoints[idxHovered] && (
               <line
-                x1={primPoints[idxHovered].x}
+                x1={visiblePrimPoints[idxHovered].x}
                 y1={padTop}
-                x2={primPoints[idxHovered].x}
+                x2={visiblePrimPoints[idxHovered].x}
                 y2={height - padBottom}
                 stroke="#64748b"
                 strokeWidth="1"
@@ -1303,19 +1360,19 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             )}
 
             {/* Focused data points */}
-            {idxHovered !== null && primPoints[idxHovered] && compPoints[idxHovered] && (
+            {idxHovered !== null && visiblePrimPoints[idxHovered] && visibleCompPoints[idxHovered] && (
               <>
                 <circle
-                  cx={primPoints[idxHovered].x}
-                  cy={primPoints[idxHovered].y}
+                  cx={visiblePrimPoints[idxHovered].x}
+                  cy={visiblePrimPoints[idxHovered].y}
                   r="6"
                   fill="#6366f1"
                   stroke="#ffffff"
                   strokeWidth="2"
                 />
                 <circle
-                  cx={compPoints[idxHovered].x}
-                  cy={compPoints[idxHovered].y}
+                  cx={visibleCompPoints[idxHovered].x}
+                  cy={visibleCompPoints[idxHovered].y}
                   r="6"
                   fill="#f59e0b"
                   stroke="#ffffff"
@@ -1402,14 +1459,16 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
       return { openPrice, closePrice, highPrice, lowPrice, val, idx };
     });
 
+    const visibleCandlesList = candlesList.slice(0, activePointsCount);
+
     if (chartType === 'CANDLESTICK') {
-      const lows = candlesList.map(c => c.lowPrice);
-      const highs = candlesList.map(c => c.highPrice);
+      const lows = visibleCandlesList.map(c => c.lowPrice);
+      const highs = visibleCandlesList.map(c => c.highPrice);
       min = Math.min(...lows) * 0.995;
       max = Math.max(...highs) * 1.005;
     } else {
-      min = Math.min(...prices) * 0.99;
-      max = Math.max(...prices) * 1.01;
+      min = Math.min(...visibleZoomPrices) * 0.99;
+      max = Math.max(...visibleZoomPrices) * 1.01;
     }
 
     if (isNaN(min) || !isFinite(min)) min = selectedStock.price * 0.9;
@@ -1517,25 +1576,30 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                   const y = height - padBottom - ((val - min) / range) * chartHeight;
                   return { x, y };
                 });
-                const pathString = points.map(p => `${p.x},${p.y}`).join(" L ");
-                const areaString = `${points[0].x},${height - padBottom} L ${pathString} L ${points[points.length - 1].x},${height - padBottom} Z`;
+                const visiblePoints = points.slice(0, activePointsCount);
+                const pathString = visiblePoints.map(p => `${p.x},${p.y}`).join(" L ");
+                const areaString = visiblePoints.length > 0 
+                  ? `${visiblePoints[0].x},${height - padBottom} L ${pathString} L ${visiblePoints[visiblePoints.length - 1].x},${height - padBottom} Z`
+                  : "";
                 return (
                   <>
-                    <path d={`M ${areaString}`} fill="url(#zoomChartGlow)" />
-                    <path
-                      d={`M ${pathString}`}
-                      fill="none"
-                      stroke={isIntervalPositive ? "#059669" : "#e11d48"}
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
+                    {areaString && <path d={`M ${areaString}`} fill="url(#zoomChartGlow)" />}
+                    {pathString && (
+                      <path
+                        d={`M ${pathString}`}
+                        fill="none"
+                        stroke={isIntervalPositive ? "#059669" : "#e11d48"}
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    )}
                   </>
                 );
               })()}
 
               {/* Individual circular points on hover or in low density zoom */}
-              {prices.map((val, idx) => {
+              {prices.slice(0, activePointsCount).map((val, idx) => {
                 const x = padLeft + (idx / historyLengthMinusOne) * chartWidth;
                 const y = height - padBottom - ((val - min) / range) * chartHeight;
                 const isHovered = idxHovered === idx;
@@ -1554,7 +1618,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             </>
           ) : (
             <>
-              {candlesList.map((c) => {
+              {visibleCandlesList.map((c) => {
                 const x = padLeft + (c.idx / historyLengthMinusOne) * chartWidth;
                 const openY = height - padBottom - ((c.openPrice - min) / range) * chartHeight;
                 const closeY = height - padBottom - ((c.closePrice - min) / range) * chartHeight;
@@ -1595,7 +1659,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
           )}
 
           {/* Slices trigger helpers to snap interactive crosshair */}
-          {prices.map((val, idx) => {
+          {prices.slice(0, activePointsCount).map((val, idx) => {
             const stepX = chartWidth / historyLengthMinusOne;
             const x = padLeft + (idx / historyLengthMinusOne) * chartWidth;
             return (
@@ -1614,7 +1678,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
           })}
 
           {/* Snap crosshair */}
-          {idxHovered !== null && prices[idxHovered] !== undefined && (
+          {idxHovered !== null && idxHovered < activePointsCount && prices[idxHovered] !== undefined && (
             <line
               x1={padLeft + (idxHovered / historyLengthMinusOne) * chartWidth}
               y1={padTop}
@@ -1984,7 +2048,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
               <svg className="w-3.5 h-3.5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
-              Historique du Cours ({timeframe === '1m' ? '30 min' : timeframe === '1h' ? '24h' : timeframe === '1J' ? 'Aujourd\'hui' : timeframe === '1S' ? 'Semaine' : timeframe === '1M' ? '30 jours' : timeframe === '3M' ? '3 Mois' : timeframe === '6M' ? '6 Mois' : timeframe === '1A' ? '1 An' : 'Tout le parcours'})
+              Historique du Cours ({timeframe === '1J' ? 'Aujourd\'hui' : timeframe === '1S' ? 'Semaine' : timeframe === '1M' ? '30 jours' : timeframe === '3M' ? '3 Mois' : timeframe === '6M' ? '6 Mois' : timeframe === '1A' ? '1 An' : 'Tout le parcours'})
             </span>
             
             <div className="flex flex-wrap items-center gap-2.5">
@@ -2066,8 +2130,6 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mr-1">Période :</span>
               <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200/40">
                 {[
-                  { id: "1m", label: "1 min" },
-                  { id: "1h", label: "1 heure" },
                   { id: "1J", label: "1 jour" },
                   { id: "1S", label: "1 sem." },
                   { id: "1M", label: "30 j." },

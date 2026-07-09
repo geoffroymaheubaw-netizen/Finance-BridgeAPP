@@ -33,6 +33,10 @@ async function generateContentWithRetry(client: any, params: any, retries = 2, i
   if (isGeminiDisabledPermanently) {
     throw new Error("Gemini is disabled due to previous permanent 403 PERMISSION_DENIED error.");
   }
+  const isInCooldown = (Date.now() - last429Time) < 10 * 60 * 1000;
+  if (isInCooldown) {
+    throw new Error("Gemini is in 10-minute cooldown due to previous rate-limiting (429/Resource Exhausted). Using offline local fallbacks.");
+  }
   let attempt = 0;
   let delay = initialDelayMs;
   while (true) {
@@ -61,6 +65,7 @@ async function generateContentWithRetry(client: any, params: any, retries = 2, i
       if (isQuotaExceeded) {
         last429Time = Date.now();
         console.log(`[Gemini API] Quota / rate limit exceeded (429). Setting fallback cooldown.`);
+        throw err; // Fail fast without multiple retries/failovers when out of quota
       }
 
       const isUnavailable = errorMessage.includes("503") || 
@@ -106,6 +111,10 @@ async function generateContentStreamWithRetry(client: any, params: any, retries 
   if (isGeminiDisabledPermanently) {
     throw new Error("Gemini is disabled due to previous permanent 403 PERMISSION_DENIED error.");
   }
+  const isInCooldown = (Date.now() - last429Time) < 10 * 60 * 1000;
+  if (isInCooldown) {
+    throw new Error("Gemini is in 10-minute cooldown due to previous rate-limiting (429/Resource Exhausted). Using offline local fallbacks.");
+  }
   let attempt = 0;
   let delay = initialDelayMs;
   while (true) {
@@ -134,6 +143,7 @@ async function generateContentStreamWithRetry(client: any, params: any, retries 
       if (isQuotaExceeded) {
         last429Time = Date.now();
         console.log(`[Gemini API] Stream Quota / rate limit exceeded (429). Setting fallback cooldown.`);
+        throw err; // Fail fast without multiple retries/failovers when out of quota
       }
 
       const isUnavailable = errorMessage.includes("503") || 
@@ -1149,31 +1159,57 @@ Veuillez respecter le schéma JSON requis.`;
         }
       }
 
-      // --- 4. NO-KEY PUBLIC PROXY FALLBACK (Using Yahoo Chart API which never blocks) ---
+      // --- 4. NO-KEY PUBLIC PROXY FALLBACK (Using Yahoo Quote Bulk API with failover) ---
       if (!fetchedSuccessfully) {
-        console.log("[Prices API] No API keys set or they failed. Fetching real-time quotes using Yahoo Chart API (keyless)...");
-        try {
-          await Promise.all(
-            uniqueYahooSymbols.map(async (yahooSymbol) => {
-              try {
-                const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?range=1d&interval=1d`;
-                const response = await fetch(url, {
-                  headers: {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
-                  },
-                  signal: AbortSignal.timeout(5000)
-                });
-                if (response.ok) {
-                  const data: any = await response.json();
-                  const meta = data?.chart?.result?.[0]?.meta;
-                  if (meta) {
-                    const price = meta.regularMarketPrice !== undefined ? parseFloat(meta.regularMarketPrice.toFixed(2)) : meta.chartPreviousClose;
-                    if (price !== undefined && price !== null) {
-                      const prevClose = meta.chartPreviousClose !== undefined ? meta.chartPreviousClose : price;
-                      const change = prevClose ? parseFloat((((price - prevClose) / prevClose) * 100).toFixed(2)) : 0;
-                      const low24h = meta.regularMarketDayLow !== undefined ? parseFloat(meta.regularMarketDayLow.toFixed(2)) : price;
-                      const high24h = meta.regularMarketDayHigh !== undefined ? parseFloat(meta.regularMarketDayHigh.toFixed(2)) : price;
-                      const volumeNum = meta.regularMarketVolume;
+        console.log("[Prices API] Fetching real-time quotes using public Yahoo Finance Quote API...");
+        
+        const symbolsList = uniqueYahooSymbols.join(",");
+        const baseQuoteUrl = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${symbolsList}`;
+        const altQuoteUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbolsList}`;
+        const baseQuoteUrlV6 = `https://query2.finance.yahoo.com/v6/finance/quote?symbols=${symbolsList}`;
+        const altQuoteUrlV6 = `https://query1.finance.yahoo.com/v6/finance/quote?symbols=${symbolsList}`;
+        
+        const fetchUrls = [
+          baseQuoteUrlV6,
+          altQuoteUrlV6,
+          baseQuoteUrl,
+          altQuoteUrl,
+          `https://corsproxy.io/?url=${encodeURIComponent(baseQuoteUrl)}`,
+          `https://api.allorigins.win/raw?url=${encodeURIComponent(baseQuoteUrl)}`
+        ];
+
+        const userAgents = [
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2.1 Safari/605.1.15"
+        ];
+        const randomUserAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
+
+        let parsedBulkSuccessfully = false;
+
+        for (const url of fetchUrls) {
+          try {
+            const response = await fetch(url, {
+              headers: {
+                "User-Agent": randomUserAgent,
+                "Accept": "application/json"
+              },
+              signal: AbortSignal.timeout(6000)
+            });
+
+            if (response.ok) {
+              const data: any = await response.json();
+              const result = data?.quoteResponse?.result;
+              if (result && Array.isArray(result) && result.length > 0) {
+                result.forEach((quote: any) => {
+                  if (quote && quote.symbol) {
+                    const priceVal = quote.regularMarketPrice ? parseFloat(quote.regularMarketPrice.toFixed(2)) : null;
+                    if (priceVal !== null) {
+                      const change = quote.regularMarketChangePercent !== undefined 
+                        ? parseFloat(quote.regularMarketChangePercent.toFixed(2)) 
+                        : 0;
+                      const low24h = quote.regularMarketDayLow ? parseFloat(quote.regularMarketDayLow.toFixed(2)) : priceVal;
+                      const high24h = quote.regularMarketDayHigh ? parseFloat(quote.regularMarketDayHigh.toFixed(2)) : priceVal;
+                      const volumeNum = quote.regularMarketVolume;
                       
                       let volume = "";
                       if (volumeNum) {
@@ -1183,23 +1219,74 @@ Veuillez respecter le schéma JSON requis.`;
                         else volume = volumeNum.toString();
                       }
 
-                      const internalSymbol = reverseSymbolsMap[yahooSymbol] || yahooSymbol;
-                      resultsMap[internalSymbol] = { price, change, low24h, high24h, volume };
+                      const internalSymbol = reverseSymbolsMap[quote.symbol] || quote.symbol;
+                      resultsMap[internalSymbol] = { price: priceVal, change, low24h, high24h, volume };
                     }
                   }
-                }
-              } catch (err: any) {
-                // Individual ticker fetch error - silent fallback for this ticker
+                });
+                parsedBulkSuccessfully = true;
+                break; // Stop trying other endpoints if this one succeeded
               }
-            })
-          );
-          if (Object.keys(resultsMap).length > 0) {
-            fetchedSuccessfully = true;
-            stocksSourceCache = "fallback-chart-api";
-            console.log(`[Prices API] Successfully fetched ${Object.keys(resultsMap).length} symbols from Yahoo Chart API`);
+            }
+          } catch (err) {
+            // Try next fallback endpoint
           }
-        } catch (err: any) {
-          console.warn("[Prices API] Yahoo Chart API fallback failed:", err.message);
+        }
+
+        if (parsedBulkSuccessfully && Object.keys(resultsMap).length > 0) {
+          fetchedSuccessfully = true;
+          stocksSourceCache = "fallback-quote-api";
+          console.log(`[Prices API] Successfully fetched ${Object.keys(resultsMap).length} symbols from Yahoo Quote API`);
+        } else {
+          // Absolute last resort: Individual Chart API fetch
+          console.log("[Prices API] Bulk quote fallback failed. Trying individual chart APIs...");
+          try {
+            await Promise.all(
+              uniqueYahooSymbols.map(async (yahooSymbol) => {
+                try {
+                  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?range=1d&interval=1d`;
+                  const response = await fetch(url, {
+                    headers: { "User-Agent": randomUserAgent },
+                    signal: AbortSignal.timeout(4000)
+                  });
+                  if (response.ok) {
+                    const data: any = await response.json();
+                    const meta = data?.chart?.result?.[0]?.meta;
+                    if (meta) {
+                      const price = meta.regularMarketPrice !== undefined ? parseFloat(meta.regularMarketPrice.toFixed(2)) : meta.chartPreviousClose;
+                      if (price !== undefined && price !== null) {
+                        const prevClose = meta.chartPreviousClose !== undefined ? meta.chartPreviousClose : price;
+                        const change = prevClose ? parseFloat((((price - prevClose) / prevClose) * 100).toFixed(2)) : 0;
+                        const low24h = meta.regularMarketDayLow !== undefined ? parseFloat(meta.regularMarketDayLow.toFixed(2)) : price;
+                        const high24h = meta.regularMarketDayHigh !== undefined ? parseFloat(meta.regularMarketDayHigh.toFixed(2)) : price;
+                        const volumeNum = meta.regularMarketVolume;
+                        
+                        let volume = "";
+                        if (volumeNum) {
+                          if (volumeNum >= 1_000_000_000) volume = `${(volumeNum / 1_000_000_000).toFixed(1)}B`;
+                          else if (volumeNum >= 1_000_000) volume = `${(volumeNum / 1_000_000).toFixed(1)}M`;
+                          else if (volumeNum >= 1000) volume = `${(volumeNum / 1000).toFixed(1)}K`;
+                          else volume = volumeNum.toString();
+                        }
+
+                        const internalSymbol = reverseSymbolsMap[yahooSymbol] || yahooSymbol;
+                        resultsMap[internalSymbol] = { price, change, low24h, high24h, volume };
+                      }
+                    }
+                  }
+                } catch {
+                  // Silent
+                }
+              })
+            );
+            if (Object.keys(resultsMap).length > 0) {
+              fetchedSuccessfully = true;
+              stocksSourceCache = "fallback-chart-api";
+              console.log(`[Prices API] Successfully fetched ${Object.keys(resultsMap).length} symbols from Yahoo Chart API`);
+            }
+          } catch (err: any) {
+            console.warn("[Prices API] Yahoo Chart API fallback failed:", err.message);
+          }
         }
       }
 
