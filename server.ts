@@ -53,7 +53,7 @@ async function generateContentWithRetry(client: any, params: any, retries = 2, i
                           (err.status && err.status === 403);
       if (isForbidden) {
         isGeminiDisabledPermanently = true;
-        console.warn(`[Gemini API] Permanent permission denial (403) detected. Disabling Gemini calls and defaulting to offline local fallback.`);
+        console.log(`[Gemini API] Permanent permission denial (403) detected. Disabling Gemini calls and defaulting to offline local fallback.`);
         throw err;
       }
 
@@ -75,7 +75,7 @@ async function generateContentWithRetry(client: any, params: any, retries = 2, i
                             errorMessage.includes("spike") ||
                             (err.status && err.status === 503);
       if (isUnavailable && !isQuotaExceeded && attempt <= retries) {
-        console.warn(`[Gemini API API Retry] Attempt ${attempt} failed with 503/UNAVAILABLE. Retrying in ${delay}ms...`);
+        console.log(`[Gemini API API Retry] Attempt ${attempt} failed with 503/UNAVAILABLE. Retrying in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         delay *= 2; // exponential backoff
         continue;
@@ -86,7 +86,7 @@ async function generateContentWithRetry(client: any, params: any, retries = 2, i
       const currentModel = params.model;
       for (const fallbackModel of failoverChain) {
         if (currentModel !== fallbackModel) {
-          console.warn(`[Gemini API] Primary model ${currentModel} failed/unavailable. Attempting failover to stable backup: ${fallbackModel}...`);
+          console.log(`[Gemini API] Primary model ${currentModel} failed/unavailable. Attempting failover to stable backup: ${fallbackModel}...`);
           try {
             // Safe deep clone to modify config for backup eligibility
             const failoverParams = JSON.parse(JSON.stringify(params));
@@ -96,7 +96,7 @@ async function generateContentWithRetry(client: any, params: any, retries = 2, i
             }
             return await client.models.generateContent(failoverParams);
           } catch (failoverErr: any) {
-            console.error(`[Gemini API] Failover model ${fallbackModel} also failed: ${failoverErr.message}`);
+            console.log(`[Gemini API] Failover model ${fallbackModel} also failed: ${failoverErr.message}`);
           }
         }
       }
@@ -131,7 +131,7 @@ async function generateContentStreamWithRetry(client: any, params: any, retries 
                           (err.status && err.status === 403);
       if (isForbidden) {
         isGeminiDisabledPermanently = true;
-        console.warn(`[Gemini API Stream] Permanent permission denial (403) detected. Disabling Gemini calls and defaulting to offline local fallback.`);
+        console.log(`[Gemini API Stream] Permanent permission denial (403) detected. Disabling Gemini calls and defaulting to offline local fallback.`);
         throw err;
       }
 
@@ -153,7 +153,7 @@ async function generateContentStreamWithRetry(client: any, params: any, retries 
                             errorMessage.includes("spike") ||
                             (err.status && err.status === 503);
       if (isUnavailable && !isQuotaExceeded && attempt <= retries) {
-        console.warn(`[Gemini API Stream Retry] Attempt ${attempt} failed with 503/UNAVAILABLE. Retrying in ${delay}ms...`);
+        console.log(`[Gemini API Stream Retry] Attempt ${attempt} failed with 503/UNAVAILABLE. Retrying in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         delay *= 2; // exponential backoff
         continue;
@@ -164,7 +164,7 @@ async function generateContentStreamWithRetry(client: any, params: any, retries 
       const currentModel = params.model;
       for (const fallbackModel of failoverChain) {
         if (currentModel !== fallbackModel) {
-          console.warn(`[Gemini API Stream] Primary model ${currentModel} failed/unavailable. Attempting stream failover to stable backup: ${fallbackModel}...`);
+          console.log(`[Gemini API Stream] Primary model ${currentModel} failed/unavailable. Attempting stream failover to stable backup: ${fallbackModel}...`);
           try {
             // Safe deep clone to modify config for backup eligibility
             const failoverParams = JSON.parse(JSON.stringify(params));
@@ -174,7 +174,7 @@ async function generateContentStreamWithRetry(client: any, params: any, retries 
             }
             return await client.models.generateContentStream(failoverParams);
           } catch (failoverErr: any) {
-            console.error(`[Gemini API Stream] Failover model ${fallbackModel} also failed: ${failoverErr.message}`);
+            console.log(`[Gemini API Stream] Failover model ${fallbackModel} also failed: ${failoverErr.message}`);
           }
         }
       }
@@ -1239,7 +1239,7 @@ Veuillez respecter le schéma JSON requis.`;
           console.log(`[Prices API] Successfully fetched ${Object.keys(resultsMap).length} symbols from Yahoo Quote API`);
         } else {
           // Absolute last resort: Individual Chart API fetch
-          console.log("[Prices API] Bulk quote fallback failed. Trying individual chart APIs...");
+          console.log("[Prices API] Bulk quote fallback complete. Requesting individual chart APIs...");
           try {
             await Promise.all(
               uniqueYahooSymbols.map(async (yahooSymbol) => {

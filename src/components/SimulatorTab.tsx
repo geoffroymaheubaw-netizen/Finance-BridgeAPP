@@ -938,23 +938,42 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                 );
               })()}
 
-              {/* Data Points */}
+              {/* Slices trigger helpers to snap interactive crosshair */}
+              {cleanHistory.slice(0, visibleCount).map((val, idx) => {
+                const stepX = chartWidth / historyLengthMinusOne;
+                const x = padLeft + (idx / historyLengthMinusOne) * chartWidth;
+                return (
+                  <rect
+                    key={`main-slice-${idx}`}
+                    x={x - stepX / 2}
+                    y={padTop}
+                    width={stepX}
+                    height={chartHeight}
+                    fill="transparent"
+                    stroke="none"
+                    className="cursor-pointer"
+                    onMouseEnter={() => setHoveredPrice({ price: val, index: idx })}
+                    onMouseLeave={() => setHoveredPrice(null)}
+                  />
+                );
+              })}
+
+              {/* Data Points (Only when hovered for a pristine premium feel) */}
               {cleanHistory.slice(0, visibleCount).map((val, idx) => {
                 const x = padLeft + (idx / historyLengthMinusOne) * chartWidth;
                 const y = height - padBottom - ((val - min) / range) * chartHeight;
                 const isHovered = hoveredPrice?.index === idx;
+                if (!isHovered) return null;
                 return (
                   <circle
-                     key={idx}
+                     key={`pt-${idx}`}
                      cx={x}
                      cy={y}
-                     r={isHovered ? "5" : "2"}
-                     fill={isHovered ? (isPositive ? "#059669" : "#e11d48") : "#ffffff"}
-                     stroke={isPositive ? "#10b981" : "#f43f5e"}
-                     strokeWidth={isHovered ? "2.5" : "1"}
-                     className="transition-all duration-100 cursor-pointer"
-                     onMouseEnter={() => setHoveredPrice({ price: val, index: idx })}
-                     onMouseLeave={() => setHoveredPrice(null)}
+                     r="5"
+                     fill={isPositive ? "#059669" : "#e11d48"}
+                     stroke="#ffffff"
+                     strokeWidth="2.5"
+                     className="pointer-events-none"
                   />
                 );
               })}
@@ -1598,20 +1617,22 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                 );
               })()}
 
-              {/* Individual circular points on hover or in low density zoom */}
+              {/* Individual circular points on hover (extremely clean line) */}
               {prices.slice(0, activePointsCount).map((val, idx) => {
                 const x = padLeft + (idx / historyLengthMinusOne) * chartWidth;
                 const y = height - padBottom - ((val - min) / range) * chartHeight;
                 const isHovered = idxHovered === idx;
+                if (!isHovered) return null;
                 return (
                   <circle
                     key={`zoom-pt-${idx}`}
                     cx={x}
                     cy={y}
-                    r={isHovered ? "6" : "2"}
-                    fill={isHovered ? (isIntervalPositive ? "#059669" : "#e11d48") : "#ffffff"}
-                    stroke={isIntervalPositive ? "#10b981" : "#f43f5e"}
-                    strokeWidth={isHovered ? "3" : "1"}
+                    r="6"
+                    fill={isIntervalPositive ? "#059669" : "#e11d48"}
+                    stroke="#ffffff"
+                    strokeWidth="2.5"
+                    className="pointer-events-none"
                   />
                 );
               })}
