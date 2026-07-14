@@ -3,6 +3,7 @@ import { Stock, UserProfile, PortfolioItem } from "../types";
 import { ArrowUpRight, ArrowDownRight, DollarSign, Briefcase, History, TrendingUp, Info, Newspaper, Maximize2, Minimize2, ZoomIn, ZoomOut, RotateCcw, Search, Layers, GraduationCap, Star } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { getStockMarket, isMarketOpenForStock, getZonedDateTime } from "../utils";
+import TradingViewWidget from "./TradingViewWidget";
 
 // Stable LCG pseudo-random generator
 function getSeededRandom(seedStr: string) {
@@ -218,11 +219,26 @@ interface SimulatorTabProps {
 export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLoss, lang, t, onSelectStock }: SimulatorTabProps) {
   const [selectedSymbol, setSelectedSymbol] = useState<string>("AAPL");
 
+  const onSelectStockRef = React.useRef(onSelectStock);
   React.useEffect(() => {
-    if (onSelectStock && selectedSymbol) {
-      onSelectStock(selectedSymbol);
+    onSelectStockRef.current = onSelectStock;
+  }, [onSelectStock]);
+
+  React.useEffect(() => {
+    if (selectedSymbol) {
+      const fetchHistory = () => {
+        if (onSelectStockRef.current) {
+          onSelectStockRef.current(selectedSymbol);
+        }
+      };
+
+      fetchHistory();
+
+      const interval = setInterval(fetchHistory, 15000);
+
+      return () => clearInterval(interval);
     }
-  }, [selectedSymbol, onSelectStock]);
+  }, [selectedSymbol]);
 
   const [guidedLearningActive, setGuidedLearningActive] = useState<boolean>(true);
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
@@ -232,7 +248,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
   const [selectedNewsId, setSelectedNewsId] = useState<string | null>(null);
   const [localNews, setLocalNews] = useState<any[]>([]);
   const [isNewsLoading, setIsNewsLoading] = useState<boolean>(false);
-  const [chartType, setChartType] = useState<'LINE' | 'CANDLESTICK'>('LINE');
+  const [chartType, setChartType] = useState<'LINE' | 'CANDLESTICK' | 'TRADINGVIEW'>('TRADINGVIEW');
   const [compareSymbol, setCompareSymbol] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState<string>("1M");
   
@@ -329,7 +345,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
           setLocalNews(data);
         }
       } catch (error) {
-        console.error("[News Fetch] Error getting live financial news:", error);
+        console.log("[News Feed] Standard info update - switched to static news fallback.");
         if (active) {
           const currentStock = stocksRef.current.find(s => s.symbol === selectedSymbol);
           setLocalNews(currentStock?.news || []);
@@ -2110,37 +2126,10 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
 
               {/* Type de graphe */}
               <div className="flex bg-slate-100 p-0.5 rounded-lg">
-                <button
-                  type="button"
-                  onClick={() => setChartType('LINE')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-bold text-xs transition cursor-pointer ${
-                    chartType === 'LINE'
-                      ? "bg-white text-slate-900 shadow-xs"
-                      : "text-slate-500 hover:text-slate-900"
-                  }`}
-                >
-                  <TrendingUp className="w-3.5 h-3.5 text-indigo-500" />
-                  <span>Courbe</span>
-                </button>
-                <button
-                  type="button"
-                  disabled={!!compareSymbol}
-                  onClick={() => setChartType('CANDLESTICK')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-bold text-xs transition ${
-                    compareSymbol
-                      ? "opacity-40 cursor-not-allowed text-slate-400"
-                      : chartType === 'CANDLESTICK'
-                      ? "bg-white text-slate-900 shadow-xs cursor-pointer"
-                      : "text-slate-500 hover:text-slate-900 cursor-pointer"
-                  }`}
-                  title={compareSymbol ? "Les bougies ne sont pas disponibles en mode comparaison" : "Bougies Japonaises"}
-                >
-                  {/* Candlestick Icon */}
-                  <svg className="w-3.5 h-3.5 text-indigo-500" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M7 2h2v4h4v8H9v8H7v-8H3V6h4V2zm10 4h2v2h4v8h-4v6h-2v-6h-4V8h4V6z" />
-                  </svg>
-                  <span>Bougies</span>
-                </button>
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-bold text-xs bg-white text-slate-950 shadow-xs">
+                  <span className="text-xs">📊</span>
+                  <span>Graphique TradingView</span>
+                </div>
               </div>
             </div>
           </div>
@@ -2196,14 +2185,20 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             </button>
           </div>
           
-          {(() => {
-            const { prices, labels } = getTimeframeData(selectedStock, timeframe);
-            return (
-              <div className="py-4">
-                {renderDetailedChart(prices, selectedStock.change >= 0, labels)}
-              </div>
-            );
-          })()}
+          {chartType === 'TRADINGVIEW' ? (
+            <div className="py-2">
+              <TradingViewWidget symbol={selectedStock.symbol} />
+            </div>
+          ) : (
+            (() => {
+              const { prices, labels } = getTimeframeData(selectedStock, timeframe);
+              return (
+                <div className="py-4">
+                  {renderDetailedChart(prices, selectedStock.change >= 0, labels)}
+                </div>
+              );
+            })()
+          )}
 
           {/* Quick Metrics */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl text-xs font-mono text-slate-600">

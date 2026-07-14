@@ -42,6 +42,36 @@ const TICKER_CITIES = [
   { name: "Johannesbourg", emoji: "🇿🇦", tz: "Africa/Johannesburg", code: "JSE" }
 ];
 
+export function getTradingViewSymbol(symbol: string): string {
+  if (!symbol) return "NASDAQ:AAPL";
+  
+  // Custom mappings for specific stocks
+  if (symbol === "MC") return "EURONEXT:MC";
+  if (symbol.endsWith(".PA")) {
+    const base = symbol.replace(".PA", "");
+    return `EURONEXT:${base}`;
+  }
+  
+  const nasdaqTickers = [
+    "AAPL", "MSFT", "NVDA", "TSLA", "GOOGL", "AMZN", "NFLX", "COIN", "META", 
+    "AMD", "ASML", "LLY", "ADBE", "CRM", "TSM", "AVGO", "QCOM", "ORCL", "INTC", "CSCO"
+  ];
+  
+  if (nasdaqTickers.includes(symbol)) {
+    return `NASDAQ:${symbol}`;
+  }
+  
+  const nyseTickers = [
+    "DIS", "V", "JPM", "WMT", "JNJ", "PG", "XOM", "COST", "MA", "CVX", "BAC", 
+    "PEP", "KO", "MRK", "NKE", "MCD", "IBM", "GE", "SBUX"
+  ];
+  if (nyseTickers.includes(symbol)) {
+    return `NYSE:${symbol}`;
+  }
+  
+  return symbol;
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>("dashboard");
   const [authUser, setAuthUser] = useState<any>(null);
@@ -630,6 +660,89 @@ export default function App() {
         const twelveKey = (profile.twelveDataApiKey && profile.twelveDataApiKey.trim()) || (envTwelveDataKey && envTwelveDataKey.trim());
         const finnhubKey = (profile.finnhubApiKey && profile.finnhubApiKey.trim()) || (envFinnhubKey && envFinnhubKey.trim());
 
+        // 0. High-Priority Primary Source: TradingView Scanner (Free, ultra-fast real-time Cboe/NASDAQ quotes matching charts exactly)
+        try {
+          console.log("[Client Fallback] Querying real-time TradingView Scanner API...");
+          const tvSymbols = stocks.map(s => getTradingViewSymbol(s.symbol));
+          const tvResponse = await fetch("https://scanner.tradingview.com/global/scan", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              symbols: {
+                tickers: tvSymbols,
+                query: { types: [] }
+              },
+              columns: ["close", "change", "volume", "high", "low"]
+            }),
+            signal: AbortSignal.timeout(5000)
+          });
+
+          if (tvResponse.ok) {
+            const tvJson = await tvResponse.json();
+            if (tvJson && Array.isArray(tvJson.data) && tvJson.data.length > 0) {
+              const tvResultsMap = new Map<string, any>();
+              for (const item of tvJson.data) {
+                if (item && item.s && Array.isArray(item.d)) {
+                  const [close, change, volume, high, low] = item.d;
+                  tvResultsMap.set(item.s, {
+                    price: typeof close === "number" ? close : null,
+                    change: typeof change === "number" ? parseFloat(change.toFixed(2)) : null,
+                    volumeVal: typeof volume === "number" ? volume : null,
+                    high: typeof high === "number" ? parseFloat(high.toFixed(2)) : null,
+                    low: typeof low === "number" ? parseFloat(low.toFixed(2)) : null
+                  });
+                }
+              }
+
+              if (active) {
+                setStocksApiSource("tradingview-realtime");
+                setStocks(prevStocks => {
+                  return prevStocks.map(stock => {
+                    const tvSym = getTradingViewSymbol(stock.symbol);
+                    const quote = tvResultsMap.get(tvSym);
+                    if (!quote || quote.price === null) return stock;
+
+                    const price = quote.price;
+                    const change = quote.change !== null ? quote.change : stock.change;
+                    const low24h = quote.low !== null ? quote.low : price;
+                    const high24h = quote.high !== null ? quote.high : price;
+                    const volumeNum = quote.volumeVal;
+
+                    let volume = "";
+                    if (volumeNum) {
+                      if (volumeNum >= 1_000_000_000) volume = `${(volumeNum / 1_000_000_000).toFixed(1)}B`;
+                      else if (volumeNum >= 1_000_000) volume = `${(volumeNum / 1_000_000).toFixed(1)}M`;
+                      else if (volumeNum >= 1000) volume = `${(volumeNum / 1000).toFixed(1)}K`;
+                      else volume = volumeNum.toString();
+                    }
+
+                    const originalStock = INITIAL_STOCKS.find(s => s.symbol === stock.symbol) || stock;
+                    const scale = price / originalStock.price;
+                    const history = originalStock.history.map((hPrice) => parseFloat((hPrice * scale).toFixed(2)));
+
+                    return {
+                      ...stock,
+                      price,
+                      change,
+                      low24h,
+                      high24h,
+                      volume: volume || stock.volume,
+                      history,
+                      basePrice: price,
+                      baseChange: change
+                    };
+                  });
+                });
+                return; // SUCCESS! Skip other fallbacks!
+              }
+            }
+          }
+        } catch (tvErr) {
+          console.warn("[Client Fallback] TradingView Scanner failed, trying Yahoo proxy:", tvErr);
+        }
+
         // 1. Primary Source: Yahoo Finance via public CORS proxies (Fetches ALL 27 US & European stocks in a single high-accuracy request)
         console.log("[Client Fallback] Querying real-time Yahoo Finance via public CORS proxies...");
         const symbolsList = uniqueSymbols.join(",");
@@ -903,10 +1016,136 @@ export default function App() {
   }, [profile.twelveDataApiKey, profile.finnhubApiKey]);
 
   const fetchStockHistory = async (symbol: string) => {
-    // Find stock and check if real history (>30 points) has already been fetched
+    // Find the stock
     const stock = stocks.find((s) => s.symbol === symbol);
-    if (!stock || stock.history.length > 30) return;
+    if (!stock) return;
 
+    const yahooSymbolsMap: Record<string, string> = {
+      AAPL: "AAPL",
+      MSFT: "MSFT",
+      NVDA: "NVDA",
+      TSLA: "TSLA",
+      GOOGL: "GOOGL",
+      AMZN: "AMZN",
+      NFLX: "NFLX",
+      COIN: "COIN",
+      META: "META",
+      AMD: "AMD",
+      DIS: "DIS",
+      ASML: "ASML",
+      V: "V",
+      LLY: "LLY",
+      MC: "MC.PA",
+      "OR.PA": "OR.PA",
+      JPM: "JPM",
+      WMT: "WMT",
+      JNJ: "JNJ",
+      PG: "PG",
+      XOM: "XOM",
+      COST: "COST",
+      MA: "MA",
+      ADBE: "ADBE",
+      CRM: "CRM",
+      CVX: "CVX",
+      BAC: "BAC",
+      PEP: "PEP",
+      KO: "KO",
+      MRK: "MRK",
+      TSM: "TSM",
+      AVGO: "AVGO",
+      QCOM: "QCOM",
+      ORCL: "ORCL",
+      NKE: "NKE",
+      MCD: "MCD",
+      INTC: "INTC",
+      IBM: "IBM",
+      CSCO: "CSCO",
+      GE: "GE",
+      SBUX: "SBUX",
+      "TTE.PA": "TTE.PA",
+      "SAN.PA": "SAN.PA",
+      "AIR.PA": "AIR.PA",
+      "RMS.PA": "RMS.PA",
+      "BNP.PA": "BNP.PA",
+      "CS.PA": "CS.PA",
+      "RNO.PA": "RNO.PA",
+      "AIRF.PA": "AIRF.PA",
+      "ENGI.PA": "ENGI.PA"
+    };
+
+    const yahooSymbol = yahooSymbolsMap[symbol] || symbol;
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?range=1mo&interval=1d`;
+
+    try {
+      const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
+      if (response.ok) {
+        const json = await response.json();
+        const result = json?.chart?.result?.[0];
+        const meta = result?.meta;
+        const quote = result?.indicators?.quote?.[0];
+
+        if (meta) {
+          const price = stock.price || meta.regularMarketPrice;
+          
+          // Get the closing prices to update the history
+          let historyPoints: number[] = [];
+          if (quote && Array.isArray(quote.close)) {
+            historyPoints = quote.close
+              .filter((c: any) => c !== null && c !== undefined)
+              .map((c: any) => parseFloat(parseFloat(c).toFixed(2)));
+          }
+
+          // Scale the history points so that the last point matches our highly accurate TradingView stock price
+          if (historyPoints.length > 0) {
+            const lastPoint = historyPoints[historyPoints.length - 1];
+            if (lastPoint > 0 && Math.abs(lastPoint - price) > 0.01) {
+              const scale = price / lastPoint;
+              historyPoints = historyPoints.map(p => parseFloat((p * scale).toFixed(2)));
+            }
+          }
+
+          // Calculate percentage change relative to previous close
+          const prevClose = meta.chartPreviousClose || (historyPoints.length > 1 ? historyPoints[historyPoints.length - 2] : price);
+          const change = stock.change !== undefined ? stock.change : (prevClose ? parseFloat((((price - prevClose) / prevClose) * 100).toFixed(2)) : stock.change);
+
+          const low24h = meta.regularMarketDayLow || (quote?.low ? Math.min(...quote.low.filter((l: any) => l !== null)) : price) || stock.low24h;
+          const high24h = meta.regularMarketDayHigh || (quote?.high ? Math.max(...quote.high.filter((h: any) => h !== null)) : price) || stock.high24h;
+          const volumeNum = meta.regularMarketVolume;
+
+          let volume = "";
+          if (volumeNum) {
+            if (volumeNum >= 1_000_000_000) volume = `${(volumeNum / 1_000_000_000).toFixed(1)}B`;
+            else if (volumeNum >= 1_000_000) volume = `${(volumeNum / 1_000_000).toFixed(1)}M`;
+            else if (volumeNum >= 1000) volume = `${(volumeNum / 1000).toFixed(1)}K`;
+            else volume = volumeNum.toString();
+          }
+
+          setStocks((prevStocks) =>
+            prevStocks.map((s) => {
+              if (s.symbol === symbol) {
+                return {
+                  ...s,
+                  price: price || s.price,
+                  change: change !== undefined ? change : s.change,
+                  low24h: low24h || s.low24h,
+                  high24h: high24h || s.high24h,
+                  volume: volume || s.volume,
+                  history: historyPoints.length > 0 ? historyPoints : s.history,
+                  basePrice: price || s.basePrice || s.price,
+                  baseChange: change !== undefined ? change : s.baseChange || s.change
+                };
+              }
+              return s;
+            })
+          );
+          return; // Success!
+        }
+      }
+    } catch (err) {
+      console.warn(`[Client Direct Sync] Failed to fetch live rate/history for ${symbol}:`, err);
+    }
+
+    // Fallback: If direct client fetch fails, try the proxy server history endpoint
     try {
       const headers: Record<string, string> = {};
       if (profile.twelveDataApiKey) {
@@ -927,7 +1166,7 @@ export default function App() {
         }
       }
     } catch (err) {
-      console.warn(`[History Sync] Failed to fetch history for ${symbol}:`, err);
+      console.warn(`[History Sync Fallback] Failed to fetch history for ${symbol}:`, err);
     }
   };
 
