@@ -4,6 +4,7 @@ import { ArrowUpRight, ArrowDownRight, DollarSign, Briefcase, History, TrendingU
 import { motion, AnimatePresence } from "motion/react";
 import { getStockMarket, isMarketOpenForStock, getZonedDateTime } from "../utils";
 import TradingViewWidget from "./TradingViewWidget";
+import TradingViewPriceWidget from "./TradingViewPriceWidget";
 
 // Stable LCG pseudo-random generator
 function getSeededRandom(seedStr: string) {
@@ -2068,14 +2069,8 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                 </span>
               </div>
             </div>
-            <div className="text-right flex sm:flex-col items-center sm:items-end gap-2 sm:gap-0">
-              <span className="text-3xl font-black text-slate-800 font-mono">
-                {selectedStock.price.toFixed(2)} $
-              </span>
-              <span className={`text-xs font-bold flex items-center ${selectedStock.change >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                {selectedStock.change >= 0 ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
-                {selectedStock.change >= 0 ? "+" : ""}{selectedStock.change.toFixed(2)}% (Moy. 24h)
-              </span>
+            <div className="flex-shrink-0">
+              <TradingViewPriceWidget symbol={selectedStock.symbol} />
             </div>
           </div>
 
