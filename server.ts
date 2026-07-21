@@ -1479,10 +1479,20 @@ Veuillez respecter le schéma JSON requis.`;
 
     const querySymbol = symbolsMap[symbol] || symbol;
 
+    const range = (req.query.range as string) || "1y";
+    let interval = "1d";
+    if (range === "1d") {
+      interval = "5m";
+    } else if (range === "5d") {
+      interval = "15m";
+    } else if (range === "5y" || range === "max") {
+      interval = "1wk";
+    }
+
     // --- 1. Try Yahoo Finance /v8/finance/chart direct API first (Free, real-time historical, no key needed, highly reliable) ---
     try {
-      console.log(`[Prices API] Fetching real history for ${querySymbol} from Yahoo Finance direct API...`);
-      const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${querySymbol}?range=1y&interval=1d`;
+      console.log(`[Prices API] Fetching real history for ${querySymbol} (range: ${range}, interval: ${interval}) from Yahoo Finance direct API...`);
+      const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${querySymbol}?range=${range}&interval=${interval}`;
       const yfResponse = await fetch(yfUrl, {
         headers: {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"

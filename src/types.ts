@@ -21,6 +21,7 @@ export interface Stock {
   high24h: number;
   description: string;
   news: StockNews[];
+  histories?: Record<string, number[]>;
 }
 
 export interface PortfolioItem {

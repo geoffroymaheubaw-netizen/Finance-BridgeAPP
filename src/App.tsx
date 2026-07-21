@@ -1015,71 +1015,148 @@ export default function App() {
     };
   }, [profile.twelveDataApiKey, profile.finnhubApiKey]);
 
-  const fetchStockHistory = async (symbol: string) => {
+  const fetchStockHistory = async (symbol: string, timeframe?: string) => {
+    const tf = timeframe || "1M";
+    
+    // Map timeframe to Yahoo Finance range/interval
+    let range = "1mo";
+    if (tf === "1J") range = "1d";
+    else if (tf === "1S") range = "5d";
+    else if (tf === "1M") range = "1mo";
+    else if (tf === "3M") range = "3mo";
+    else if (tf === "6M") range = "6mo";
+    else if (tf === "1A") range = "1y";
+    else if (tf === "Tout") range = "5y";
+
+    console.log(`[History Sync] Fetching history for ${symbol} with timeframe ${tf} (range: ${range})...`);
+
     // Find the stock
     const stock = stocks.find((s) => s.symbol === symbol);
     if (!stock) return;
 
-    const yahooSymbolsMap: Record<string, string> = {
-      AAPL: "AAPL",
-      MSFT: "MSFT",
-      NVDA: "NVDA",
-      TSLA: "TSLA",
-      GOOGL: "GOOGL",
-      AMZN: "AMZN",
-      NFLX: "NFLX",
-      COIN: "COIN",
-      META: "META",
-      AMD: "AMD",
-      DIS: "DIS",
-      ASML: "ASML",
-      V: "V",
-      LLY: "LLY",
-      MC: "MC.PA",
-      "OR.PA": "OR.PA",
-      JPM: "JPM",
-      WMT: "WMT",
-      JNJ: "JNJ",
-      PG: "PG",
-      XOM: "XOM",
-      COST: "COST",
-      MA: "MA",
-      ADBE: "ADBE",
-      CRM: "CRM",
-      CVX: "CVX",
-      BAC: "BAC",
-      PEP: "PEP",
-      KO: "KO",
-      MRK: "MRK",
-      TSM: "TSM",
-      AVGO: "AVGO",
-      QCOM: "QCOM",
-      ORCL: "ORCL",
-      NKE: "NKE",
-      MCD: "MCD",
-      INTC: "INTC",
-      IBM: "IBM",
-      CSCO: "CSCO",
-      GE: "GE",
-      SBUX: "SBUX",
-      "TTE.PA": "TTE.PA",
-      "SAN.PA": "SAN.PA",
-      "AIR.PA": "AIR.PA",
-      "RMS.PA": "RMS.PA",
-      "BNP.PA": "BNP.PA",
-      "CS.PA": "CS.PA",
-      "RNO.PA": "RNO.PA",
-      "AIRF.PA": "AIRF.PA",
-      "ENGI.PA": "ENGI.PA"
-    };
-
-    const yahooSymbol = yahooSymbolsMap[symbol] || symbol;
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?range=1mo&interval=1d`;
-
+    // --- Try Server-Side Proxy First (Robust, handles CORS, fetches full timeframe range) ---
     try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
+      const headers: Record<string, string> = {};
+      if (profile.twelveDataApiKey) {
+        headers["x-twelve-data-key"] = profile.twelveDataApiKey;
+      }
+      if (profile.finnhubApiKey) {
+        headers["x-finnhub-key"] = profile.finnhubApiKey;
+      }
+      const response = await fetch(`/api/stocks/history/${symbol}?range=${range}`, { headers });
       if (response.ok) {
-        const json = await response.json();
+        const data = await response.json();
+        if (data && Array.isArray(data.history) && data.history.length > 0) {
+          setStocks((prevStocks) =>
+            prevStocks.map((s) => {
+              if (s.symbol === symbol) {
+                const updatedHistories = {
+                  ...(s.histories || {}),
+                  [tf]: data.history
+                };
+                return {
+                  ...s,
+                  histories: updatedHistories,
+                  // For backward compatibility with other tabs, also update the main history
+                  history: tf === "1M" || !s.history || s.history.length <= 30 ? data.history : s.history
+                };
+              }
+              return s;
+            })
+          );
+          return; // Success!
+        }
+      }
+    } catch (err) {
+      console.warn(`[History Sync Server] Failed to fetch history for ${symbol} via server proxy:`, err);
+    }
+
+    // --- Fallback: Client-side fetch with CORS proxies ---
+    try {
+      const yahooSymbolsMap: Record<string, string> = {
+        AAPL: "AAPL",
+        MSFT: "MSFT",
+        NVDA: "NVDA",
+        TSLA: "TSLA",
+        GOOGL: "GOOGL",
+        AMZN: "AMZN",
+        NFLX: "NFLX",
+        COIN: "COIN",
+        META: "META",
+        AMD: "AMD",
+        DIS: "DIS",
+        ASML: "ASML",
+        V: "V",
+        LLY: "LLY",
+        MC: "MC.PA",
+        "OR.PA": "OR.PA",
+        JPM: "JPM",
+        WMT: "WMT",
+        JNJ: "JNJ",
+        PG: "PG",
+        XOM: "XOM",
+        COST: "COST",
+        MA: "MA",
+        ADBE: "ADBE",
+        CRM: "CRM",
+        CVX: "CVX",
+        BAC: "BAC",
+        PEP: "PEP",
+        KO: "KO",
+        MRK: "MRK",
+        TSM: "TSM",
+        AVGO: "AVGO",
+        QCOM: "QCOM",
+        ORCL: "ORCL",
+        NKE: "NKE",
+        MCD: "MCD",
+        INTC: "INTC",
+        IBM: "IBM",
+        CSCO: "CSCO",
+        GE: "GE",
+        SBUX: "SBUX",
+        "TTE.PA": "TTE.PA",
+        "SAN.PA": "SAN.PA",
+        "AIR.PA": "AIR.PA",
+        "RMS.PA": "RMS.PA",
+        "BNP.PA": "BNP.PA",
+        "CS.PA": "CS.PA",
+        "RNO.PA": "RNO.PA",
+        "AIRF.PA": "AIRF.PA",
+        "ENGI.PA": "ENGI.PA"
+      };
+
+      const yahooSymbol = yahooSymbolsMap[symbol] || symbol;
+      let interval = "1d";
+      if (range === "1d") interval = "5m";
+      else if (range === "5d") interval = "15m";
+
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?range=${range}&interval=${interval}`;
+
+      const proxies = [
+        `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        `https://cors.lol/?url=${encodeURIComponent(url)}`,
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+        url
+      ];
+
+      let json: any = null;
+      for (const proxyUrl of proxies) {
+        try {
+          const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(5000) });
+          if (response.ok) {
+            json = await response.json();
+            if (json?.chart?.result?.[0]) {
+              break; // Succeeded!
+            }
+          }
+        } catch (e) {
+          // Continue to next proxy
+        }
+      }
+
+      if (json) {
         const result = json?.chart?.result?.[0];
         const meta = result?.meta;
         const quote = result?.indicators?.quote?.[0];
@@ -1123,6 +1200,10 @@ export default function App() {
           setStocks((prevStocks) =>
             prevStocks.map((s) => {
               if (s.symbol === symbol) {
+                const updatedHistories = {
+                  ...(s.histories || {}),
+                  [tf]: historyPoints
+                };
                 return {
                   ...s,
                   price: price || s.price,
@@ -1130,6 +1211,7 @@ export default function App() {
                   low24h: low24h || s.low24h,
                   high24h: high24h || s.high24h,
                   volume: volume || s.volume,
+                  histories: updatedHistories,
                   history: historyPoints.length > 0 ? historyPoints : s.history,
                   basePrice: price || s.basePrice || s.price,
                   baseChange: change !== undefined ? change : s.baseChange || s.change
@@ -1138,35 +1220,10 @@ export default function App() {
               return s;
             })
           );
-          return; // Success!
         }
       }
-    } catch (err) {
-      console.warn(`[Client Direct Sync] Failed to fetch live rate/history for ${symbol}:`, err);
-    }
-
-    // Fallback: If direct client fetch fails, try the proxy server history endpoint
-    try {
-      const headers: Record<string, string> = {};
-      if (profile.twelveDataApiKey) {
-        headers["x-twelve-data-key"] = profile.twelveDataApiKey;
-      }
-      if (profile.finnhubApiKey) {
-        headers["x-finnhub-key"] = profile.finnhubApiKey;
-      }
-      const response = await fetch(`/api/stocks/history/${symbol}`, { headers });
-      if (response.ok) {
-        const data = await response.json();
-        if (data && Array.isArray(data.history) && data.history.length > 0) {
-          setStocks((prevStocks) =>
-            prevStocks.map((s) =>
-              s.symbol === symbol ? { ...s, history: data.history } : s
-            )
-          );
-        }
-      }
-    } catch (err) {
-      console.warn(`[History Sync Fallback] Failed to fetch history for ${symbol}:`, err);
+    } catch (clientErr) {
+      console.warn(`[History Sync Client Fallback] Failed for ${symbol}:`, clientErr);
     }
   };
 

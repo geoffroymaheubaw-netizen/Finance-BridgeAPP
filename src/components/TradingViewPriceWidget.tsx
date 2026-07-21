@@ -1,78 +1,91 @@
-import React, { useEffect, useState } from "react";
-import { getTradingViewSymbol } from "./TradingViewWidget";
+import React from "react";
 
 interface TradingViewPriceWidgetProps {
   symbol: string;
+  compact?: boolean;
+  price?: number;
+  change?: number;
 }
 
-export default function TradingViewPriceWidget({ symbol }: TradingViewPriceWidgetProps) {
-  const [isLoading, setIsLoading] = useState(true);
-  const [isDark, setIsDark] = useState(() => 
-    typeof document !== "undefined" ? document.documentElement.classList.contains("dark") : false
-  );
-  const tvSymbol = getTradingViewSymbol(symbol);
+export default function TradingViewPriceWidget({ symbol, compact = false, price, change }: TradingViewPriceWidgetProps) {
+  const isEuro = symbol.endsWith(".PA") || symbol === "MC" || symbol.startsWith("EURONEXT:");
+  const currency = isEuro ? "€" : "$";
+  const exchange = isEuro ? "EURONEXT" : symbol === "BABA" ? "NYSE" : "NASDAQ";
 
-  // Monitor document.documentElement class list for dark mode changes
-  useEffect(() => {
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.attributeName === "class") {
-          setIsDark(document.documentElement.classList.contains("dark"));
-        }
-      });
-    });
+  const isPos = (change ?? 0) >= 0;
+  const formattedPrice = typeof price === "number" ? price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
+  const formattedChange = typeof change === "number" ? `${isPos ? "+" : ""}${change.toFixed(2)}%` : "";
 
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-
-    return () => observer.disconnect();
-  }, []);
-
-  // Configuration for the TradingView Single Ticker/Quote widget
-  const config = {
-    symbol: tvSymbol,
-    width: "100%",
-    colorTheme: isDark ? "dark" : "light",
-    isTransparent: true,
-    locale: "fr"
+  // Get stock full names for the large version
+  const getStockName = (sym: string) => {
+    switch (sym) {
+      case "AAPL": return "Apple Inc.";
+      case "MSFT": return "Microsoft Corporation";
+      case "NVDA": return "NVIDIA Corporation";
+      case "TSLA": return "Tesla, Inc.";
+      case "AMZN": return "Amazon.com, Inc.";
+      case "META": return "Meta Platforms, Inc.";
+      case "GOOGL": return "Alphabet Inc.";
+      case "NFLX": return "Netflix, Inc.";
+      case "SAN.PA": return "Sanofi S.A.";
+      case "AIR.PA": return "Airbus SE";
+      case "MC": return "LVMH Moët Hennessy";
+      case "OR.PA": return "L'Oréal S.A.";
+      case "ASML": return "ASML Holding N.V.";
+      default: return `${sym} Stock`;
+    }
   };
 
-  // Construct the secure iframe source URL for the Single Quote embed widget
-  const iframeUrl = `https://s.tradingview.com/embed-widget/single-quote/?locale=fr#${encodeURIComponent(
-    JSON.stringify(config)
-  )}`;
+  if (compact) {
+    return (
+      <div className="flex flex-col items-end justify-center h-full pr-1 ml-auto">
+        <span className="font-bold text-sm font-mono text-slate-950 dark:text-slate-100 leading-none">
+          {formattedPrice} {currency}
+        </span>
+        {formattedChange && (
+          <span className={`text-[10px] font-bold font-mono mt-1 leading-none ${isPos ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+            {formattedChange}
+          </span>
+        )}
+      </div>
+    );
+  }
 
-  useEffect(() => {
-    setIsLoading(true);
-    // Give a small safety timeout to show transition
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, [tvSymbol, isDark]);
-
+  // Beautiful large version replicating the TradingView Single Ticker widget but natively with zero iframes!
   return (
-    <div className="relative w-full sm:w-[320px] h-[120px] rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-center transition-colors duration-250">
-      {isLoading && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/95 dark:bg-slate-900/95 backdrop-blur-xs z-10 gap-2">
-          <div className="w-6 h-6 border-2 border-indigo-600 dark:border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-xs font-medium text-slate-500 dark:text-slate-400 animate-pulse">Initialisation...</span>
+    <div className="w-full sm:w-[320px] h-[120px] rounded-xl border border-slate-150 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 flex flex-col justify-between transition-all duration-250 hover:shadow-md shadow-xs">
+      <div className="flex justify-between items-start">
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5">
+            <span className="font-extrabold text-base font-mono text-slate-950 dark:text-white tracking-tight">{symbol}</span>
+            <span className="text-[9px] px-1 py-0.5 rounded-sm bg-slate-100 dark:bg-slate-800 text-slate-450 dark:text-slate-400 font-bold font-sans tracking-wider uppercase">
+              {exchange}
+            </span>
+          </div>
+          <span className="text-xs text-slate-500 dark:text-slate-400 block truncate max-w-[170px] font-medium">
+            {getStockName(symbol)}
+          </span>
         </div>
-      )}
-      <iframe
-        key={`${tvSymbol}-${isDark ? "dark" : "light"}`}
-        title={`TradingView Price for ${symbol}`}
-        src={iframeUrl}
-        className="w-full h-full border-none overflow-hidden"
-        scrolling="no"
-        allowFullScreen
-        onLoad={() => {
-          // Add a tiny delay to ensure the widget has rendered inside the iframe
-          setTimeout(() => setIsLoading(false), 300);
-        }}
-      />
+        <div className="text-right">
+          <span className="text-xl font-bold font-mono text-slate-950 dark:text-white block leading-none">
+            {formattedPrice} <span className="text-xs font-normal text-slate-500 dark:text-slate-400 ml-0.5">{currency}</span>
+          </span>
+          <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 font-sans mt-1.5 block">
+            {isEuro ? "EUR" : "USD"}
+          </span>
+        </div>
+      </div>
+      <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-800 mt-1.5">
+        <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Variation (24h)</span>
+        <div className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold font-mono ${
+          isPos 
+            ? "bg-emerald-50/60 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400" 
+            : "bg-rose-50/60 text-rose-700 dark:bg-rose-950/20 dark:text-rose-400"
+        }`}>
+          <span>{isPos ? "▲" : "▼"}</span>
+          <span>{formattedChange}</span>
+        </div>
+      </div>
     </div>
   );
 }

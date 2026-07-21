@@ -3,7 +3,6 @@ import { Stock, UserProfile, PortfolioItem } from "../types";
 import { ArrowUpRight, ArrowDownRight, DollarSign, Briefcase, History, TrendingUp, Info, Newspaper, Maximize2, Minimize2, ZoomIn, ZoomOut, RotateCcw, Search, Layers, GraduationCap, Star } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { getStockMarket, isMarketOpenForStock, getZonedDateTime } from "../utils";
-import TradingViewWidget from "./TradingViewWidget";
 import TradingViewPriceWidget from "./TradingViewPriceWidget";
 
 // Stable LCG pseudo-random generator
@@ -69,7 +68,41 @@ export function get1DCurrentDayLimit(symbol: string, marketMode: string, totalPo
 }
 
 // Generates incredibly realistic high-density historical curves for all stock tickers
+export function getLabelsForTimeframe(tf: string, symbol: string): [string, string, string] {
+  switch (tf) {
+    case "1m":
+      return ["Il y a 30 min", "Il y a 15 min", "Maintenant"];
+    case "1h":
+      return ["Il y a 24 h", "Il y a 12 h", "Maintenant"];
+    case "1J":
+      return symbol.endsWith(".PA") || symbol === "MC"
+        ? ["09:00", "13:15", "17:30"]
+        : ["09:30", "13:00", "16:00"];
+    case "1S":
+      return ["Il y a 7 j", "Il y a 3 j", "Aujourd'hui"];
+    case "1M":
+      return ["Il y a 30 jours", "Il y a 15 jours", "Aujourd'hui"];
+    case "3M":
+      return ["Il y a 3 mois", "Il y a 45 j.", "Aujourd'hui"];
+    case "6M":
+      return ["Il y a 6 mois", "Il y a 3 mois", "Aujourd'hui"];
+    case "1A":
+      return ["Il y a 1 an", "Il y a 6 mois", "Aujourd'hui"];
+    case "Tout":
+      return ["Entrée en Bourse", "Moyen Terme", "Aujourd'hui"];
+    default:
+      return ["Début", "Milieu", "Aujourd'hui"];
+  }
+}
+
 export function getTimeframeData(stock: Stock, tf: string): { prices: number[]; labels: [string, string, string] } {
+  if (stock.histories?.[tf] && stock.histories[tf].length > 0) {
+    return {
+      prices: stock.histories[tf],
+      labels: getLabelsForTimeframe(tf, stock.symbol)
+    };
+  }
+
   const currentPrice = stock.price;
   const historyToUse = stock.history || [];
   const hasRealHistory = historyToUse.length > 30; // Real historical data loaded from Twelve Data has length 350
@@ -214,7 +247,7 @@ interface SimulatorTabProps {
   onUpdateStopLoss: (symbol: string, stopLoss?: number | null) => void;
   lang: string;
   t: (key: string) => string;
-  onSelectStock?: (symbol: string) => void;
+  onSelectStock?: (symbol: string, timeframe?: string) => void;
 }
 
 export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLoss, lang, t, onSelectStock }: SimulatorTabProps) {
@@ -225,11 +258,23 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
     onSelectStockRef.current = onSelectStock;
   }, [onSelectStock]);
 
+  const [guidedLearningActive, setGuidedLearningActive] = useState<boolean>(true);
+  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+  const [tradeShares, setTradeShares] = useState<number>(1);
+  const [tradeType, setTradeType] = useState<'BUY' | 'SELL'>('BUY');
+  const [hoveredPrice, setHoveredPrice] = useState<{ price: number; index: number } | null>(null);
+  const [selectedNewsId, setSelectedNewsId] = useState<string | null>(null);
+  const [localNews, setLocalNews] = useState<any[]>([]);
+  const [isNewsLoading, setIsNewsLoading] = useState<boolean>(false);
+  const [chartType, setChartType] = useState<'LINE' | 'CANDLESTICK'>('LINE');
+  const [compareSymbol, setCompareSymbol] = useState<string | null>(null);
+  const [timeframe, setTimeframe] = useState<string>("1M");
+
   React.useEffect(() => {
     if (selectedSymbol) {
       const fetchHistory = () => {
         if (onSelectStockRef.current) {
-          onSelectStockRef.current(selectedSymbol);
+          onSelectStockRef.current(selectedSymbol, timeframe);
         }
       };
 
@@ -239,19 +284,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
 
       return () => clearInterval(interval);
     }
-  }, [selectedSymbol]);
-
-  const [guidedLearningActive, setGuidedLearningActive] = useState<boolean>(true);
-  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
-  const [tradeShares, setTradeShares] = useState<number>(1);
-  const [tradeType, setTradeType] = useState<'BUY' | 'SELL'>('BUY');
-  const [hoveredPrice, setHoveredPrice] = useState<{ price: number; index: number } | null>(null);
-  const [selectedNewsId, setSelectedNewsId] = useState<string | null>(null);
-  const [localNews, setLocalNews] = useState<any[]>([]);
-  const [isNewsLoading, setIsNewsLoading] = useState<boolean>(false);
-  const [chartType, setChartType] = useState<'LINE' | 'CANDLESTICK' | 'TRADINGVIEW'>('TRADINGVIEW');
-  const [compareSymbol, setCompareSymbol] = useState<string | null>(null);
-  const [timeframe, setTimeframe] = useState<string>("1M");
+  }, [selectedSymbol, timeframe]);
   
   // Stop-Loss inputs and switches
   const [useStopLoss, setUseStopLoss] = useState<boolean>(false);
@@ -1835,9 +1868,9 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
   return (
     <div id="simulator-tab" className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* List pane */}
-      <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-xs space-y-4 lg:col-span-1">
+      <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 shadow-xs space-y-4 lg:col-span-1">
         <div className="space-y-1">
-          <h3 className="font-bold text-slate-800 text-base px-1 flex items-center gap-1.5">
+          <h3 className="font-bold text-slate-800 dark:text-slate-100 text-base px-1 flex items-center gap-1.5">
             <TrendingUp className="w-4 h-4 text-emerald-600" />
             {t("marketPrices")}
           </h3>
@@ -1855,7 +1888,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-8 py-2 text-xs border border-slate-200 focus:border-indigo-500 focus:bg-white bg-slate-50/50 rounded-xl outline-hidden font-medium placeholder:text-slate-400 text-slate-800 transition"
+            className="w-full pl-9 pr-8 py-2 text-xs border border-slate-200 dark:border-slate-850 focus:border-indigo-500 focus:bg-white bg-slate-50/50 dark:bg-slate-950/80 rounded-xl outline-hidden font-medium placeholder:text-slate-400 text-slate-800 dark:text-slate-100 transition"
             placeholder="Rechercher une action (ex: AAPL, TSLA...)"
           />
           {searchQuery && (
@@ -1913,9 +1946,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                   </div>
 
                   <div className="text-right space-y-0.5">
-                    <p className="font-bold text-sm font-mono text-slate-950 dark:text-white">
-                      {stock.price.toFixed(2)} $
-                    </p>
+                    <TradingViewPriceWidget symbol={stock.symbol} compact={true} price={stock.price} change={stock.change} />
                     <p className={`text-[10px] font-sans ${isSelected ? "text-slate-700 dark:text-slate-450" : "text-slate-400"}`}>
                       {stock.volume}
                     </p>
@@ -1985,9 +2016,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
 
                     <div className="flex items-center gap-1.5">
                       <div className="text-right space-y-0.5">
-                        <p className="font-bold text-xs font-mono text-slate-900 dark:text-white">
-                          {stock.price.toFixed(2)} $
-                        </p>
+                        <TradingViewPriceWidget symbol={stock.symbol} compact={true} price={stock.price} change={stock.change} />
                       </div>
                       <button
                         onClick={(e) => {
@@ -2070,7 +2099,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
               </div>
             </div>
             <div className="flex-shrink-0">
-              <TradingViewPriceWidget symbol={selectedStock.symbol} />
+              <TradingViewPriceWidget symbol={selectedStock.symbol} price={selectedStock.price} change={selectedStock.change} />
             </div>
           </div>
 
@@ -2120,11 +2149,31 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
               </div>
 
               {/* Type de graphe */}
-              <div className="flex bg-slate-100 p-0.5 rounded-lg">
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md font-bold text-xs bg-white text-slate-950 shadow-xs">
-                  <span className="text-xs">📊</span>
-                  <span>Graphique TradingView</span>
-                </div>
+              <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200/40">
+                <button
+                  type="button"
+                  onClick={() => setChartType('LINE')}
+                  className={`px-2.5 py-1.5 rounded-md text-[10px] sm:text-[11px] font-bold transition-all cursor-pointer ${
+                    chartType === 'LINE'
+                      ? "bg-white text-indigo-600 shadow-xs dark:bg-slate-700 dark:text-white"
+                      : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                  }`}
+                >
+                  Courbe
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChartType('CANDLESTICK')}
+                  disabled={compareSymbol !== null}
+                  className={`px-2.5 py-1.5 rounded-md text-[10px] sm:text-[11px] font-bold transition-all cursor-pointer ${
+                    chartType === 'CANDLESTICK'
+                      ? "bg-white text-indigo-600 shadow-xs dark:bg-slate-700 dark:text-white"
+                      : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                  }`}
+                  title={compareSymbol !== null ? "Chandelier n'est pas disponible en mode comparaison" : "Graphique en Chandeliers japonais"}
+                >
+                  Chandelier
+                </button>
               </div>
             </div>
           </div>
@@ -2180,20 +2229,14 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             </button>
           </div>
           
-          {chartType === 'TRADINGVIEW' ? (
-            <div className="py-2">
-              <TradingViewWidget symbol={selectedStock.symbol} />
-            </div>
-          ) : (
-            (() => {
-              const { prices, labels } = getTimeframeData(selectedStock, timeframe);
-              return (
-                <div className="py-4">
-                  {renderDetailedChart(prices, selectedStock.change >= 0, labels)}
-                </div>
-              );
-            })()
-          )}
+          {(() => {
+            const { prices, labels } = getTimeframeData(selectedStock, timeframe);
+            return (
+              <div className="py-4">
+                {renderDetailedChart(prices, selectedStock.change >= 0, labels)}
+              </div>
+            );
+          })()}
 
           {/* Quick Metrics */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl text-xs font-mono text-slate-600">
