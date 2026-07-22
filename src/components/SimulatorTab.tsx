@@ -4,6 +4,7 @@ import { ArrowUpRight, ArrowDownRight, DollarSign, Briefcase, History, TrendingU
 import { motion, AnimatePresence } from "motion/react";
 import { getStockMarket, isMarketOpenForStock, getZonedDateTime } from "../utils";
 import TradingViewPriceWidget from "./TradingViewPriceWidget";
+import TradersUnionChartWidget from "./TradersUnionChartWidget";
 
 // Stable LCG pseudo-random generator
 function getSeededRandom(seedStr: string) {
@@ -266,7 +267,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
   const [selectedNewsId, setSelectedNewsId] = useState<string | null>(null);
   const [localNews, setLocalNews] = useState<any[]>([]);
   const [isNewsLoading, setIsNewsLoading] = useState<boolean>(false);
-  const [chartType, setChartType] = useState<'LINE' | 'CANDLESTICK'>('LINE');
+  const [chartType, setChartType] = useState<'LINE' | 'CANDLESTICK' | 'TRADERS_UNION'>('TRADERS_UNION');
   const [compareSymbol, setCompareSymbol] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState<string>("1M");
 
@@ -434,6 +435,13 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
 
   // Detailed SVG line or candlestick chart with grids, gradient and ticks
   const renderDetailedChart = (history: number[], isPositive: boolean, chartLabels: string[]) => {
+    if (chartType === 'TRADERS_UNION') {
+      return (
+        <div className="w-full relative my-1">
+          <TradersUnionChartWidget symbol={selectedStock.symbol} height={460} />
+        </div>
+      );
+    }
     // Robust cleanup of histories
     const cleanHistory = (history || []).map(h => typeof h === 'number' && !isNaN(h) ? h : selectedStock.price);
     if (cleanHistory.length === 0) return null;
@@ -1186,6 +1194,13 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
 
   // Render the zoomed detailed chart inside the overlay modal
   const renderZoomedDetailedChartOnModal = () => {
+    if (chartType === 'TRADERS_UNION') {
+      return (
+        <div className="w-full relative my-1">
+          <TradersUnionChartWidget symbol={selectedStock.symbol} height={520} />
+        </div>
+      );
+    }
     const { prices: rawPrices, labels: rawLabels } = getTimeframeData(selectedStock, timeframe);
     const N = rawPrices.length;
     
@@ -2173,6 +2188,21 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                   title={compareSymbol !== null ? "Chandelier n'est pas disponible en mode comparaison" : "Graphique en Chandeliers japonais"}
                 >
                   Chandelier
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setChartType('TRADERS_UNION');
+                    setCompareSymbol(null);
+                  }}
+                  className={`px-2.5 py-1.5 rounded-md text-[10px] sm:text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                    chartType === 'TRADERS_UNION'
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
+                  }`}
+                  title="Afficher le widget officiel Traders Union"
+                >
+                  <span>Widget Traders Union 📊</span>
                 </button>
               </div>
             </div>
