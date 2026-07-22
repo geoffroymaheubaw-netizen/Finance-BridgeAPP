@@ -19,5 +19,8 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          # Remplacez "VOTRE_PSEUDO_HF" et "NOM_DE_VOTRE_SPACE" par vos informations Hugging Face
+          if [ -z "$HF_TOKEN" ] || [[ "VOTRE_PSEUDO_HF" == *"VOTRE_PSEUDO"* ]]; then
+            echo "HF_TOKEN ou identifiants Hugging Face non configurés. Étape ignorée."
+            exit 0
+          fi
           git push --force https://VOTRE_PSEUDO_HF:${HF_TOKEN}@huggingface.co/spaces/VOTRE_PSEUDO_HF/NOM_DE_VOTRE_SPACE main:main
