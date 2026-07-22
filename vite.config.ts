@@ -4,9 +4,12 @@ import path from 'path';
 import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
-  const isGithubActions = process.env.GITHUB_ACTIONS === 'true' || process.env.GITHUB_WORKFLOW;
+  const isGithubActions = process.env.GITHUB_ACTIONS === 'true';
+  const repositoryName = process.env.GITHUB_REPOSITORY ? process.env.GITHUB_REPOSITORY.split('/')[1] : '';
+  const base = isGithubActions && repositoryName ? `/${repositoryName}/` : './';
+
   return {
-    base: isGithubActions ? '/Finance-BridgeAPP/' : '/',
+    base,
     plugins: [react(), tailwindcss()],
     define: {
       'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify(process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || ""),
