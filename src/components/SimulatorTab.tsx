@@ -4,7 +4,7 @@ import { ArrowUpRight, ArrowDownRight, DollarSign, Briefcase, History, TrendingU
 import { motion, AnimatePresence } from "motion/react";
 import { getStockMarket, isMarketOpenForStock, getZonedDateTime } from "../utils";
 import TradingViewPriceWidget from "./TradingViewPriceWidget";
-import TradersUnionChartWidget from "./TradersUnionChartWidget";
+import DarqubeChartWidget from "./DarqubeChartWidget";
 
 // Stable LCG pseudo-random generator
 function getSeededRandom(seedStr: string) {
@@ -267,7 +267,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
   const [selectedNewsId, setSelectedNewsId] = useState<string | null>(null);
   const [localNews, setLocalNews] = useState<any[]>([]);
   const [isNewsLoading, setIsNewsLoading] = useState<boolean>(false);
-  const [chartType, setChartType] = useState<'LINE' | 'CANDLESTICK' | 'TRADERS_UNION'>('TRADERS_UNION');
+  const [chartType, setChartType] = useState<'LINE' | 'CANDLESTICK' | 'DARQUBE'>('DARQUBE');
   const [compareSymbol, setCompareSymbol] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState<string>("1M");
 
@@ -435,10 +435,13 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
 
   // Detailed SVG line or candlestick chart with grids, gradient and ticks
   const renderDetailedChart = (history: number[], isPositive: boolean, chartLabels: string[]) => {
-    if (chartType === 'TRADERS_UNION') {
+    if (chartType === 'DARQUBE') {
       return (
         <div className="w-full relative my-1">
-          <TradersUnionChartWidget symbol={selectedStock.symbol} height={460} />
+          <DarqubeChartWidget
+            symbol={selectedStock.symbol}
+            height={480}
+          />
         </div>
       );
     }
@@ -1194,10 +1197,13 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
 
   // Render the zoomed detailed chart inside the overlay modal
   const renderZoomedDetailedChartOnModal = () => {
-    if (chartType === 'TRADERS_UNION') {
+    if (chartType === 'DARQUBE') {
       return (
         <div className="w-full relative my-1">
-          <TradersUnionChartWidget symbol={selectedStock.symbol} height={520} />
+          <DarqubeChartWidget
+            symbol={selectedStock.symbol}
+            height={550}
+          />
         </div>
       );
     }
@@ -2192,17 +2198,17 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                 <button
                   type="button"
                   onClick={() => {
-                    setChartType('TRADERS_UNION');
+                    setChartType('DARQUBE');
                     setCompareSymbol(null);
                   }}
                   className={`px-2.5 py-1.5 rounded-md text-[10px] sm:text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                    chartType === 'TRADERS_UNION'
+                    chartType === 'DARQUBE'
                       ? "bg-indigo-600 text-white shadow-xs"
                       : "text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
                   }`}
-                  title="Afficher le widget officiel Traders Union"
+                  title="Afficher le widget DarQube Advanced Chart"
                 >
-                  <span>Widget Traders Union 📊</span>
+                  <span>DarQube 📊</span>
                 </button>
               </div>
             </div>
