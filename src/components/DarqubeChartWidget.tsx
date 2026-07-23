@@ -13,7 +13,7 @@ export default function DarqubeChartWidget({
 
   useEffect(() => {
     const handleMessage = (msg: MessageEvent) => {
-      const widget = iframeRef.current;
+      const widget = iframeRef.current || document.getElementById('AdvancedChartWidget-lhjeadj') as HTMLIFrameElement;
       if (!widget) return;
 
       const styles = msg.data?.styles;
@@ -31,13 +31,27 @@ export default function DarqubeChartWidget({
     };
 
     window.addEventListener('message', handleMessage);
+    if (window.top && window.top !== window) {
+      try {
+        window.top.addEventListener('message', handleMessage);
+      } catch (e) {
+        // cross-origin protection
+      }
+    }
+
     return () => {
       window.removeEventListener('message', handleMessage);
+      if (window.top && window.top !== window) {
+        try {
+          window.top.removeEventListener('message', handleMessage);
+        } catch (e) {
+          // ignore
+        }
+      }
     };
   }, []);
 
-  // Build the URL with token and optional symbol if provided
-  const widgetUrl = `https://widget.darqube.com/advanced-chart-widget?token=6a6161ebb1ae5c09b4997a66${symbol ? `&symbol=${encodeURIComponent(symbol)}` : ''}`;
+  const srcUrl = 'https://widget.darqube.com/advanced-chart-widget?token=6a6161ebb1ae5c09b4997a66';
 
   return (
     <div className="w-full rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs my-2">
@@ -66,7 +80,7 @@ export default function DarqubeChartWidget({
           ref={iframeRef}
           id="AdvancedChartWidget-lhjeadj"
           data-widget-name="AdvancedChartWidget"
-          src={widgetUrl}
+          src={srcUrl}
           style={{
             border: 'none',
             width: '100%',

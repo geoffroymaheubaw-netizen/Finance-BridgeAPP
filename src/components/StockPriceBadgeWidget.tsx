@@ -1,13 +1,13 @@
 import React from "react";
 
-interface TradingViewPriceWidgetProps {
+interface StockPriceBadgeWidgetProps {
   symbol: string;
   compact?: boolean;
   price?: number;
   change?: number;
 }
 
-export default function TradingViewPriceWidget({ symbol, compact = false, price, change }: TradingViewPriceWidgetProps) {
+export default function StockPriceBadgeWidget({ symbol, compact = false, price, change }: StockPriceBadgeWidgetProps) {
   const isEuro = symbol.endsWith(".PA") || symbol === "MC" || symbol.startsWith("EURONEXT:");
   const currency = isEuro ? "€" : "$";
   const exchange = isEuro ? "EURONEXT" : symbol === "BABA" ? "NYSE" : "NASDAQ";
@@ -51,7 +51,7 @@ export default function TradingViewPriceWidget({ symbol, compact = false, price,
     );
   }
 
-  // Beautiful large version replicating the TradingView Single Ticker widget but natively with zero iframes!
+  // Large version for ticker display
   return (
     <div className="w-full sm:w-[320px] h-[120px] rounded-xl border border-slate-150 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 flex flex-col justify-between transition-all duration-250 hover:shadow-md shadow-xs">
       <div className="flex justify-between items-start">

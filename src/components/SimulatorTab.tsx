@@ -3,8 +3,9 @@ import { Stock, UserProfile, PortfolioItem } from "../types";
 import { ArrowUpRight, ArrowDownRight, DollarSign, Briefcase, History, TrendingUp, Info, Newspaper, Maximize2, Minimize2, ZoomIn, ZoomOut, RotateCcw, Search, Layers, GraduationCap, Star } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { getStockMarket, isMarketOpenForStock, getZonedDateTime } from "../utils";
-import TradingViewPriceWidget from "./TradingViewPriceWidget";
+import StockPriceBadgeWidget from "./StockPriceBadgeWidget";
 import DarqubeChartWidget from "./DarqubeChartWidget";
+import InvestingWidget from "./InvestingWidget";
 
 // Stable LCG pseudo-random generator
 function getSeededRandom(seedStr: string) {
@@ -267,7 +268,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
   const [selectedNewsId, setSelectedNewsId] = useState<string | null>(null);
   const [localNews, setLocalNews] = useState<any[]>([]);
   const [isNewsLoading, setIsNewsLoading] = useState<boolean>(false);
-  const [chartType, setChartType] = useState<'LINE' | 'CANDLESTICK' | 'DARQUBE'>('DARQUBE');
+  const [chartType, setChartType] = useState<'LINE' | 'CANDLESTICK' | 'DARQUBE' | 'INVESTING'>('INVESTING');
   const [compareSymbol, setCompareSymbol] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState<string>("1M");
 
@@ -435,6 +436,16 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
 
   // Detailed SVG line or candlestick chart with grids, gradient and ticks
   const renderDetailedChart = (history: number[], isPositive: boolean, chartLabels: string[]) => {
+    if (chartType === 'INVESTING') {
+      return (
+        <div className="w-full relative my-1">
+          <InvestingWidget
+            symbol={selectedStock.symbol}
+            height={520}
+          />
+        </div>
+      );
+    }
     if (chartType === 'DARQUBE') {
       return (
         <div className="w-full relative my-1">
@@ -1197,6 +1208,16 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
 
   // Render the zoomed detailed chart inside the overlay modal
   const renderZoomedDetailedChartOnModal = () => {
+    if (chartType === 'INVESTING') {
+      return (
+        <div className="w-full relative my-1">
+          <InvestingWidget
+            symbol={selectedStock.symbol}
+            height={550}
+          />
+        </div>
+      );
+    }
     if (chartType === 'DARQUBE') {
       return (
         <div className="w-full relative my-1">
@@ -1967,7 +1988,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                   </div>
 
                   <div className="text-right space-y-0.5">
-                    <TradingViewPriceWidget symbol={stock.symbol} compact={true} price={stock.price} change={stock.change} />
+                    <StockPriceBadgeWidget symbol={stock.symbol} compact={true} price={stock.price} change={stock.change} />
                     <p className={`text-[10px] font-sans ${isSelected ? "text-slate-700 dark:text-slate-450" : "text-slate-400"}`}>
                       {stock.volume}
                     </p>
@@ -2037,7 +2058,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
 
                     <div className="flex items-center gap-1.5">
                       <div className="text-right space-y-0.5">
-                        <TradingViewPriceWidget symbol={stock.symbol} compact={true} price={stock.price} change={stock.change} />
+                        <StockPriceBadgeWidget symbol={stock.symbol} compact={true} price={stock.price} change={stock.change} />
                       </div>
                       <button
                         onClick={(e) => {
@@ -2120,7 +2141,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
               </div>
             </div>
             <div className="flex-shrink-0">
-              <TradingViewPriceWidget symbol={selectedStock.symbol} price={selectedStock.price} change={selectedStock.change} />
+              <StockPriceBadgeWidget symbol={selectedStock.symbol} price={selectedStock.price} change={selectedStock.change} />
             </div>
           </div>
 
@@ -2194,6 +2215,21 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                   title={compareSymbol !== null ? "Chandelier n'est pas disponible en mode comparaison" : "Graphique en Chandeliers japonais"}
                 >
                   Chandelier
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setChartType('INVESTING');
+                    setCompareSymbol(null);
+                  }}
+                  className={`px-2.5 py-1.5 rounded-md text-[10px] sm:text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                    chartType === 'INVESTING'
+                      ? "bg-amber-600 text-white shadow-xs"
+                      : "text-amber-600 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/40"
+                  }`}
+                  title="Afficher le widget Investing.com Market Data"
+                >
+                  <span>Investing.com 🌐</span>
                 </button>
                 <button
                   type="button"
