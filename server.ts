@@ -950,6 +950,69 @@ Veuillez respecter le schéma JSON requis.`;
     return symbol;
   }
 
+  async function fetchYahooFinanceQuotesWithCrumb(symbols: string[]): Promise<Record<string, any> | null> {
+    try {
+      const cookieRes = await fetch("https://fc.yahoo.com", {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+        },
+        signal: AbortSignal.timeout(4000)
+      });
+      const cookie = cookieRes.headers.get("set-cookie");
+
+      const crumbRes = await fetch("https://query1.finance.yahoo.com/v1/test/getcrumb", {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+          "Cookie": cookie || ""
+        },
+        signal: AbortSignal.timeout(4000)
+      });
+      if (!crumbRes.ok) return null;
+      const crumb = await crumbRes.text();
+      if (!crumb || crumb.includes("<html") || crumb.length > 50) return null;
+
+      const symbolsList = symbols.join(",");
+      const quoteRes = await fetch(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbolsList}&crumb=${crumb}`, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+          "Cookie": cookie || ""
+        },
+        signal: AbortSignal.timeout(6000)
+      });
+      if (!quoteRes.ok) return null;
+      const data: any = await quoteRes.json();
+      const result = data?.quoteResponse?.result;
+      if (!result || !Array.isArray(result) || result.length === 0) return null;
+
+      const resMap: Record<string, any> = {};
+      result.forEach((quote: any) => {
+        if (quote && quote.symbol && quote.regularMarketPrice !== undefined) {
+          const priceVal = parseFloat(quote.regularMarketPrice.toFixed(2));
+          const change = quote.regularMarketChangePercent !== undefined 
+            ? parseFloat(quote.regularMarketChangePercent.toFixed(2)) 
+            : 0;
+          const low24h = quote.regularMarketDayLow ? parseFloat(quote.regularMarketDayLow.toFixed(2)) : priceVal;
+          const high24h = quote.regularMarketDayHigh ? parseFloat(quote.regularMarketDayHigh.toFixed(2)) : priceVal;
+          const volumeNum = quote.regularMarketVolume;
+          
+          let volume = "";
+          if (volumeNum) {
+            if (volumeNum >= 1_000_000_000) volume = `${(volumeNum / 1_000_000_000).toFixed(1)}B`;
+            else if (volumeNum >= 1_000_000) volume = `${(volumeNum / 1_000_000).toFixed(1)}M`;
+            else if (volumeNum >= 1000) volume = `${(volumeNum / 1000).toFixed(1)}K`;
+            else volume = volumeNum.toString();
+          }
+
+          resMap[quote.symbol] = { price: priceVal, change, low24h, high24h, volume };
+        }
+      });
+
+      return Object.keys(resMap).length > 0 ? resMap : null;
+    } catch (err) {
+      return null;
+    }
+  }
+
   app.get("/api/stocks", async (req, res) => {
     const now = Date.now();
     const requestKey = req.headers['x-twelve-data-key'] as string;
@@ -1033,7 +1096,30 @@ Veuillez respecter le schéma JSON requis.`;
 
       let fetchedSuccessfully = false;
 
-      // --- 0. HIGH-PRIORITY REAL-TIME TRADINGVIEW SCANNER API ---
+      // --- 0. HIGH-PRIORITY OFFICIAL YAHOO FINANCE REAL-TIME QUOTES API ---
+      if (!fetchedSuccessfully) {
+        console.log("[Prices API] Attempting to fetch real-time quotes from official Yahoo Finance API (Crumb & Cookie)...");
+        try {
+          const yahooQuotes = await fetchYahooFinanceQuotesWithCrumb(uniqueYahooSymbols);
+          if (yahooQuotes) {
+            Object.entries(symbolsMap).forEach(([symbol, yahooSymbol]) => {
+              const quote = yahooQuotes[yahooSymbol];
+              if (quote) {
+                resultsMap[symbol] = quote;
+              }
+            });
+            if (Object.keys(resultsMap).length > 0) {
+              fetchedSuccessfully = true;
+              stocksSourceCache = "yahoo-finance-live";
+              console.log(`[Prices API] Successfully fetched ${Object.keys(resultsMap).length} symbols from Yahoo Finance Live API`);
+            }
+          }
+        } catch (err: any) {
+          console.warn("[Prices API] Yahoo Finance Crumb API failed, trying fallbacks:", err.message);
+        }
+      }
+
+      // --- 0B. SECONDARY REAL-TIME TRADINGVIEW SCANNER API ---
       if (!fetchedSuccessfully) {
         console.log("[Prices API] Attempting to fetch real-time quotes from TradingView Scanner API...");
         try {
