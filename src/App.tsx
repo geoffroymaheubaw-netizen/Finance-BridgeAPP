@@ -1127,7 +1127,7 @@ export default function App() {
     else if (tf === "3M") range = "3mo";
     else if (tf === "6M") range = "6mo";
     else if (tf === "1A") range = "1y";
-    else if (tf === "Tout") range = "5y";
+    else if (tf === "Tout") range = "max";
 
     console.log(`[History Sync] Fetching history for ${symbol} with timeframe ${tf} (range: ${range})...`);
 
