@@ -1007,6 +1007,51 @@ Veuillez respecter le schéma JSON requis.`;
     }
   }
 
+  async function fetchYahooFinanceChartWithCrumb(symbol: string, range: string, interval: string): Promise<number[] | null> {
+    try {
+      const cookieRes = await fetch("https://fc.yahoo.com", {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+        },
+        signal: AbortSignal.timeout(3000)
+      });
+      const cookie = cookieRes.headers.get("set-cookie");
+
+      const crumbRes = await fetch("https://query1.finance.yahoo.com/v1/test/getcrumb", {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+          "Cookie": cookie || ""
+        },
+        signal: AbortSignal.timeout(3000)
+      });
+      if (!crumbRes.ok) return null;
+      const crumb = await crumbRes.text();
+      if (!crumb || crumb.includes("<html") || crumb.length > 50) return null;
+
+      const chartRes = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=${range}&interval=${interval}&crumb=${crumb}`, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+          "Cookie": cookie || ""
+        },
+        signal: AbortSignal.timeout(5000)
+      });
+      if (!chartRes.ok) return null;
+      const yfData: any = await chartRes.json();
+      const result = yfData?.chart?.result?.[0];
+      const closePrices = result?.indicators?.quote?.[0]?.close;
+
+      if (Array.isArray(closePrices)) {
+        const prices = closePrices
+          .map((p: any) => parseFloat(p))
+          .filter((p: number) => !isNaN(p) && p > 0);
+        return prices.length > 0 ? prices : null;
+      }
+      return null;
+    } catch (err) {
+      return null;
+    }
+  }
+
   app.get("/api/stocks", async (req, res) => {
     const now = Date.now();
     const requestKey = req.headers['x-twelve-data-key'] as string;
@@ -1563,35 +1608,16 @@ Veuillez respecter le schéma JSON requis.`;
       interval = "1wk";
     }
 
-    // --- 1. Try Yahoo Finance /v8/finance/chart direct API first (Free, real-time historical, no key needed, highly reliable) ---
+    // --- 1. Try Yahoo Finance /v8/finance/chart with Crumb & Cookie (Free, real-time historical, handles Cloud Run IP rate limits) ---
     try {
-      console.log(`[Prices API] Fetching real history for ${querySymbol} (range: ${range}, interval: ${interval}) from Yahoo Finance direct API...`);
-      const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${querySymbol}?range=${range}&interval=${interval}`;
-      const yfResponse = await fetch(yfUrl, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
-        },
-        signal: AbortSignal.timeout(6000)
-      });
-
-      if (yfResponse.ok) {
-        const yfData: any = await yfResponse.json();
-        const result = yfData?.chart?.result?.[0];
-        const closePrices = result?.indicators?.quote?.[0]?.close;
-        
-        if (Array.isArray(closePrices)) {
-          const prices = closePrices
-            .map((p: any) => parseFloat(p))
-            .filter((p: number) => !isNaN(p) && p > 0);
-
-          if (prices.length > 0) {
-            console.log(`[Prices API] Successfully fetched ${prices.length} historical prices directly from Yahoo Finance for ${symbol}`);
-            return res.json({ symbol, history: prices });
-          }
-        }
+      console.log(`[Prices API] Fetching real history for ${querySymbol} (range: ${range}, interval: ${interval}) from Yahoo Finance API (Crumb)...`);
+      const prices = await fetchYahooFinanceChartWithCrumb(querySymbol, range, interval);
+      if (prices && prices.length > 0) {
+        console.log(`[Prices API] Successfully fetched ${prices.length} historical prices from Yahoo Finance Crumb API for ${symbol}`);
+        return res.json({ symbol, history: prices });
       }
     } catch (yfErr: any) {
-      console.warn(`[Prices API] Yahoo Finance direct history fetch failed for ${symbol}:`, yfErr.message);
+      console.warn(`[Prices API] Yahoo Finance Crumb history fetch failed for ${symbol}:`, yfErr.message);
     }
 
     // --- 2. Try Twelve Data API as fallback if API Key is available ---

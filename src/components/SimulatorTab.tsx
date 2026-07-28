@@ -2167,7 +2167,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
               <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200/40">
                 {[
                   { id: "1J", label: "1 jour" },
-                  { id: "1S", label: "1 sem." },
+                  { id: "1S", label: "5 jours" },
                   { id: "1M", label: "30 j." },
                   { id: "3M", label: "3 mois" },
                   { id: "6M", label: "6 mois" },
