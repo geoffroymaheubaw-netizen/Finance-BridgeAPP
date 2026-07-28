@@ -718,9 +718,25 @@ export default function App() {
                       else volume = volumeNum.toString();
                     }
 
+                    const hasRealHistory = stock.history && stock.history.length > 30;
                     const originalStock = INITIAL_STOCKS.find(s => s.symbol === stock.symbol) || stock;
                     const scale = price / originalStock.price;
-                    const history = originalStock.history.map((hPrice) => parseFloat((hPrice * scale).toFixed(2)));
+
+                    let newHistory = stock.history;
+                    if (hasRealHistory) {
+                      const copyH = [...stock.history];
+                      copyH[copyH.length - 1] = price;
+                      newHistory = copyH;
+                    } else {
+                      newHistory = originalStock.history.map((hPrice) => parseFloat((hPrice * scale).toFixed(2)));
+                    }
+
+                    const updatedHistories = { ...(stock.histories || {}) };
+                    if (updatedHistories["1J"] && updatedHistories["1J"].length > 0) {
+                      const copy1J = [...updatedHistories["1J"]];
+                      copy1J[copy1J.length - 1] = price;
+                      updatedHistories["1J"] = copy1J;
+                    }
 
                     return {
                       ...stock,
@@ -729,7 +745,8 @@ export default function App() {
                       low24h,
                       high24h,
                       volume: volume || stock.volume,
-                      history,
+                      history: newHistory,
+                      histories: updatedHistories,
                       basePrice: price,
                       baseChange: change
                     };
@@ -807,9 +824,25 @@ export default function App() {
                   else volume = volumeNum.toString();
                 }
 
+                const hasRealHistory = stock.history && stock.history.length > 30;
                 const originalStock = INITIAL_STOCKS.find(s => s.symbol === stock.symbol) || stock;
                 const scale = price / originalStock.price;
-                const history = originalStock.history.map((hPrice) => parseFloat((hPrice * scale).toFixed(2)));
+
+                let newHistory = stock.history;
+                if (hasRealHistory) {
+                  const copyH = [...stock.history];
+                  copyH[copyH.length - 1] = price;
+                  newHistory = copyH;
+                } else {
+                  newHistory = originalStock.history.map((hPrice) => parseFloat((hPrice * scale).toFixed(2)));
+                }
+
+                const updatedHistories = { ...(stock.histories || {}) };
+                if (updatedHistories["1J"] && updatedHistories["1J"].length > 0) {
+                  const copy1J = [...updatedHistories["1J"]];
+                  copy1J[copy1J.length - 1] = price;
+                  updatedHistories["1J"] = copy1J;
+                }
 
                 return {
                   ...stock,
@@ -818,7 +851,8 @@ export default function App() {
                   low24h,
                   high24h,
                   volume: volume || stock.volume,
-                  history,
+                  history: newHistory,
+                  histories: updatedHistories,
                   basePrice: price,
                   baseChange: change
                 };
@@ -870,15 +904,33 @@ export default function App() {
                     const yahooSymbol = yahooSymbolsMap[stock.symbol] || stock.symbol;
                     const live = resultsMap[yahooSymbol.toUpperCase()];
                     if (!live) return stock;
-                    const scale = live.price / stock.price;
-                    const history = stock.history.map(hPrice => parseFloat((hPrice * scale).toFixed(2)));
+
+                    const hasRealHistory = stock.history && stock.history.length > 30;
+                    let newHistory = stock.history;
+                    if (hasRealHistory) {
+                      const copyH = [...stock.history];
+                      copyH[copyH.length - 1] = live.price;
+                      newHistory = copyH;
+                    } else {
+                      const scale = live.price / stock.price;
+                      newHistory = stock.history.map(hPrice => parseFloat((hPrice * scale).toFixed(2)));
+                    }
+
+                    const updatedHistories = { ...(stock.histories || {}) };
+                    if (updatedHistories["1J"] && updatedHistories["1J"].length > 0) {
+                      const copy1J = [...updatedHistories["1J"]];
+                      copy1J[copy1J.length - 1] = live.price;
+                      updatedHistories["1J"] = copy1J;
+                    }
+
                     return {
                       ...stock,
                       price: live.price,
                       change: live.change,
                       low24h: live.low24h,
                       high24h: live.high24h,
-                      history,
+                      history: newHistory,
+                      histories: updatedHistories,
                       basePrice: live.price,
                       baseChange: live.change
                     };
@@ -923,15 +975,33 @@ export default function App() {
                     const yahooSymbol = yahooSymbolsMap[stock.symbol] || stock.symbol;
                     const live = resultsMap[yahooSymbol];
                     if (!live) return stock;
-                    const scale = live.price / stock.price;
-                    const history = stock.history.map(hPrice => parseFloat((hPrice * scale).toFixed(2)));
+
+                    const hasRealHistory = stock.history && stock.history.length > 30;
+                    let newHistory = stock.history;
+                    if (hasRealHistory) {
+                      const copyH = [...stock.history];
+                      copyH[copyH.length - 1] = live.price;
+                      newHistory = copyH;
+                    } else {
+                      const scale = live.price / stock.price;
+                      newHistory = stock.history.map(hPrice => parseFloat((hPrice * scale).toFixed(2)));
+                    }
+
+                    const updatedHistories = { ...(stock.histories || {}) };
+                    if (updatedHistories["1J"] && updatedHistories["1J"].length > 0) {
+                      const copy1J = [...updatedHistories["1J"]];
+                      copy1J[copy1J.length - 1] = live.price;
+                      updatedHistories["1J"] = copy1J;
+                    }
+
                     return {
                       ...stock,
                       price: live.price,
                       change: live.change,
                       low24h: live.low24h,
                       high24h: live.high24h,
-                      history,
+                      history: newHistory,
+                      histories: updatedHistories,
                       basePrice: live.price,
                       baseChange: live.change
                     };
@@ -983,12 +1053,43 @@ export default function App() {
           if (contentType && contentType.includes("application/json")) {
             const data = await response.json();
             if (active && Array.isArray(data) && data.length > 0) {
-              const stocksWithBase = data.map((stock: any) => ({
-                ...stock,
-                basePrice: stock.basePrice || stock.price,
-                baseChange: stock.baseChange !== undefined ? stock.baseChange : stock.change
-              }));
-              setStocks(stocksWithBase);
+              setStocks(prevStocks => {
+                return prevStocks.map((oldStock) => {
+                  const live = data.find((d: any) => d.symbol === oldStock.symbol);
+                  if (!live) return oldStock;
+
+                  const newPrice = live.price;
+                  const updatedHistories = { ...(oldStock.histories || {}) };
+                  if (updatedHistories["1J"] && updatedHistories["1J"].length > 0) {
+                    const copy1J = [...updatedHistories["1J"]];
+                    copy1J[copy1J.length - 1] = newPrice;
+                    updatedHistories["1J"] = copy1J;
+                  }
+
+                  const hasRealHistory = oldStock.history && oldStock.history.length > 30;
+                  let newHistory = oldStock.history;
+                  if (hasRealHistory) {
+                    const copyH = [...oldStock.history];
+                    copyH[copyH.length - 1] = newPrice;
+                    newHistory = copyH;
+                  } else if (live.history && live.history.length > 0) {
+                    newHistory = live.history;
+                  }
+
+                  return {
+                    ...oldStock,
+                    price: newPrice,
+                    change: live.change !== undefined ? live.change : oldStock.change,
+                    low24h: live.low24h || oldStock.low24h,
+                    high24h: live.high24h || oldStock.high24h,
+                    volume: live.volume || oldStock.volume,
+                    history: newHistory,
+                    histories: updatedHistories,
+                    basePrice: live.basePrice || newPrice,
+                    baseChange: live.baseChange !== undefined ? live.baseChange : oldStock.change
+                  };
+                });
+              });
               isFetching = false;
               return;
             }
@@ -1057,8 +1158,8 @@ export default function App() {
                 return {
                   ...s,
                   histories: updatedHistories,
-                  // For backward compatibility with other tabs, also update the main history
-                  history: tf === "1M" || !s.history || s.history.length <= 30 ? data.history : s.history
+                  // Always keep main history in sync with the latest fetched Yahoo Finance history
+                  history: data.history
                 };
               }
               return s;
@@ -1172,12 +1273,11 @@ export default function App() {
               .map((c: any) => parseFloat(parseFloat(c).toFixed(2)));
           }
 
-          // Scale the history points so that the last point matches our highly accurate TradingView stock price
+          // Ensure the latest price from Yahoo Finance is included
           if (historyPoints.length > 0) {
             const lastPoint = historyPoints[historyPoints.length - 1];
-            if (lastPoint > 0 && Math.abs(lastPoint - price) > 0.01) {
-              const scale = price / lastPoint;
-              historyPoints = historyPoints.map(p => parseFloat((p * scale).toFixed(2)));
+            if (Math.abs(lastPoint - price) > 0.001) {
+              historyPoints.push(price);
             }
           }
 

@@ -4,7 +4,6 @@ import { ArrowUpRight, ArrowDownRight, DollarSign, Briefcase, History, TrendingU
 import { motion, AnimatePresence } from "motion/react";
 import { getStockMarket, isMarketOpenForStock, getZonedDateTime } from "../utils";
 import StockPriceBadgeWidget from "./StockPriceBadgeWidget";
-import DarqubeChartWidget from "./DarqubeChartWidget";
 
 // Stable LCG pseudo-random generator
 function getSeededRandom(seedStr: string) {
@@ -97,6 +96,7 @@ export function getLabelsForTimeframe(tf: string, symbol: string): [string, stri
 }
 
 export function getTimeframeData(stock: Stock, tf: string): { prices: number[]; labels: [string, string, string] } {
+  // If exact timeframe is loaded in stock.histories, use it!
   if (stock.histories?.[tf] && stock.histories[tf].length > 0) {
     return {
       prices: stock.histories[tf],
@@ -104,100 +104,76 @@ export function getTimeframeData(stock: Stock, tf: string): { prices: number[]; 
     };
   }
 
-  const currentPrice = stock.price;
-  const historyToUse = stock.history || [];
-  const hasRealHistory = historyToUse.length > 30; // Real historical data loaded from Twelve Data has length 350
+  // Fallback for 1J if stock.history has intraday data (> 30 points)
+  if (tf === "1J" && stock.history && stock.history.length > 30) {
+    return {
+      prices: stock.history,
+      labels: getLabelsForTimeframe("1J", stock.symbol)
+    };
+  }
 
+  const currentPrice = stock.price;
   const random = getSeededRandom(`${stock.symbol}-${tf}`);
 
   let N = 60;
   let volatility = 0.005;
   let drift = 0.0001;
   let startFraction = 1.0;
-  let labels: [string, string, string] = ["Début", "Milieu", "Aujourd'hui"];
+  let labels: [string, string, string] = getLabelsForTimeframe(tf, stock.symbol);
 
   switch (tf) {
     case "1m":
-      N = 60; // 60 data points (every 30s)
+      N = 60;
       volatility = 0.0006;
       drift = 0;
-      labels = ["Il y a 30 min", "Il y a 15 min", "Maintenant"];
       break;
     case "1h":
-      N = 48; // 48 data points (every 30 min)
+      N = 48;
       volatility = 0.001;
       drift = 0;
-      labels = ["Il y a 24 h", "Il y a 12 h", "Maintenant"];
       break;
     case "1J":
-      N = 390; // 390 data points
+      N = 390;
       volatility = 0.0008;
       drift = 0.00002;
-      labels = stock.symbol.endsWith(".PA") || stock.symbol === "MC" 
-        ? ["09:00", "13:15", "17:30"] 
-        : ["09:30", "13:00", "16:00"];
       break;
     case "1S":
-      N = 70; // 70 data points (high density week)
+      N = 70;
       volatility = 0.0035;
       drift = 0.0002;
-      labels = ["Il y a 7 j", "Il y a 3 j", "Aujourd'hui"];
       break;
     case "1M":
-      // Smooth the real stock.history and make it 120 points!
-      const history30 = hasRealHistory ? historyToUse.slice(-30) : historyToUse;
-      return {
-        prices: interpolateArray(history30, 120).map(p => parseFloat(p.toFixed(2))),
-        labels: ["Il y a 30 jours", "Il y a 15 jours", "Aujourd'hui"]
-      };
-    case "3M":
-      if (hasRealHistory) {
+      if (stock.history && stock.history.length === 30) {
         return {
-          prices: historyToUse.slice(-150).map(p => parseFloat(p.toFixed(2))),
-          labels: ["Il y a 3 mois", "Il y a 45 j.", "Aujourd'hui"]
+          prices: interpolateArray(stock.history, 120).map(p => parseFloat(p.toFixed(2))),
+          labels: getLabelsForTimeframe("1M", stock.symbol)
         };
       }
-      N = 150; // 150 data points
+      N = 120;
+      volatility = 0.005;
+      drift = 0.0003;
+      break;
+    case "3M":
+      N = 150;
       volatility = 0.008;
       drift = 0.0004;
-      labels = ["Il y a 3 mois", "Il y a 45 j.", "Aujourd'hui"];
       break;
     case "6M":
-      if (hasRealHistory) {
-        return {
-          prices: historyToUse.slice(-180).map(p => parseFloat(p.toFixed(2))),
-          labels: ["Il y a 6 mois", "Il y a 3 mois", "Aujourd'hui"]
-        };
-      }
-      N = 180; // 180 data points
+      N = 180;
       volatility = 0.012;
       drift = 0.0006;
-      labels = ["Il y a 6 mois", "Il y a 3 mois", "Aujourd'hui"];
       break;
     case "1A":
-      if (hasRealHistory) {
-        return {
-          prices: historyToUse.slice(-250).map(p => parseFloat(p.toFixed(2))),
-          labels: ["Il y a 1 an", "Il y a 6 mois", "Aujourd'hui"]
-        };
-      }
-      N = 250; // 250 trading days
+      N = 250;
       volatility = 0.018;
       drift = 0.001;
       startFraction = 0.72;
       if (stock.symbol === "NVDA") startFraction = 0.3;
       else if (stock.symbol === "COIN") { startFraction = 0.48; volatility = 0.035; }
       else if (stock.symbol === "TSLA") { startFraction = 0.9; volatility = 0.025; }
-      labels = ["Il y a 1 an", "Il y a 6 mois", "Aujourd'hui"];
       break;
     case "Tout":
-      if (hasRealHistory) {
-        return {
-          prices: historyToUse.slice(-350).map(p => parseFloat(p.toFixed(2))),
-          labels: ["Entrée en Bourse", "Moyen Terme", "Aujourd'hui"]
-        };
-      }
-      N = 350; // 350 data points
+      N = 350;
       volatility = 0.024;
       drift = 0.002;
       if (stock.symbol === "AAPL") startFraction = 0.05;
@@ -206,10 +182,7 @@ export function getTimeframeData(stock: Stock, tf: string): { prices: number[]; 
       else if (stock.symbol === "TSLA") startFraction = 0.02;
       else if (stock.symbol === "COIN") startFraction = 0.4;
       else startFraction = 0.15;
-      labels = ["Entrée en Bourse", "Moyen Terme", "Aujourd'hui"];
       break;
-    default:
-      N = 60;
   }
 
   const base: number[] = new Array(N);
@@ -267,7 +240,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
   const [selectedNewsId, setSelectedNewsId] = useState<string | null>(null);
   const [localNews, setLocalNews] = useState<any[]>([]);
   const [isNewsLoading, setIsNewsLoading] = useState<boolean>(false);
-  const [chartType, setChartType] = useState<'LINE' | 'CANDLESTICK' | 'DARQUBE'>('DARQUBE');
+  const [chartType, setChartType] = useState<'LINE' | 'CANDLESTICK'>('LINE');
   const [compareSymbol, setCompareSymbol] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState<string>("1M");
 
@@ -435,16 +408,6 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
 
   // Detailed SVG line or candlestick chart with grids, gradient and ticks
   const renderDetailedChart = (history: number[], isPositive: boolean, chartLabels: string[]) => {
-    if (chartType === 'DARQUBE') {
-      return (
-        <div className="w-full relative my-1">
-          <DarqubeChartWidget
-            symbol={selectedStock.symbol}
-            height={480}
-          />
-        </div>
-      );
-    }
     // Robust cleanup of histories
     const cleanHistory = (history || []).map(h => typeof h === 'number' && !isNaN(h) ? h : selectedStock.price);
     if (cleanHistory.length === 0) return null;
@@ -510,7 +473,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
         return { y, value };
       });
 
-      const visibleCount = timeframe === "1J" ? get1DCurrentDayLimit(selectedStock.symbol, profile.marketMode || "real", cleanHistory.length) : cleanHistory.length;
+      const visibleCount = cleanHistory.length;
       const visiblePrimPoints = primPoints.slice(0, visibleCount);
       const visibleCompPoints = compPoints.slice(0, visibleCount);
 
@@ -840,7 +803,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
     }
 
     // Compute 1D real-time bounds and slice history
-    const visibleCount = timeframe === "1J" ? get1DCurrentDayLimit(selectedStock.symbol, profile.marketMode || "real", cleanHistory.length) : cleanHistory.length;
+    const visibleCount = cleanHistory.length;
     const visibleHistory = cleanHistory.slice(0, visibleCount);
 
     // Generate candlesticks data
@@ -1197,16 +1160,6 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
 
   // Render the zoomed detailed chart inside the overlay modal
   const renderZoomedDetailedChartOnModal = () => {
-    if (chartType === 'DARQUBE') {
-      return (
-        <div className="w-full relative my-1">
-          <DarqubeChartWidget
-            symbol={selectedStock.symbol}
-            height={550}
-          />
-        </div>
-      );
-    }
     const { prices: rawPrices, labels: rawLabels } = getTimeframeData(selectedStock, timeframe);
     const N = rawPrices.length;
     
@@ -1232,13 +1185,10 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
     const endIndex = Math.min(N, startIndex + visibleCount);
 
     const prices = rawPrices.slice(startIndex, endIndex);
+    const activePointsCount = prices.length;
     const historyLengthMinusOne = Math.max(1, prices.length - 1);
 
-    const currentDayLimit = timeframe === "1J" ? get1DCurrentDayLimit(selectedStock.symbol, profile.marketMode || "real", N) : N;
-    const activeEndIndex = timeframe === "1J" ? Math.min(endIndex, currentDayLimit) : endIndex;
-    const activePointsCount = timeframe === "1J" ? Math.max(0, activeEndIndex - startIndex) : prices.length;
-    
-    const visibleZoomPrices = prices.slice(0, activePointsCount);
+    const visibleZoomPrices = prices;
 
     // Filter comparisons if active
     const comparisonStock = compareSymbol ? stocks.find(s => s.symbol === compareSymbol) : null;
@@ -1963,7 +1913,14 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
 
                   {/* Micro sparkline */}
                   <div className="hidden sm:block">
-                    {renderSparkline(stock.history, isPos)}
+                    {(() => {
+                      const cardHistory = (timeframe && stock.histories?.[timeframe] && stock.histories[timeframe].length > 0)
+                        ? stock.histories[timeframe]
+                        : (stock.histories?.["1J"] && stock.histories["1J"].length > 0)
+                          ? stock.histories["1J"]
+                          : stock.history;
+                      return renderSparkline(cardHistory, isPos);
+                    })()}
                   </div>
 
                   <div className="text-right space-y-0.5">
@@ -2117,6 +2074,10 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                     : "NYSE/NASDAQ (Lun-Ven, 09:30 - 16:00 EST)"
                   }
                 </span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/40 text-[10px] font-extrabold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-600 animate-pulse"></span>
+                  Yahoo Finance Live
+                </span>
               </div>
             </div>
             <div className="flex-shrink-0">
@@ -2127,10 +2088,10 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
           {/* Historical detailed graph */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 pb-2 border-b border-slate-50">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-              <svg className="w-3.5 h-3.5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <svg className="w-3.5 h-3.5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
-              Historique du Cours ({timeframe === '1J' ? 'Aujourd\'hui' : timeframe === '1S' ? 'Semaine' : timeframe === '1M' ? '30 jours' : timeframe === '3M' ? '3 Mois' : timeframe === '6M' ? '6 Mois' : timeframe === '1A' ? '1 An' : 'Tout le parcours'})
+              Graphique Yahoo Finance ({timeframe === '1J' ? '1 Jour' : timeframe === '1S' ? '5 Jours' : timeframe === '1M' ? '1 Mois' : timeframe === '3M' ? '3 Mois' : timeframe === '6M' ? '6 Mois' : timeframe === '1A' ? '1 An' : 'Tout'})
             </span>
             
             <div className="flex flex-wrap items-center gap-2.5">
@@ -2194,21 +2155,6 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                   title={compareSymbol !== null ? "Chandelier n'est pas disponible en mode comparaison" : "Graphique en Chandeliers japonais"}
                 >
                   Chandelier
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setChartType('DARQUBE');
-                    setCompareSymbol(null);
-                  }}
-                  className={`px-2.5 py-1.5 rounded-md text-[10px] sm:text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                    chartType === 'DARQUBE'
-                      ? "bg-indigo-600 text-white shadow-xs"
-                      : "text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
-                  }`}
-                  title="Afficher le widget DarQube Advanced Chart"
-                >
-                  <span>DarQube 📊</span>
                 </button>
               </div>
             </div>

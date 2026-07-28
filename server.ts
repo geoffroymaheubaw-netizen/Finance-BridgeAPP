@@ -633,11 +633,11 @@ Posez-moi votre question en utilisant l'un de ces mots-clés boursiers pour rece
 _Avertissement : Les informations éducatives fournies ne constituent pas des conseils financiers officiels._`;
 }
 
-async function startServer() {
-  const app = express();
-  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+export const app = express();
+app.use(express.json());
 
-  app.use(express.json());
+async function startServer() {
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
   // API Route: AI Chat Advice (Streaming over Server-Sent Events for lowest latency)
   app.post("/api/chat", async (req, res) => {
@@ -1430,10 +1430,6 @@ Veuillez respecter le schéma JSON requis.`;
         const high24h = live.high24h;
         const volume = live.volume || stock.volume;
 
-        // Adjust historical data points to reflect new price level
-        const scale = price / stock.price;
-        const history = stock.history.map((hPrice) => parseFloat((hPrice * scale).toFixed(2)));
-
         return {
           ...stock,
           price,
@@ -1441,7 +1437,7 @@ Veuillez respecter le schéma JSON requis.`;
           low24h,
           high24h,
           volume,
-          history
+          history: stock.history
         };
       });
 
@@ -1511,18 +1507,7 @@ Veuillez respecter le schéma JSON requis.`;
             .filter((p: number) => !isNaN(p) && p > 0);
 
           if (prices.length > 0) {
-            // Scale the historical points so that the last point matches our highly accurate TradingView stock price from stocksCache
-            const cachedStock = stocksCache?.find((s: any) => s.symbol === symbol);
-            if (cachedStock && cachedStock.price) {
-              const lastPoint = prices[prices.length - 1];
-              if (lastPoint > 0 && Math.abs(lastPoint - cachedStock.price) > 0.01) {
-                const scale = cachedStock.price / lastPoint;
-                for (let i = 0; i < prices.length; i++) {
-                  prices[i] = parseFloat((prices[i] * scale).toFixed(2));
-                }
-              }
-            }
-            console.log(`[Prices API] Successfully fetched ${prices.length} historical prices from Yahoo Finance for ${symbol}`);
+            console.log(`[Prices API] Successfully fetched ${prices.length} historical prices directly from Yahoo Finance for ${symbol}`);
             return res.json({ symbol, history: prices });
           }
         }
@@ -1615,11 +1600,15 @@ Veuillez respecter le schéma JSON requis.`;
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Finance Bridge Server running at http://0.0.0.0:${PORT}`);
-  });
+  if (!process.env.VERCEL) {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Finance Bridge Server running at http://0.0.0.0:${PORT}`);
+    });
+  }
 }
 
-startServer().catch((err) => {
-  console.error("Failed to start server:", err);
-});
+if (!process.env.VERCEL) {
+  startServer().catch((err) => {
+    console.error("Failed to start server:", err);
+  });
+}
