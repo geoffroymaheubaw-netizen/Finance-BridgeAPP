@@ -5,13 +5,13 @@ const STATIC_CORE_STOCKS: Stock[] = [
   {
     symbol: "AAPL",
     name: "Apple Inc.",
-    price: 290.55,
-    change: 1.45,
-    history: [275.2, 276.5, 274.8, 274.1, 275.2, 276.8, 278.4, 277.5, 277.2, 275.8, 277.1, 278.7, 279.4, 280.5, 278.8, 280.2, 281.5, 282.3, 280.8, 281.3, 282.4, 283.7, 285.8, 287.2, 288.1, 288.5, 289.4, 287.8, 289.2, 290.55],
-    volume: "45.3M",
-    marketCap: "4.14T $",
-    low24h: 288.10,
-    high24h: 292.80,
+    price: 340.08,
+    change: 0.94,
+    history: [315.2, 316.5, 314.8, 314.1, 315.2, 316.8, 318.4, 327.5, 327.2, 325.8, 327.1, 328.7, 329.4, 330.5, 328.8, 330.2, 331.5, 332.3, 330.8, 331.3, 332.4, 333.7, 335.8, 337.2, 338.1, 338.5, 339.4, 337.8, 339.2, 340.08],
+    volume: "50.7M",
+    marketCap: "4.84T $",
+    low24h: 335.60,
+    high24h: 342.89,
     description: "Apple conçoit, fabrique et commercialise des smartphones, des ordinateurs personnels, des tablettes, des accessoires et des services connexes dans le monde entier.",
     news: [
       {
@@ -43,13 +43,13 @@ const STATIC_CORE_STOCKS: Stock[] = [
   {
     symbol: "MSFT",
     name: "Microsoft Corporation",
-    price: 403.41,
-    change: -2.02,
-    history: [387.1, 388.5, 390.1, 391.8, 393.8, 391.6, 392.7, 394.9, 397.0, 398.6, 397.7, 396.6, 399.6, 401.8, 401.2, 402.3, 404.0, 404.6, 402.5, 403.2, 405.9, 407.2, 406.1, 404.6, 404.1, 405.2, 406.2, 404.2, 402.7, 403.41],
-    volume: "34.1M",
-    marketCap: "3.00T $",
-    low24h: 398.48,
-    high24h: 411.98,
+    price: 393.35,
+    change: 1.09,
+    history: [377.1, 378.5, 380.1, 381.8, 383.8, 381.6, 382.7, 384.9, 387.0, 388.6, 387.7, 386.6, 389.6, 391.8, 391.2, 392.3, 394.0, 394.6, 392.5, 393.2, 395.9, 397.2, 396.1, 394.6, 394.1, 395.2, 396.2, 394.2, 392.7, 393.35],
+    volume: "32.1M",
+    marketCap: "2.92T $",
+    low24h: 391.30,
+    high24h: 400.32,
     description: "Microsoft développe, concède sous licence et prend en charge des logiciels, des services, des appareils et des solutions dans le monde entier. Leader de l'IA via son partenariat avec OpenAI.",
     news: [
       {
@@ -81,13 +81,13 @@ const STATIC_CORE_STOCKS: Stock[] = [
   {
     symbol: "NVDA",
     name: "NVIDIA Corporation",
-    price: 208.19,
-    change: -0.22,
-    history: [180.91, 182.75, 184.74, 185.82, 188.42, 190.1, 188.87, 191.33, 193.32, 195.46, 193.63, 196.54, 198.53, 200.84, 199.0, 201.6, 203.6, 204.66, 202.37, 204.21, 206.65, 207.72, 205.73, 206.96, 208.8, 206.81, 209.25, 207.11, 206.2, 208.19],
-    volume: "179.6M",
-    marketCap: "5.12T $",
-    low24h: 199.34,
-    high24h: 211.39,
+    price: 197.01,
+    change: 0.25,
+    history: [180.91, 182.75, 184.74, 185.82, 188.42, 190.1, 188.87, 191.33, 193.32, 195.46, 193.63, 196.54, 198.53, 200.84, 199.0, 201.6, 203.6, 204.66, 202.37, 204.21, 201.65, 200.72, 198.73, 196.96, 198.8, 196.81, 199.25, 197.11, 196.2, 197.01],
+    volume: "132.2M",
+    marketCap: "4.82T $",
+    low24h: 192.74,
+    high24h: 198.70,
     description: "NVIDIA conçoit des processeurs graphiques (GPU) pour les marchés du jeu vidéo et des professionnels, ainsi que des systèmes sur puce pour l'informatique mobile et le marché automobile. Pilier central de l'IA moderne.",
     news: [
       {
@@ -119,13 +119,13 @@ const STATIC_CORE_STOCKS: Stock[] = [
   {
     symbol: "TSLA",
     name: "Tesla, Inc.",
-    price: 396.68,
-    change: -3.00,
-    history: [359.13, 361.35, 358.2, 356.92, 358.94, 361.89, 364.84, 363.2, 362.64, 360.05, 362.46, 365.41, 366.69, 368.72, 365.59, 368.18, 370.56, 372.04, 369.28, 370.2, 372.23, 374.63, 378.5, 381.62, 385.85, 389.0, 393.22, 390.46, 392.48, 396.68],
-    volume: "58.3M",
-    marketCap: "1.24T $",
-    low24h: 384.24,
-    high24h: 418.50,
+    price: 307.44,
+    change: -0.58,
+    history: [289.13, 291.35, 288.2, 286.92, 288.94, 291.89, 294.84, 293.2, 292.64, 290.05, 292.46, 295.41, 296.69, 298.72, 295.59, 298.18, 300.56, 302.04, 299.28, 300.2, 302.23, 304.63, 308.5, 311.62, 315.85, 312.0, 313.22, 310.46, 308.48, 307.44],
+    volume: "38.7M",
+    marketCap: "980B $",
+    low24h: 300.69,
+    high24h: 311.16,
     description: "Tesla conçoit, développe, fabrique et vend des véhicules électriques, ainsi que des systèmes de stockage d'énergie et de production d'électricité propre.",
     news: [
       {
