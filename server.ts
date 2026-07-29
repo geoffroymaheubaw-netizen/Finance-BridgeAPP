@@ -636,11 +636,18 @@ _Avertissement : Les informations éducatives fournies ne constituent pas des co
 export const app = express();
 app.use(express.json());
 
-async function startServer() {
-  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
-  // API Route: AI Chat Advice (Streaming over Server-Sent Events for lowest latency)
-  app.post("/api/chat", async (req, res) => {
+// API Route: AI Chat Advice (Streaming over Server-Sent Events for lowest latency)
+app.post("/api/chat", async (req, res) => {
     const { message, history } = req.body;
     try {
       if (!message) {
@@ -1687,6 +1694,9 @@ Veuillez respecter le schéma JSON requis.`;
     res.json({ status: "healthy", timestamp: new Date().toISOString() });
   });
 
+async function startServer() {
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+
   // Vite integration
   if (process.env.NODE_ENV !== "production") {
     console.log("Starting server in development mode with Vite...");
@@ -1704,11 +1714,9 @@ Veuillez respecter le schéma JSON requis.`;
     });
   }
 
-  if (!process.env.VERCEL) {
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Finance Bridge Server running at http://0.0.0.0:${PORT}`);
-    });
-  }
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Finance Bridge Server running at http://0.0.0.0:${PORT}`);
+  });
 }
 
 if (!process.env.VERCEL) {
