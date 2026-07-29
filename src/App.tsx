@@ -1818,86 +1818,118 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
         })
       );
 
-      const contentType = response.headers.get("content-type");
-      if (contentType && (contentType.includes("text/event-stream") || contentType.includes("application/json"))) {
-        const reader = response.body?.getReader();
-        const decoder = new TextDecoder("utf-8");
-        if (!reader) throw new Error("Impossible de lire le flux de réponse.");
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder("utf-8");
+      if (!reader) throw new Error("Impossible de lire le flux de réponse.");
 
-        let streamingText = "";
-        let buffer = "";
+      let streamingText = "";
+      let buffer = "";
 
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
 
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
 
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed) continue;
-            
-            // Handle standard SSE line or raw line
-            let dataStr = trimmed;
-            if (trimmed.startsWith("data: ")) {
-              dataStr = trimmed.substring(6).trim();
-            } else if (trimmed.startsWith("data:")) {
-              dataStr = trimmed.substring(5).trim();
-            } else {
-              // Might be a direct JSON chunk in some streaming environments
-              if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
-                continue;
-              }
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          
+          // Handle standard SSE line or raw line
+          let dataStr = trimmed;
+          if (trimmed.startsWith("data: ")) {
+            dataStr = trimmed.substring(6).trim();
+          } else if (trimmed.startsWith("data:")) {
+            dataStr = trimmed.substring(5).trim();
+          }
+
+          if (dataStr === "[DONE]") {
+            continue;
+          }
+
+          try {
+            const parsed = JSON.parse(dataStr);
+            let textChunk = "";
+            if (parsed.text) {
+              textChunk = parsed.text;
+            } else if (parsed?.candidates?.[0]?.content?.parts?.[0]?.text) {
+              textChunk = parsed.candidates[0].content.parts[0].text;
             }
 
-            if (dataStr === "[DONE]") {
-              break;
+            if (textChunk) {
+              streamingText += textChunk;
+              setConversations((prev) => 
+                prev.map((c) => {
+                  if (c.id === (currentConv ? currentConv.id : activeConversationId)) {
+                    return {
+                      ...c,
+                      messages: [...updatedUserMessages, {
+                        sender: 'ai',
+                        text: streamingText,
+                        timestamp: initialAiReply.timestamp
+                      }]
+                    };
+                  }
+                  return c;
+                })
+              );
+            } else if (parsed.error) {
+              throw new Error(parsed.error?.message || JSON.stringify(parsed.error));
             }
-
-            try {
-              const parsed = JSON.parse(dataStr);
-              let textChunk = "";
-              if (parsed.text) {
-                textChunk = parsed.text;
-              } else if (parsed?.candidates?.[0]?.content?.parts?.[0]?.text) {
-                textChunk = parsed.candidates[0].content.parts[0].text;
-              }
-
-              if (textChunk) {
-                streamingText += textChunk;
-                setConversations((prev) => 
-                  prev.map((c) => {
-                    if (c.id === (currentConv ? currentConv.id : activeConversationId)) {
-                      return {
-                        ...c,
-                        messages: [...updatedUserMessages, {
-                          sender: 'ai',
-                          text: streamingText,
-                          timestamp: initialAiReply.timestamp
-                        }]
-                      };
-                    }
-                    return c;
-                  })
-                );
-              } else if (parsed.error) {
-                throw new Error(parsed.error?.message || JSON.stringify(parsed.error));
-              }
-            } catch (err) {
-              // Non-fatal parse issue or incomplete chunk, can be ignored
-            }
+          } catch (err) {
+            // Ignore non-fatal parse issues or incomplete chunks
           }
         }
-      } else {
-        const data = await response.json();
-        let fallbackText = "Pardon, je n'ai pas pu analyser la question.";
-        if (data.text) {
-          fallbackText = data.text;
-        } else if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {
-          fallbackText = data.candidates[0].content.parts[0].text;
+      }
+
+      // Handle any leftover content in buffer after stream ends
+      if (buffer.trim()) {
+        const trimmed = buffer.trim();
+        let dataStr = trimmed;
+        if (trimmed.startsWith("data: ")) {
+          dataStr = trimmed.substring(6).trim();
+        } else if (trimmed.startsWith("data:")) {
+          dataStr = trimmed.substring(5).trim();
         }
+
+        if (dataStr !== "[DONE]") {
+          try {
+            const parsed = JSON.parse(dataStr);
+            let textChunk = "";
+            if (parsed.text) {
+              textChunk = parsed.text;
+            } else if (parsed?.candidates?.[0]?.content?.parts?.[0]?.text) {
+              textChunk = parsed.candidates[0].content.parts[0].text;
+            }
+
+            if (textChunk) {
+              streamingText += textChunk;
+              setConversations((prev) => 
+                prev.map((c) => {
+                  if (c.id === (currentConv ? currentConv.id : activeConversationId)) {
+                    return {
+                      ...c,
+                      messages: [...updatedUserMessages, {
+                        sender: 'ai',
+                        text: streamingText,
+                        timestamp: initialAiReply.timestamp
+                      }]
+                    };
+                  }
+                  return c;
+                })
+              );
+            }
+          } catch (err) {
+            // Ignore
+          }
+        }
+      }
+
+      if (!streamingText) {
+        const fallbackText = "Pardon, je n'ai pas pu analyser la question.";
         setConversations((prev) => 
           prev.map((c) => {
             if (c.id === (currentConv ? currentConv.id : activeConversationId)) {
