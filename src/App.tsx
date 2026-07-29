@@ -1053,12 +1053,16 @@ export default function App() {
           if (contentType && contentType.includes("application/json")) {
             const data = await response.json();
             if (active && Array.isArray(data) && data.length > 0) {
+              console.log(`[Stock Data Sync] Received ${data.length} live stock quotes from source "${src}"`);
               setStocks(prevStocks => {
                 return prevStocks.map((oldStock) => {
                   const live = data.find((d: any) => d.symbol === oldStock.symbol);
                   if (!live) return oldStock;
 
                   const newPrice = live.price;
+                  console.log(
+                    `[Stock Data Sync] ${oldStock.symbol}: Fetched Live = $${newPrice} | Prev Local = $${oldStock.price} | Prev Base = $${oldStock.basePrice || oldStock.price} | Source = ${src}`
+                  );
                   const updatedHistories = { ...(oldStock.histories || {}) };
                   if (updatedHistories["1J"] && updatedHistories["1J"].length > 0) {
                     const copy1J = [...updatedHistories["1J"]];
@@ -1561,6 +1565,12 @@ export default function App() {
           // Today change recalculating
           const todayDelta = baseChange + (percentageMove * 100);
           const cappedDelta = parseFloat(Math.min(15, Math.max(-15, todayDelta)).toFixed(2));
+
+          if (stock.symbol === "AAPL" || stock.symbol === "NVDA") {
+            console.log(
+              `[Stock Sim Ticker] ${stock.symbol}: Base = $${basePrice} -> Sim = $${newPrice} (Δ = ${(percentageMove * 100).toFixed(3)}%, Mode = ${profile.marketMode || "real"})`
+            );
+          }
 
           // Update the last element of the 30-day history (today's live price)
           const newHistory = [...stock.history];
