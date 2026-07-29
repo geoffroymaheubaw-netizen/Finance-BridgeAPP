@@ -1134,7 +1134,30 @@ Veuillez respecter le schéma JSON requis.`;
 
       let fetchedSuccessfully = false;
 
-      // --- 0. HIGH-PRIORITY REAL-TIME TRADINGVIEW SCANNER API (Fastest, zero rate-limit, 100% global real-time market data) ---
+      // --- 0. HIGH-PRIORITY OFFICIAL YAHOO FINANCE REAL-TIME QUOTES API ---
+      if (!fetchedSuccessfully) {
+        console.log("[Prices API] Attempting to fetch real-time quotes from official Yahoo Finance API (Crumb & Cookie)...");
+        try {
+          const yahooQuotes = await fetchYahooFinanceQuotesWithCrumb(uniqueYahooSymbols);
+          if (yahooQuotes) {
+            Object.entries(symbolsMap).forEach(([symbol, yahooSymbol]) => {
+              const quote = yahooQuotes[yahooSymbol];
+              if (quote) {
+                resultsMap[symbol] = quote;
+              }
+            });
+            if (Object.keys(resultsMap).length > 0) {
+              fetchedSuccessfully = true;
+              stocksSourceCache = "yahoo-finance-live";
+              console.log(`[Prices API] Successfully fetched ${Object.keys(resultsMap).length} symbols from Yahoo Finance Live API`);
+            }
+          }
+        } catch (err: any) {
+          console.warn("[Prices API] Yahoo Finance Crumb API failed, trying fallbacks:", err.message);
+        }
+      }
+
+      // --- 0B. SECONDARY REAL-TIME TRADINGVIEW SCANNER API ---
       if (!fetchedSuccessfully) {
         console.log("[Prices API] Attempting to fetch real-time quotes from TradingView Scanner API...");
         try {
@@ -1201,29 +1224,6 @@ Veuillez respecter le schéma JSON requis.`;
           }
         } catch (err: any) {
           console.warn("[Prices API] TradingView Scanner failed, trying fallbacks:", err.message);
-        }
-      }
-
-      // --- 0B. SECONDARY OFFICIAL YAHOO FINANCE REAL-TIME QUOTES API ---
-      if (!fetchedSuccessfully) {
-        console.log("[Prices API] Attempting to fetch real-time quotes from official Yahoo Finance API (Crumb & Cookie)...");
-        try {
-          const yahooQuotes = await fetchYahooFinanceQuotesWithCrumb(uniqueYahooSymbols);
-          if (yahooQuotes) {
-            Object.entries(symbolsMap).forEach(([symbol, yahooSymbol]) => {
-              const quote = yahooQuotes[yahooSymbol];
-              if (quote) {
-                resultsMap[symbol] = quote;
-              }
-            });
-            if (Object.keys(resultsMap).length > 0) {
-              fetchedSuccessfully = true;
-              stocksSourceCache = "yahoo-finance-live";
-              console.log(`[Prices API] Successfully fetched ${Object.keys(resultsMap).length} symbols from Yahoo Finance Live API`);
-            }
-          }
-        } catch (err: any) {
-          console.warn("[Prices API] Yahoo Finance Crumb API failed, trying fallbacks:", err.message);
         }
       }
 

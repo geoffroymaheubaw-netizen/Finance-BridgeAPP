@@ -1155,11 +1155,11 @@ export default function App() {
                   ...(s.histories || {}),
                   [tf]: data.history
                 };
+                const shouldUpdateMainHistory = (tf === "1M" && data.history.length > 0) || !s.history || s.history.length === 0;
                 return {
                   ...s,
                   histories: updatedHistories,
-                  // Always keep main history in sync with the latest fetched Yahoo Finance history
-                  history: data.history
+                  history: shouldUpdateMainHistory ? data.history : s.history
                 };
               }
               return s;
@@ -1231,6 +1231,7 @@ export default function App() {
       let interval = "1d";
       if (range === "1d") interval = "5m";
       else if (range === "5d") interval = "15m";
+      else if (range === "max" || range === "5y") interval = "1wk";
 
       const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?range=${range}&interval=${interval}`;
 
@@ -1312,7 +1313,7 @@ export default function App() {
                   high24h: high24h || s.high24h,
                   volume: volume || s.volume,
                   histories: updatedHistories,
-                  history: historyPoints.length > 0 ? historyPoints : s.history,
+                  history: (tf === "1M" && historyPoints.length > 0) ? historyPoints : s.history,
                   basePrice: price || s.basePrice || s.price,
                   baseChange: change !== undefined ? change : s.baseChange || s.change
                 };

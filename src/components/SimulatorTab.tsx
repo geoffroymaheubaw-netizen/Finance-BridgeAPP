@@ -112,6 +112,55 @@ export function getTimeframeData(stock: Stock, tf: string): { prices: number[]; 
     };
   }
 
+  // Smart slice fallback using any available real Yahoo Finance history in stock.histories or stock.history
+  const h = stock.histories || {};
+
+  if (tf === "1S") {
+    const src = h["1M"] || h["3M"] || h["6M"] || h["1A"] || h["Tout"];
+    if (src && src.length >= 5) {
+      return { prices: src.slice(-5), labels: getLabelsForTimeframe("1S", stock.symbol) };
+    }
+    if (stock.history && stock.history.length > 5) {
+      return { prices: stock.history.slice(-5), labels: getLabelsForTimeframe("1S", stock.symbol) };
+    }
+  } else if (tf === "1M") {
+    const src = h["3M"] || h["6M"] || h["1A"];
+    if (src && src.length >= 21) {
+      return { prices: src.slice(-21), labels: getLabelsForTimeframe("1M", stock.symbol) };
+    }
+    if (h["Tout"] && h["Tout"].length >= 4) {
+      return { prices: h["Tout"].slice(-4), labels: getLabelsForTimeframe("1M", stock.symbol) };
+    }
+    if (stock.history && stock.history.length >= 20) {
+      return { prices: stock.history.slice(-30), labels: getLabelsForTimeframe("1M", stock.symbol) };
+    }
+  } else if (tf === "3M") {
+    const src = h["6M"] || h["1A"];
+    if (src && src.length >= 63) {
+      return { prices: src.slice(-63), labels: getLabelsForTimeframe("3M", stock.symbol) };
+    }
+    if (h["Tout"] && h["Tout"].length >= 13) {
+      return { prices: h["Tout"].slice(-13), labels: getLabelsForTimeframe("3M", stock.symbol) };
+    }
+  } else if (tf === "6M") {
+    const src = h["1A"];
+    if (src && src.length >= 126) {
+      return { prices: src.slice(-126), labels: getLabelsForTimeframe("6M", stock.symbol) };
+    }
+    if (h["Tout"] && h["Tout"].length >= 26) {
+      return { prices: h["Tout"].slice(-26), labels: getLabelsForTimeframe("6M", stock.symbol) };
+    }
+  } else if (tf === "1A") {
+    if (h["Tout"] && h["Tout"].length >= 52) {
+      return { prices: h["Tout"].slice(-52), labels: getLabelsForTimeframe("1A", stock.symbol) };
+    }
+  } else if (tf === "Tout") {
+    const src = h["1A"] || h["6M"] || h["3M"] || h["1M"];
+    if (src && src.length > 0) {
+      return { prices: src, labels: getLabelsForTimeframe("Tout", stock.symbol) };
+    }
+  }
+
   const currentPrice = stock.price;
   const random = getSeededRandom(`${stock.symbol}-${tf}`);
 
