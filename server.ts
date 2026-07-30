@@ -3,7 +3,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
 import dotenv from "dotenv";
-import { INITIAL_STOCKS } from "./src/data";
+import { INITIAL_STOCKS } from "./src/data.ts";
 
 dotenv.config();
 
