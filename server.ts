@@ -647,7 +647,7 @@ app.use((req, res, next) => {
 });
 
 // API Route: AI Chat Advice (Streaming over Server-Sent Events for lowest latency)
-app.post("/api/chat", async (req, res) => {
+app.post(["/api/chat", "/chat"], async (req, res) => {
     const { message, history } = req.body;
     try {
       if (!message) {
@@ -767,7 +767,7 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
   });
 
   // API Route: Real-time News via Yahoo Finance RSS & Gemini Dynamic French Interpretation
-  app.get("/api/news/:symbol", async (req, res) => {
+  app.get(["/api/news/:symbol", "/news/:symbol"], async (req, res) => {
     const { symbol } = req.params;
     if (!symbol) {
       res.status(400).json({ error: "Le symbole de l'action est obligatoire." });
@@ -1059,7 +1059,7 @@ Veuillez respecter le schéma JSON requis.`;
     }
   }
 
-  app.get("/api/stocks", async (req, res) => {
+  app.get(["/api/stocks", "/stocks"], async (req, res) => {
     const now = Date.now();
     const requestKey = req.headers['x-twelve-data-key'] as string;
     const hasKey = !!(requestKey || process.env.TWELVE_DATA_API_KEY || process.env.FINNHUB_API_KEY || process.env.RAPIDAPI_KEY);
@@ -1586,7 +1586,7 @@ Veuillez respecter le schéma JSON requis.`;
   });
 
   // API Route: Real-time historical prices for individual stocks
-  app.get("/api/stocks/history/:symbol", async (req, res) => {
+  app.get(["/api/stocks/history/:symbol", "/stocks/history/:symbol"], async (req, res) => {
     const symbol = req.params.symbol.toUpperCase();
     const twelveDataApiKey = (req.headers['x-twelve-data-key'] as string) || process.env.TWELVE_DATA_API_KEY;
 
@@ -1690,7 +1690,7 @@ Veuillez respecter le schéma JSON requis.`;
   });
 
   // API Route: Healthcheck and system constants
-  app.get("/api/health", (req, res) => {
+  app.get(["/api/health", "/health"], (req, res) => {
     res.json({ status: "healthy", timestamp: new Date().toISOString() });
   });
 

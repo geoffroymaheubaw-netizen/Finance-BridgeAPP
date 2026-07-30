@@ -47,6 +47,7 @@ export function getTradingViewSymbol(symbol: string): string {
   
   // Custom mappings for specific stocks
   if (symbol === "MC") return "EURONEXT:MC";
+  if (symbol === "AIRF.PA") return "EURONEXT:AF";
   if (symbol.endsWith(".PA")) {
     const base = symbol.replace(".PA", "");
     return `EURONEXT:${base}`;
@@ -54,7 +55,7 @@ export function getTradingViewSymbol(symbol: string): string {
   
   const nasdaqTickers = [
     "AAPL", "MSFT", "NVDA", "TSLA", "GOOGL", "AMZN", "NFLX", "COIN", "META", 
-    "AMD", "ASML", "LLY", "ADBE", "CRM", "TSM", "AVGO", "QCOM", "ORCL", "INTC", "CSCO"
+    "AMD", "ASML", "ADBE", "AVGO", "QCOM", "INTC", "CSCO", "COST", "PEP", "SBUX", "WMT"
   ];
   
   if (nasdaqTickers.includes(symbol)) {
@@ -62,8 +63,8 @@ export function getTradingViewSymbol(symbol: string): string {
   }
   
   const nyseTickers = [
-    "DIS", "V", "JPM", "WMT", "JNJ", "PG", "XOM", "COST", "MA", "CVX", "BAC", 
-    "PEP", "KO", "MRK", "NKE", "MCD", "IBM", "GE", "SBUX"
+    "DIS", "V", "JPM", "JNJ", "PG", "XOM", "MA", "CVX", "BAC", 
+    "KO", "MRK", "NKE", "MCD", "IBM", "GE", "LLY", "CRM", "TSM", "ORCL"
   ];
   if (nyseTickers.includes(symbol)) {
     return `NYSE:${symbol}`;
