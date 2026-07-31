@@ -1964,11 +1964,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                   {/* Micro sparkline */}
                   <div className="hidden sm:block">
                     {(() => {
-                      const cardHistory = (timeframe && stock.histories?.[timeframe] && stock.histories[timeframe].length > 0)
-                        ? stock.histories[timeframe]
-                        : (stock.histories?.["1J"] && stock.histories["1J"].length > 0)
-                          ? stock.histories["1J"]
-                          : stock.history;
+                      const cardHistory = getTimeframeData(stock, "1J").prices;
                       return renderSparkline(cardHistory, isPos);
                     })()}
                   </div>
