@@ -1122,10 +1122,10 @@ export default function App() {
   }, [profile.twelveDataApiKey, profile.finnhubApiKey]);
 
   const fetchStockHistory = async (symbol: string, timeframe?: string) => {
-    const tf = timeframe || "1M";
+    const tf = timeframe || "1J";
     
     // Map timeframe to Yahoo Finance range/interval
-    let range = "1mo";
+    let range = "1d";
     if (tf === "1J") range = "1d";
     else if (tf === "1S") range = "5d";
     else if (tf === "1M") range = "1mo";
@@ -1160,7 +1160,7 @@ export default function App() {
                   ...(s.histories || {}),
                   [tf]: data.history
                 };
-                const shouldUpdateMainHistory = (tf === "1M" && data.history.length > 0) || !s.history || s.history.length === 0;
+                const shouldUpdateMainHistory = (tf === "1J" && data.history.length > 0) || !s.history || s.history.length === 0;
                 return {
                   ...s,
                   histories: updatedHistories,
@@ -1318,7 +1318,7 @@ export default function App() {
                   high24h: high24h || s.high24h,
                   volume: volume || s.volume,
                   histories: updatedHistories,
-                  history: (tf === "1M" && historyPoints.length > 0) ? historyPoints : s.history,
+                  history: (tf === "1J" && historyPoints.length > 0) ? historyPoints : s.history,
                   basePrice: price || s.basePrice || s.price,
                   baseChange: change !== undefined ? change : s.baseChange || s.change
                 };

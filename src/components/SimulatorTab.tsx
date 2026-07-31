@@ -291,7 +291,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
   const [isNewsLoading, setIsNewsLoading] = useState<boolean>(false);
   const [chartType, setChartType] = useState<'LINE' | 'CANDLESTICK'>('LINE');
   const [compareSymbol, setCompareSymbol] = useState<string | null>(null);
-  const [timeframe, setTimeframe] = useState<string>("1M");
+  const [timeframe, setTimeframe] = useState<string>("1J");
 
   React.useEffect(() => {
     if (selectedSymbol) {
@@ -1932,6 +1932,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                   key={stock.symbol}
                   onClick={() => {
                     setSelectedSymbol(stock.symbol);
+                    setTimeframe("1J");
                     setTradeShares(1);
                     setSelectedNewsId(null);
                     if (compareSymbol === stock.symbol) {
@@ -2013,6 +2014,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                     key={`watch-${stock.symbol}`}
                     onClick={() => {
                       setSelectedSymbol(stock.symbol);
+                      setTimeframe("1J");
                       setTradeShares(1);
                       setSelectedNewsId(null);
                       if (compareSymbol === stock.symbol) {
@@ -3177,7 +3179,10 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                     const isPos = netValDiff >= 0;
 
                     return (
-                      <tr key={item.symbol} className="hover:bg-slate-50/50 transition cursor-pointer" onClick={() => setSelectedSymbol(item.symbol)}>
+                      <tr key={item.symbol} className="hover:bg-slate-50/50 transition cursor-pointer" onClick={() => {
+                        setSelectedSymbol(item.symbol);
+                        setTimeframe("1J");
+                      }}>
                         <td className="py-3 font-sans">
                           <span className="font-bold text-slate-800 font-mono">{item.symbol}</span>
                           <span className="text-slate-400 block text-[10px]">{currentStock.name}</span>
