@@ -1608,7 +1608,7 @@ Veuillez respecter le schéma JSON requis.`;
     const range = (req.query.range as string) || "1y";
     let interval = "1d";
     if (range === "1d") {
-      interval = "5m";
+      interval = "2m";
     } else if (range === "5d") {
       interval = "15m";
     } else if (range === "5y" || range === "max") {

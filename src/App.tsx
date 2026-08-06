@@ -13,6 +13,7 @@ import { Landmark, TrendingUp, BookOpen, Bot, Newspaper, Award, Clock, Settings,
 import { Language, LANGUAGES, TRANSLATIONS } from "./translations";
 import { motion, AnimatePresence } from "motion/react";
 import AuthScreen from "./components/AuthScreen";
+import LandingPage from "./components/LandingPage";
 import FinanceBridgeLogo from "./components/FinanceBridgeLogo";
 import { getSupabaseClient } from "./lib/supabase";
 
@@ -77,6 +78,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<string>("dashboard");
   const [authUser, setAuthUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState<boolean>(true);
+  const [showAuthForm, setShowAuthForm] = useState<boolean>(false);
+  const [defaultSignUp, setDefaultSignUp] = useState<boolean>(false);
 
   // Subscribe to Supabase auth state changes with a robust failsafe timeout
   useEffect(() => {
@@ -313,6 +316,34 @@ export default function App() {
       } catch (e) {
         console.error("Error setting Supabase success profile:", e);
       }
+    }
+  };
+
+  const handleLogout = async () => {
+    setIsSettingsOpen(false);
+    setAuthUser(null);
+    try {
+      localStorage.removeItem("finance_bridge_auth_mode");
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith("sb-") || key.includes("supabase"))) {
+          localStorage.removeItem(key);
+        }
+      }
+      sessionStorage.clear();
+    } catch (err) {
+      console.error("Local storage error on logout:", err);
+    }
+    try {
+      const supabase = getSupabaseClient();
+      if (supabase && supabase.auth) {
+        Promise.race([
+          supabase.auth.signOut(),
+          new Promise((resolve) => setTimeout(resolve, 800))
+        ]).catch((err) => console.error("Error signing out from Supabase:", err));
+      }
+    } catch (err) {
+      console.error("Error logging out from Supabase:", err);
     }
   };
 
@@ -1122,10 +1153,10 @@ export default function App() {
   }, [profile.twelveDataApiKey, profile.finnhubApiKey]);
 
   const fetchStockHistory = async (symbol: string, timeframe?: string) => {
-    const tf = timeframe || "1J";
+    const tf = timeframe || "1M";
     
     // Map timeframe to Yahoo Finance range/interval
-    let range = "1d";
+    let range = "1mo";
     if (tf === "1J") range = "1d";
     else if (tf === "1S") range = "5d";
     else if (tf === "1M") range = "1mo";
@@ -1160,7 +1191,7 @@ export default function App() {
                   ...(s.histories || {}),
                   [tf]: data.history
                 };
-                const shouldUpdateMainHistory = (tf === "1J" && data.history.length > 0) || !s.history || s.history.length === 0;
+                const shouldUpdateMainHistory = (tf === "1M" && data.history.length > 0) || !s.history || s.history.length === 0;
                 return {
                   ...s,
                   histories: updatedHistories,
@@ -1234,7 +1265,7 @@ export default function App() {
 
       const yahooSymbol = yahooSymbolsMap[symbol] || symbol;
       let interval = "1d";
-      if (range === "1d") interval = "5m";
+      if (range === "1d") interval = "2m";
       else if (range === "5d") interval = "15m";
       else if (range === "max" || range === "5y") interval = "1wk";
 
@@ -1318,7 +1349,7 @@ export default function App() {
                   high24h: high24h || s.high24h,
                   volume: volume || s.volume,
                   histories: updatedHistories,
-                  history: (tf === "1J" && historyPoints.length > 0) ? historyPoints : s.history,
+                  history: (tf === "1M" && historyPoints.length > 0) ? historyPoints : s.history,
                   basePrice: price || s.basePrice || s.price,
                   baseChange: change !== undefined ? change : s.baseChange || s.change
                 };
@@ -2048,10 +2079,31 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
   }
 
   if (!authUser) {
+    if (!showAuthForm) {
+      return (
+        <LandingPage
+          onOpenAuth={(mode) => {
+            setDefaultSignUp(mode === "signup");
+            setShowAuthForm(true);
+          }}
+          onStartGuest={() => {
+            handleAuthSuccess({
+              uid: "guest-user",
+              email: "guest@example.com",
+              displayName: "Invité (Mode Local)",
+              isGuest: true
+            }, false);
+          }}
+        />
+      );
+    }
+
     return (
       <AuthScreen
         t={t}
         onSuccess={handleAuthSuccess}
+        onBackToLanding={() => setShowAuthForm(false)}
+        defaultSignUp={defaultSignUp}
       />
     );
   }
@@ -2069,21 +2121,21 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
               const isOpen = isCityMarketOpen(city.tz, city.code, liveDate);
               const zoned = getZonedDateTime(city.tz, liveDate);
               return (
-                <div key={idx} className="flex items-center gap-2.5 !text-white hover:!text-white transition duration-150 cursor-pointer shrink-0">
-                  <span className="text-sm">{city.emoji}</span>
-                  <span className="font-bold !text-white">{city.name}</span>
-                  <span className="font-mono bg-slate-800 !text-white px-2 py-0.5 rounded font-extrabold text-[10.5px] tracking-normal">
+                <div key={idx} className="flex items-center gap-2.5 text-white transition duration-150 cursor-pointer shrink-0">
+                  <span className="text-sm text-white !text-white" style={{ color: '#ffffff' }}>{city.emoji}</span>
+                  <span className="font-bold text-white !text-white" style={{ color: '#ffffff' }}>{city.name}</span>
+                  <span className="font-mono bg-slate-800 text-white !text-white px-2 py-0.5 rounded font-extrabold text-[10.5px] tracking-normal" style={{ color: '#ffffff' }}>
                     {zoned ? zoned.timeString : "--:--:--"}
                   </span>
-                  <span className="text-[9.5px] font-bold !text-white font-mono tracking-wider">({city.code})</span>
+                  <span className="text-[9.5px] font-bold text-white !text-white font-mono tracking-wider" style={{ color: '#ffffff' }}>({city.code})</span>
                   {isOpen ? (
-                    <span className="flex items-center gap-1 text-[9px] font-extrabold !text-white bg-white/10 px-2 py-0.5 rounded-full border border-white/20 uppercase">
-                      <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                    <span className="market-open-badge flex items-center gap-1 text-[9.5px] font-black text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/40 uppercase">
+                      <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" style={{ backgroundColor: '#34d399' }} />
                       {t("marketOpenShort")}
                     </span>
                   ) : (
-                    <span className="flex items-center gap-1 text-[9px] font-extrabold !text-white bg-white/10 px-2 py-0.5 rounded-full border border-white/20 uppercase">
-                      <span className="w-1.5 h-1.5 bg-white rounded-full" />
+                    <span className="market-closed-badge flex items-center gap-1 text-[9.5px] font-black text-rose-400 bg-rose-500/20 px-2 py-0.5 rounded-full border border-rose-500/40 uppercase">
+                      <span className="w-1.5 h-1.5 bg-rose-400 rounded-full" style={{ backgroundColor: '#f87171' }} />
                       {t("marketClosedShort")}
                     </span>
                   )}
@@ -2112,11 +2164,11 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
                       {stock.price.toFixed(2)} $
                     </span>
                     {isPos ? (
-                      <span className="flex items-center gap-1 text-[9px] font-extrabold !text-white bg-white/10 px-2 py-0.5 rounded-full border border-white/20 uppercase">
+                      <span className="stock-change-pos flex items-center gap-1 text-[9.5px] font-black text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/40 uppercase">
                         ▲ +{stock.change.toFixed(2)}%
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 text-[9px] font-extrabold !text-white bg-white/10 px-2 py-0.5 rounded-full border border-white/20 uppercase">
+                      <span className="stock-change-neg flex items-center gap-1 text-[9.5px] font-black text-rose-400 bg-rose-500/20 px-2 py-0.5 rounded-full border border-rose-500/40 uppercase">
                         ▼ {stock.change.toFixed(2)}%
                       </span>
                     )}
@@ -2358,19 +2410,9 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
                     <div className="pt-1">
                       <button
                         type="button"
-                        onClick={async () => {
-                          try {
-                            const supabase = getSupabaseClient();
-                            if (supabase) {
-                              await supabase.auth.signOut();
-                            }
-                          } catch (err) {
-                            console.error("Error logging out from Supabase:", err);
-                          }
-                          localStorage.removeItem("finance_bridge_auth_mode");
-                          setAuthUser(null);
-                        }}
-                        className="w-full py-2 px-3 focus:outline-hidden rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-black tracking-wide uppercase transition flex items-center justify-center gap-2 cursor-pointer"
+                        id="settings-logout-btn"
+                        onClick={handleLogout}
+                        className="w-full py-2.5 px-3 focus:outline-hidden rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-950/60 text-rose-700 dark:text-rose-400 text-xs font-black tracking-wide uppercase transition flex items-center justify-center gap-2 cursor-pointer border border-rose-200 dark:border-rose-900/40"
                       >
                         <LogOut className="w-3.5 h-3.5" />
                         <span>{lang === "fr" ? "Se déconnecter" : "Sign Out"}</span>
@@ -2394,14 +2436,12 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
                                 const supabase = getSupabaseClient();
                                 if (supabase) {
                                   await supabase.from("profiles").delete().eq("id", authUser.uid);
-                                  await supabase.auth.signOut();
                                 }
                               } catch (err) {
                                 console.error("Error deleting Supabase profile:", err);
                               }
-                              localStorage.removeItem("finance_bridge_auth_mode");
                               localStorage.removeItem(STORAGE_KEY);
-                              setAuthUser(null);
+                              await handleLogout();
                               btn.setAttribute("data-confirm", "no");
                               btn.innerHTML = `<span>✔ ${lang === "fr" ? "Compte supprimé !" : "Account Deleted!"}</span>`;
                             } else {
@@ -2428,6 +2468,8 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
                 </div>
               )}
             </div>
+
+
           </div>
         </div>
       </header>

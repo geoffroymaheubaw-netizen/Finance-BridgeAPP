@@ -221,16 +221,30 @@ html:not(.dark) input::placeholder {
 }
 
 /* Let the active green prices, red losses and blue highlights keep high contrast visibility */
+html:not(.dark) .text-emerald-300,
+html:not(.dark) .text-emerald-400,
+html:not(.dark) .text-emerald-500,
 html:not(.dark) .text-emerald-600,
 html:not(.dark) .text-emerald-700,
-html:not(.dark) .text-emerald-800 {
-  color: #15803d !important; /* Rich green readable on white background */
+html:not(.dark) .text-emerald-800,
+html:not(.dark) .text-green-400,
+html:not(.dark) .text-green-500,
+html:not(.dark) .text-green-600 {
+  color: #10b981 !important; /* Green readable on both light and dark backgrounds */
+  -webkit-text-fill-color: #10b981 !important;
 }
 
+html:not(.dark) .text-rose-300,
+html:not(.dark) .text-rose-400,
+html:not(.dark) .text-rose-500,
 html:not(.dark) .text-rose-600,
 html:not(.dark) .text-rose-700,
-html:not(.dark) .text-rose-800 {
-  color: #b91c1c !important; /* Rich red readable on white background */
+html:not(.dark) .text-rose-800,
+html:not(.dark) .text-red-400,
+html:not(.dark) .text-red-500,
+html:not(.dark) .text-red-600 {
+  color: #f43f5e !important; /* Red readable on both light and dark backgrounds */
+  -webkit-text-fill-color: #f43f5e !important;
 }
 
 html:not(.dark) .text-indigo-600,
@@ -300,6 +314,38 @@ html:not(.dark) header div.bg-gradient-to-tr svg {
   stroke: #ffffff !important;
 }
 
+/* Ensure form title h3, description p, labels and spans are pure white in all modes */
+#auth-form-side h3,
+#auth-form-side p,
+#auth-form-side label,
+#auth-form-side span,
+html:not(.dark) #auth-form-side h3,
+html:not(.dark) #auth-form-side p,
+html:not(.dark) #auth-form-side label,
+html:not(.dark) #auth-form-side span {
+  color: #ffffff !important;
+}
+
+/* Ensure all text, headings, badges and logos in the auth sidebar remain pure white in all modes */
+#auth-hero-sidebar,
+#auth-hero-sidebar *,
+html:not(.dark) #auth-hero-sidebar,
+html:not(.dark) #auth-hero-sidebar * {
+  color: #ffffff !important;
+}
+
+#auth-hero-sidebar svg,
+#auth-hero-sidebar svg path,
+#auth-hero-sidebar svg rect,
+#auth-hero-sidebar svg marker,
+html:not(.dark) #auth-hero-sidebar svg,
+html:not(.dark) #auth-hero-sidebar svg path,
+html:not(.dark) #auth-hero-sidebar svg rect,
+html:not(.dark) #auth-hero-sidebar svg marker {
+  color: #ffffff !important;
+  stroke: currentColor;
+}
+
 /* Ensure the text and icons of the theme selector buttons (Light and Dark) are black in Light Mode */
 html:not(.dark) header .relative button {
   color: #000000 !important;
@@ -325,6 +371,217 @@ html:not(.dark) div#root:nth-of-type(1) > div:nth-of-type(1) > header:nth-of-typ
 html:not(.dark) div#root:nth-of-type(1) > div:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > button:nth-of-type(2) {
   color: #000000 !important;
 }
+
+/* Ensure ALL text on the Landing Page container is pure white and fully visible in all modes */
+#landing-page-container,
+#landing-page-container h1,
+#landing-page-container h2,
+#landing-page-container h3,
+#landing-page-container h4,
+#landing-page-container p,
+#landing-page-container span,
+#landing-page-container a,
+#landing-page-container div,
+#landing-page-container button,
+#landing-page-container section#features h2,
+#landing-page-container section#features h3,
+#landing-page-container section#features p,
+#landing-page-container section#features span,
+html:not(.dark) #landing-page-container,
+html:not(.dark) #landing-page-container h1,
+html:not(.dark) #landing-page-container h2,
+html:not(.dark) #landing-page-container h3,
+html:not(.dark) #landing-page-container h4,
+html:not(.dark) #landing-page-container p,
+html:not(.dark) #landing-page-container span,
+html:not(.dark) #landing-page-container a,
+html:not(.dark) #landing-page-container div,
+html:not(.dark) #landing-page-container button,
+html:not(.dark) #landing-page-container section#features h2,
+html:not(.dark) #landing-page-container section#features h3,
+html:not(.dark) #landing-page-container section#features p,
+html:not(.dark) #landing-page-container section#features span {
+  color: #ffffff;
+}
+
+/* Explicit focus mode targets requested by the user to be white */
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > p:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > p:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(2),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(1) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(1) > span:nth-of-type(2),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > h2:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > p:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > h3:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > p:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > h3:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > p:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(1) > h3:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(1) > p:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(4) > div:nth-of-type(1) > h3:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(4) > div:nth-of-type(1) > p:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > h1:nth-of-type(1) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(2) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(3) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(4),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) > span:nth-of-type(2),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(2) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > p:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(5) > span:nth-of-type(2),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(5) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(6) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(6) > span:nth-of-type(2),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(7),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(7) > span:nth-of-type(2),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(8) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(8) > span:nth-of-type(2),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(9) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(3) > span:nth-of-type(2),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(4) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(4) > span:nth-of-type(2),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(3) > span:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > p:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > p:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(2),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(1) > span:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(1) > span:nth-of-type(2),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > h2:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > p:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > h3:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > p:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > h3:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > p:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(1) > h3:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(1) > p:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(4) > div:nth-of-type(1) > h3:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(4) > div:nth-of-type(1) > p:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > h1:nth-of-type(1) > span:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1) > span:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > span:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(2) > span:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(3) > span:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(4),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) > span:nth-of-type(2),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > span:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(2) > span:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(1) > p:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(5) > span:nth-of-type(2),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(5) > span:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(6) > span:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(6) > span:nth-of-type(2),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(7),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(7) > span:nth-of-type(2),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(8) > span:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(8) > span:nth-of-type(2),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(3) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#academy:nth-of-type(3) > div:nth-of-type(1) > h2:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#academy:nth-of-type(3) > div:nth-of-type(1) > p:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#academy:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(1) > h3:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#academy:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(1) > p:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#academy:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(2) > h3:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#academy:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(2) > p:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#academy:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(3) > h3:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#academy:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(3) > p:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(4) > div:nth-of-type(1) > h2:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(4) > div:nth-of-type(1) > p:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > footer:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > footer:nth-of-type(1) > div:nth-of-type(1) > p:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#academy:nth-of-type(3) > div:nth-of-type(1) > h2:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#academy:nth-of-type(3) > div:nth-of-type(1) > p:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#academy:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(1) > h3:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#academy:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(1) > p:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#academy:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(2) > h3:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#academy:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(2) > p:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#academy:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(3) > h3:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#academy:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(3) > p:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(4) > div:nth-of-type(1) > h2:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(4) > div:nth-of-type(1) > p:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1) > span:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > footer:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > footer:nth-of-type(1) > div:nth-of-type(1) > p:nth-of-type(1),
+#landing-page-container section#academy h2,
+#landing-page-container section#academy h3,
+#landing-page-container section#academy p,
+#landing-page-container footer p,
+#landing-page-container footer span,
+html:not(.dark) #landing-page-container section#academy h2,
+html:not(.dark) #landing-page-container section#academy h3,
+html:not(.dark) #landing-page-container section#academy p,
+html:not(.dark) #landing-page-container footer p,
+html:not(.dark) #landing-page-container footer span {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Preserve gradient title text clipping */
+#landing-page-container .bg-clip-text {
+  color: transparent !important;
+}
+
+/* Preserve distinct status & accent colors */
+.stock-change-pos,
+#landing-page-container .stock-change-pos,
+html:not(.dark) #landing-page-container .stock-change-pos,
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) .stock-change-pos,
+#landing-page-container .text-emerald-400,
+html:not(.dark) #landing-page-container .text-emerald-400 {
+  color: #34d399 !important;
+  -webkit-text-fill-color: #34d399 !important;
+}
+
+.stock-change-neg,
+#landing-page-container .stock-change-neg,
+html:not(.dark) #landing-page-container .stock-change-neg,
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) .stock-change-neg,
+#landing-page-container .text-rose-400,
+html:not(.dark) #landing-page-container .text-rose-400 {
+  color: #fb7185 !important;
+  -webkit-text-fill-color: #fb7185 !important;
+}
+
+#landing-page-container .text-indigo-300,
+#landing-page-container .text-indigo-400,
+html:not(.dark) #landing-page-container .text-indigo-300,
+html:not(.dark) #landing-page-container .text-indigo-400 {
+  color: #818cf8 !important;
+}
+
+#landing-page-container .text-purple-400,
+html:not(.dark) #landing-page-container .text-purple-400 {
+  color: #c084fc !important;
+}
+
+#landing-page-container .text-amber-400,
+html:not(.dark) #landing-page-container .text-amber-400 {
+  color: #fbbf24 !important;
+}
+
 
 html:not(.dark) div#root:nth-of-type(1) > div:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > button:nth-of-type(1) span,
 html:not(.dark) div#root:nth-of-type(1) > div:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > button:nth-of-type(2) span {
@@ -522,10 +779,105 @@ html:not(.dark) #finance-news-tab p.text-indigo-200 {
   display: flex;
   width: max-content;
   animation: marquee-stocks 75s linear infinite;
+  will-change: transform;
 }
 
 .animate-marquee-stocks:hover {
   animation-play-state: paused;
+}
+
+/* Selected elements to remove */
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > section#features:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(4) > div:nth-of-type(2),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(1) > nav:nth-of-type(1) > a:nth-of-type(2),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(1) > nav:nth-of-type(1) > a:nth-of-type(3),
+div#root:nth-of-type(1) > div#landing-page-container:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(1) > nav:nth-of-type(1) > a:nth-of-type(1) {
+  display: none !important;
+}
+
+/* City name and code text white rules for ALL ticker items */
+.animate-marquee-tz > div > span:not(.market-open-badge):not(.market-closed-badge) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Market open and closed badge text colors in ALL modes (dark & light) */
+.market-open-badge,
+.market-open-badge *,
+html:not(.dark) .market-open-badge,
+html:not(.dark) .market-open-badge * {
+  color: #34d399 !important;
+  -webkit-text-fill-color: #34d399 !important;
+}
+
+.market-closed-badge,
+.market-closed-badge *,
+html:not(.dark) .market-closed-badge,
+html:not(.dark) .market-closed-badge * {
+  color: #f87171 !important;
+  -webkit-text-fill-color: #f87171 !important;
+}
+
+/* Stock ticker percentage change badges (green for positive, red for negative) */
+.stock-change-pos,
+.stock-change-pos *,
+html:not(.dark) .stock-change-pos,
+html:not(.dark) .stock-change-pos * {
+  color: #34d399 !important;
+  -webkit-text-fill-color: #34d399 !important;
+}
+
+.stock-change-neg,
+.stock-change-neg *,
+html:not(.dark) .stock-change-neg,
+html:not(.dark) .stock-change-neg * {
+  color: #f87171 !important;
+  -webkit-text-fill-color: #f87171 !important;
+}
+
+/* Candlestick wicks styling to remain thin, discreet and clear at any zoom level */
+.apexcharts-candlestick-series .apexcharts-series path.apexcharts-candlestick-wick,
+.apexcharts-candlestick-wick,
+.candlestick-wick,
+line.candlestick-wick {
+  stroke-width: 1px !important;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.9;
+}
+
+/* Custom left-positioned scrollbar styling */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99, 102, 241, 0.4) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.35);
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.7);
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(129, 140, 248, 0.4);
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(129, 140, 248, 0.8);
 }
 
 

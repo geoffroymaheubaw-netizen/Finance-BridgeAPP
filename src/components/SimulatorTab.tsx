@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { Stock, UserProfile, PortfolioItem } from "../types";
+import { ChartAnalysisOverlay } from "./chartAnalysis/ChartAnalysisOverlay";
+import { ChartViewportBounds } from "./chartAnalysis/types";
 import { ArrowUpRight, ArrowDownRight, DollarSign, Briefcase, History, TrendingUp, Info, Newspaper, Maximize2, Minimize2, ZoomIn, ZoomOut, RotateCcw, Search, Layers, GraduationCap, Star } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { getStockMarket, isMarketOpenForStock, getZonedDateTime } from "../utils";
@@ -35,6 +37,34 @@ export function interpolateArray(arr: number[], targetLength: number): number[] 
     const weight = rawIndex - low;
     result.push(arr[low] * (1 - weight) + arr[high] * weight);
   }
+  return result;
+}
+
+export function expandIntradayHistory(rawPrices: number[], targetCount: number = 240, seed: string = "seed"): number[] {
+  if (!rawPrices || rawPrices.length === 0) return [];
+  if (rawPrices.length >= targetCount) return rawPrices;
+
+  const M = rawPrices.length;
+  const result: number[] = new Array(targetCount);
+  const random = getSeededRandom(seed);
+
+  for (let i = 0; i < targetCount; i++) {
+    if (i === targetCount - 1) {
+      result[i] = rawPrices[M - 1];
+      break;
+    }
+    const p = (i * (M - 1)) / (targetCount - 1);
+    const idx = Math.floor(p);
+    const t = p - idx;
+    const baseVal = rawPrices[idx] * (1 - t) + rawPrices[Math.min(idx + 1, M - 1)] * t;
+    
+    // Add small organic intraday micro-wave noise (±0.08%) except at the endpoints
+    const microNoise = (random() - 0.49) * 0.0016 * baseVal * Math.sin((i / targetCount) * Math.PI * 8);
+    result[i] = parseFloat((baseVal + microNoise).toFixed(2));
+  }
+  // Pin last element to exact current price
+  result[targetCount - 1] = rawPrices[M - 1];
+
   return result;
 }
 
@@ -96,19 +126,33 @@ export function getLabelsForTimeframe(tf: string, symbol: string): [string, stri
 }
 
 export function getTimeframeData(stock: Stock, tf: string): { prices: number[]; labels: [string, string, string] } {
+  // For 1J (1 Day) view, ensure high candle density (240-390 candles like Yahoo Finance)
+  if (tf === "1J") {
+    let raw: number[] = [];
+    if (stock.histories?.["1J"] && stock.histories["1J"].length > 0) {
+      raw = stock.histories["1J"];
+    } else if (stock.history && stock.history.length > 0) {
+      raw = stock.history;
+    }
+
+    if (raw.length >= 180) {
+      return {
+        prices: raw,
+        labels: getLabelsForTimeframe("1J", stock.symbol)
+      };
+    } else if (raw.length > 0) {
+      return {
+        prices: expandIntradayHistory(raw, 240, `${stock.symbol}-1J-dense`),
+        labels: getLabelsForTimeframe("1J", stock.symbol)
+      };
+    }
+  }
+
   // If exact timeframe is loaded in stock.histories, use it!
   if (stock.histories?.[tf] && stock.histories[tf].length > 0) {
     return {
       prices: stock.histories[tf],
       labels: getLabelsForTimeframe(tf, stock.symbol)
-    };
-  }
-
-  // Fallback for 1J if stock.history has intraday data (> 30 points)
-  if (tf === "1J" && stock.history && stock.history.length > 30) {
-    return {
-      prices: stock.history,
-      labels: getLabelsForTimeframe("1J", stock.symbol)
     };
   }
 
@@ -290,8 +334,18 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
   const [localNews, setLocalNews] = useState<any[]>([]);
   const [isNewsLoading, setIsNewsLoading] = useState<boolean>(false);
   const [chartType, setChartType] = useState<'LINE' | 'CANDLESTICK'>('LINE');
+  const [candleZoom, setCandleZoom] = useState<'ALL' | '120' | '50'>('ALL');
   const [compareSymbol, setCompareSymbol] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState<string>("1J");
+
+  // Periodic tick timer to update 1D intraday progress smoothly during market hours
+  const [, setLiveTick] = useState<number>(0);
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      setLiveTick((t) => t + 1);
+    }, 15000);
+    return () => clearInterval(timer);
+  }, []);
 
   React.useEffect(() => {
     if (selectedSymbol) {
@@ -522,7 +576,10 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
         return { y, value };
       });
 
-      const visibleCount = cleanHistory.length;
+      const limitCount = timeframe === "1J"
+        ? get1DCurrentDayLimit(selectedStock.symbol, profile.marketMode || 'real', cleanHistory.length)
+        : cleanHistory.length;
+      const visibleCount = limitCount;
       const visiblePrimPoints = primPoints.slice(0, visibleCount);
       const visibleCompPoints = compPoints.slice(0, visibleCount);
 
@@ -851,23 +908,48 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
       );
     }
 
-    // Compute 1D real-time bounds and slice history
-    const visibleCount = cleanHistory.length;
+    // Compute 1D real-time bounds and slice history up to current session progress
+    const limitCount = timeframe === "1J"
+      ? get1DCurrentDayLimit(selectedStock.symbol, profile.marketMode || 'real', cleanHistory.length)
+      : cleanHistory.length;
+    const visibleCount = limitCount;
     const visibleHistory = cleanHistory.slice(0, visibleCount);
 
-    // Generate candlesticks data
-    const candles = cleanHistory.map((val, idx) => {
-      const openPrice = idx === 0 ? val * 0.995 : cleanHistory[idx - 1];
+    // Generate candlesticks data only for available intraday history
+    const availableHistory = cleanHistory.slice(0, visibleCount);
+    const candles = availableHistory.map((val, idx) => {
+      const openPrice = idx === 0 ? val * 0.999 : availableHistory[idx - 1];
       const closePrice = val;
-      const diff = Math.abs(closePrice - openPrice);
-      const spread = val * 0.008; // Decreased spread for visual sharpness and precision
-      const varFactor = Math.abs(Math.sin(idx)) * 0.5 + 0.2;
-      const highPrice = Math.max(openPrice, closePrice) + (diff * 0.1) + (spread * varFactor);
-      const lowPrice = Math.min(openPrice, closePrice) - (diff * 0.1) - (spread * varFactor);
-      
-      return { openPrice, closePrice, highPrice, lowPrice, val, idx };
+      const body = Math.abs(closePrice - openPrice);
+      const bodyTop = Math.max(openPrice, closePrice);
+      const bodyBottom = Math.min(openPrice, closePrice);
+
+      // Realistic tight wick variation (short, elegant stems on every candle)
+      const seed1 = Math.sin((idx + 1) * 92.17 + (selectedStock.symbol.charCodeAt(0) || 65));
+      const seed2 = Math.cos((idx + 1) * 41.53 + (selectedStock.symbol.charCodeAt(1) || 66));
+      const rand1 = Math.abs(seed1);
+      const rand2 = Math.abs(seed2);
+
+      const upperWick = Math.max(body * 0.15, val * 0.00015 * (0.5 + rand1 * 0.5));
+      const lowerWick = Math.max(body * 0.15, val * 0.00015 * (0.5 + rand2 * 0.5));
+
+      const highPrice = parseFloat((bodyTop + upperWick).toFixed(2));
+      const lowPrice = parseFloat((bodyBottom - lowerWick).toFixed(2));
+
+      // Realistic volume estimation per period
+      const vol = Math.floor(15000 + rand1 * 40000 + body * 450000);
+
+      return { openPrice, closePrice, highPrice, lowPrice, val, idx, volume: vol };
     });
-    const visibleCandles = candles.slice(0, visibleCount);
+
+    // Handle candle zoom slicing (ALL, 120 candles, 50 candles)
+    let targetCount = availableHistory.length;
+    if (chartType === 'CANDLESTICK') {
+      if (candleZoom === '50') targetCount = Math.min(50, availableHistory.length);
+      else if (candleZoom === '120') targetCount = Math.min(120, availableHistory.length);
+    }
+    const startIndex = Math.max(0, availableHistory.length - targetCount);
+    const visibleCandles = candles.slice(startIndex).map((c, i) => ({ ...c, displayIdx: i }));
 
     // Compute min/max viewport limits based on active chart helper and only visible data points
     let min = 0;
@@ -875,8 +957,11 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
     if (chartType === 'CANDLESTICK') {
       const lows = visibleCandles.map(c => c.lowPrice).filter(v => typeof v === 'number' && !isNaN(v));
       const highs = visibleCandles.map(c => c.highPrice).filter(v => typeof v === 'number' && !isNaN(v));
-      min = lows.length > 0 ? Math.min(...lows) * 0.99 : selectedStock.price * 0.9;
-      max = highs.length > 0 ? Math.max(...highs) * 1.01 : selectedStock.price * 1.1;
+      const minVal = lows.length > 0 ? Math.min(...lows) : selectedStock.price * 0.95;
+      const maxVal = highs.length > 0 ? Math.max(...highs) : selectedStock.price * 1.05;
+      const delta = (maxVal - minVal) || (selectedStock.price * 0.005);
+      min = minVal - delta * 0.06;
+      max = maxVal + delta * 0.06;
     } else {
       min = Math.min(...visibleHistory) * 0.985;
       max = Math.max(...visibleHistory) * 1.015;
@@ -898,21 +983,65 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
     const historyLengthMinusOne = Math.max(1, cleanHistory.length - 1);
     const liveY = height - padBottom - ((selectedStock.price - min) / range) * chartHeight;
 
+    // Active candle for Yahoo Finance-style OHLCV overlay bar
+    const activeCandle = (hoveredPrice?.index !== undefined && visibleCandles[hoveredPrice.index])
+      ? visibleCandles[hoveredPrice.index]
+      : visibleCandles[visibleCandles.length - 1];
+
+    const chartViewportBounds: ChartViewportBounds = {
+      minPrice: min,
+      maxPrice: max,
+      chartWidth: chartWidth,
+      chartHeight: chartHeight,
+      padLeft: padLeft,
+      padRight: padRight,
+      padTop: padTop,
+      padBottom: padBottom,
+      visibleCount: visibleCount,
+      totalCount: cleanHistory.length,
+      startIndex: startIndex || 0,
+    };
+
     return (
       <div className="relative">
-        {/* Analytical header for extremes and drift metrics */}
-        <div className="flex flex-wrap items-center justify-between text-[10px] sm:text-[11px] font-mono text-slate-500 bg-slate-55 bg-slate-50/70 border border-slate-200/30 px-3 py-1.5 rounded-xl mb-2.5">
-          <div className="flex gap-4 sm:gap-6">
-            <span>Plus Haut : <strong className="text-emerald-700">{max.toFixed(2)} $</strong></span>
-            <span>Plus Bas : <strong className="text-rose-700">{min.toFixed(2)} $</strong></span>
-            <span>Médiane : <strong className="text-slate-700">{((min + max) / 2).toFixed(2)} $</strong></span>
-          </div>
-          <div className="flex gap-2">
-            <span>Écart total : <strong className="text-indigo-600">{(max - min).toFixed(2)} $</strong></span>
-          </div>
+        {/* Analytical header for extremes and drift metrics / OHLC bar */}
+        <div className="flex flex-wrap items-center justify-between text-[10px] sm:text-[11px] font-mono text-slate-500 bg-slate-50/70 border border-slate-200/40 px-3 py-1.5 rounded-xl mb-2.5 shadow-xs">
+          {chartType === 'CANDLESTICK' && activeCandle ? (
+            <div className="flex flex-wrap gap-3 sm:gap-5 items-center w-full justify-between">
+              <div className="flex items-center gap-1.5 font-bold text-slate-700">
+                <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                <span>{selectedStock.symbol}</span>
+                <span className="text-[9.5px] font-normal text-slate-400">({timeframe})</span>
+              </div>
+              <div className="flex flex-wrap gap-2 sm:gap-4 font-mono text-[10.5px]">
+                <span>O : <strong className="text-slate-700">{activeCandle.openPrice.toFixed(2)}</strong></span>
+                <span>H : <strong className="text-emerald-600">{activeCandle.highPrice.toFixed(2)}</strong></span>
+                <span>B : <strong className="text-rose-600">{activeCandle.lowPrice.toFixed(2)}</strong></span>
+                <span>C : <strong className={activeCandle.closePrice >= activeCandle.openPrice ? "text-emerald-600" : "text-rose-600"}>{activeCandle.closePrice.toFixed(2)}</strong></span>
+                <span className="hidden sm:inline">V : <strong className="text-slate-600">{(activeCandle.volume / 1000).toFixed(1)}k</strong></span>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex gap-4 sm:gap-6">
+                <span>Plus Haut : <strong className="text-emerald-700">{max.toFixed(2)} $</strong></span>
+                <span>Plus Bas : <strong className="text-rose-700">{min.toFixed(2)} $</strong></span>
+                <span>Médiane : <strong className="text-slate-700">{((min + max) / 2).toFixed(2)} $</strong></span>
+              </div>
+              <div className="flex gap-2">
+                <span>Écart total : <strong className="text-indigo-600">{(max - min).toFixed(2)} $</strong></span>
+              </div>
+            </>
+          )}
         </div>
 
-        <svg className="w-full h-52 overflow-visible" viewBox={`0 0 ${width} ${height}`}>
+        <div className="relative w-full overflow-visible">
+          <ChartAnalysisOverlay
+            symbol={selectedStock.symbol}
+            timeframe={timeframe}
+            bounds={chartViewportBounds}
+          />
+          <svg className="w-full h-52 overflow-visible" viewBox={`0 0 ${width} ${height}`}>
           <defs>
             <linearGradient id="chartGlow" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={isPositive ? "#10b981" : "#f43f5e"} stopOpacity="0.18" />
@@ -1007,6 +1136,31 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                         strokeLinejoin="round"
                       />
                     )}
+                    {/* Clean line endpoint at current market price (Yahoo / Apple Stocks style) */}
+                    {visiblePoints.length > 0 && (
+                      <g className="pointer-events-none">
+                        {timeframe === "1J" && visibleCount < cleanHistory.length && (
+                          <line
+                            x1={visiblePoints[visiblePoints.length - 1].x}
+                            y1={padTop}
+                            x2={visiblePoints[visiblePoints.length - 1].x}
+                            y2={height - padBottom}
+                            stroke={isPositive ? "#059669" : "#e11d48"}
+                            strokeWidth="1"
+                            strokeDasharray="2 3"
+                            opacity="0.35"
+                          />
+                        )}
+                        <circle
+                          cx={visiblePoints[visiblePoints.length - 1].x}
+                          cy={visiblePoints[visiblePoints.length - 1].y}
+                          r="3"
+                          fill={isPositive ? "#059669" : "#e11d48"}
+                          stroke="#ffffff"
+                          strokeWidth="1"
+                        />
+                      </g>
+                    )}
                   </>
                 );
               })()}
@@ -1053,66 +1207,209 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             </>
           ) : (
             <>
+              {/* VOLUME BARS (Bottom section) */}
+              {(() => {
+                const isAllZoom = candleZoom === 'ALL';
+                const candleCountMinusOne = isAllZoom ? historyLengthMinusOne : Math.max(1, visibleCandles.length - 1);
+                const maxVol = Math.max(...visibleCandles.map(c => c.volume)) || 1;
+                const stepX = chartWidth / candleCountMinusOne;
+                const candleWidth = Math.max(1.5, Math.min(stepX - 0.5, stepX * 0.75));
+
+                return visibleCandles.map((c) => {
+                  const candleIdx = isAllZoom ? c.idx : c.displayIdx;
+                  const x = padLeft + (candleIdx / candleCountMinusOne) * chartWidth;
+                  const volH = (c.volume / maxVol) * (chartHeight * 0.16);
+                  const volY = height - padBottom - volH;
+                  const isBullish = c.closePrice >= c.openPrice;
+                  const fill = isBullish ? "rgba(8, 153, 129, 0.28)" : "rgba(242, 54, 69, 0.28)";
+
+                  return (
+                    <rect
+                      key={`vol-${c.idx}`}
+                      x={x - candleWidth / 2}
+                      y={volY}
+                      width={candleWidth}
+                      height={volH}
+                      fill={fill}
+                      shapeRendering="crispEdges"
+                      className="pointer-events-none"
+                    />
+                  );
+                });
+              })()}
+
               {/* CANDLESTICK PLOT */}
-              {candles.slice(0, visibleCount).map((c) => {
-                const x = padLeft + (c.idx / historyLengthMinusOne) * chartWidth;
-                
-                // Map prices to Y coordinates
-                const openY = height - padBottom - ((c.openPrice - min) / range) * chartHeight;
-                const closeY = height - padBottom - ((c.closePrice - min) / range) * chartHeight;
-                const highY = height - padBottom - ((c.highPrice - min) / range) * chartHeight;
-                const lowY = height - padBottom - ((c.lowPrice - min) / range) * chartHeight;
-
-                const isBullish = c.closePrice >= c.openPrice;
-                const strokeColor = isBullish ? "#059669" : "#e11d48";
-                const fillColor = isBullish ? "#10b981" : "#f43f5e";
-
-                const stepX = chartWidth / historyLengthMinusOne;
-                const candleWidth = Math.max(2.5, stepX * 0.6);
-                const isHovered = hoveredPrice?.index === c.idx;
+              {(() => {
+                const isAllZoom = candleZoom === 'ALL';
+                const candleCountMinusOne = isAllZoom ? historyLengthMinusOne : Math.max(1, visibleCandles.length - 1);
+                const stepX = chartWidth / candleCountMinusOne;
+                const candleWidth = Math.max(1.5, Math.min(stepX - 0.5, stepX * 0.75));
+                const wickWidth = Math.max(0.75, Math.min(1.5, candleWidth * 0.25));
 
                 return (
-                  <g 
-                    key={c.idx}
-                    className="cursor-pointer transition-all duration-100"
-                    onMouseEnter={() => setHoveredPrice({ price: c.val, index: c.idx })}
-                    onMouseLeave={() => setHoveredPrice(null)}
-                  >
-                    {/* Shadow / Wick line */}
-                    <line
-                      x1={x}
-                      y1={highY}
-                      x2={x}
-                      y2={lowY}
-                      stroke={strokeColor}
-                      strokeWidth={isHovered ? 2 : 1.2}
-                    />
+                  <>
+                    {visibleCandles.map((c) => {
+                      const candleIdx = isAllZoom ? c.idx : c.displayIdx;
+                      const x = padLeft + (candleIdx / candleCountMinusOne) * chartWidth;
+                      
+                      // Map prices to Y coordinates
+                      const openY = height - padBottom - ((c.openPrice - min) / range) * chartHeight;
+                      const closeY = height - padBottom - ((c.closePrice - min) / range) * chartHeight;
+                      const highY = height - padBottom - ((c.highPrice - min) / range) * chartHeight;
+                      const lowY = height - padBottom - ((c.lowPrice - min) / range) * chartHeight;
 
-                    {/* Candle Body rect */}
-                    <rect
-                      x={x - candleWidth / 2}
-                      y={Math.min(openY, closeY)}
-                      width={candleWidth}
-                      height={Math.max(1.5, Math.abs(closeY - openY))}
-                      fill={fillColor}
-                      stroke={strokeColor}
-                      strokeWidth={isHovered ? 1.2 : 0.6}
-                      className="transition-all duration-100"
-                    />
+                      const bodyTopY = Math.min(openY, closeY);
+                      const bodyBottomY = Math.max(openY, closeY);
+                      
+                      // Compact, clean wicks on every candle (2.5px to 6px stem)
+                      const rawUpperPx = Math.max(0, bodyTopY - highY);
+                      const rawLowerPx = Math.max(0, lowY - bodyBottomY);
+                      const upperWickPx = Math.max(2.5, Math.min(rawUpperPx * 0.4, 6));
+                      const lowerWickPx = Math.max(2.5, Math.min(rawLowerPx * 0.4, 6));
+                      const finalHighY = bodyTopY - upperWickPx;
+                      const finalLowY = bodyBottomY + lowerWickPx;
 
-                    {/* Hover hotspot helper rect */}
-                    <rect
-                      x={x - stepX / 2}
-                      y={padTop}
-                      width={stepX}
-                      height={chartHeight}
-                      fill="transparent"
-                      stroke="none"
-                    />
-                  </g>
+                      const isBullish = c.closePrice >= c.openPrice;
+                      // Exact Yahoo Finance / TradingView color codes
+                      const strokeColor = isBullish ? "#089981" : "#f23645";
+                      const fillColor = isBullish ? "#089981" : "#f23645";
+
+                      const isHovered = hoveredPrice?.index === c.idx;
+                      const rectY = bodyTopY;
+                      const rectHeight = Math.max(1.2, bodyBottomY - bodyTopY);
+
+                      return (
+                        <g 
+                          key={c.idx}
+                          className="cursor-pointer"
+                          onMouseEnter={() => setHoveredPrice({ price: c.val, index: c.idx })}
+                          onMouseLeave={() => setHoveredPrice(null)}
+                        >
+                          {/* Shadow / Wick line */}
+                          <line
+                            className="apexcharts-candlestick-wick candlestick-wick"
+                            x1={x}
+                            y1={finalHighY}
+                            x2={x}
+                            y2={finalLowY}
+                            stroke={strokeColor}
+                            strokeWidth={isHovered ? 2 : wickWidth}
+                            shapeRendering="crispEdges"
+                          />
+
+                          {/* Candle Body rect */}
+                          <rect
+                            x={x - candleWidth / 2}
+                            y={rectY}
+                            width={candleWidth}
+                            height={rectHeight}
+                            fill={fillColor}
+                            stroke={strokeColor}
+                            strokeWidth={isHovered ? 1.2 : 0.6}
+                            shapeRendering="crispEdges"
+                          />
+
+                          {/* Hover hotspot helper rect */}
+                          <rect
+                            x={x - stepX / 2}
+                            y={padTop}
+                            width={stepX}
+                            height={chartHeight}
+                            fill="transparent"
+                            stroke="none"
+                          />
+                        </g>
+                      );
+                    })}
+
+                    {/* Clean guide line & live endpoint marker at current market price for candlestick */}
+                    {visibleCandles.length > 0 && (
+                      <g className="pointer-events-none">
+                        {timeframe === "1J" && visibleCount < cleanHistory.length && (
+                          <line
+                            x1={padLeft + ((isAllZoom ? visibleCandles[visibleCandles.length - 1].idx : visibleCandles.length - 1) / candleCountMinusOne) * chartWidth}
+                            y1={padTop}
+                            x2={padLeft + ((isAllZoom ? visibleCandles[visibleCandles.length - 1].idx : visibleCandles.length - 1) / candleCountMinusOne) * chartWidth}
+                            y2={height - padBottom}
+                            stroke={isPositive ? "#059669" : "#e11d48"}
+                            strokeWidth="1"
+                            strokeDasharray="2 3"
+                            opacity="0.35"
+                          />
+                        )}
+                        <circle
+                          cx={padLeft + ((isAllZoom ? visibleCandles[visibleCandles.length - 1].idx : visibleCandles.length - 1) / candleCountMinusOne) * chartWidth}
+                          cy={height - padBottom - ((visibleCandles[visibleCandles.length - 1].closePrice - min) / range) * chartHeight}
+                          r="3"
+                          fill={isPositive ? "#059669" : "#e11d48"}
+                          stroke="#ffffff"
+                          strokeWidth="1"
+                        />
+                      </g>
+                    )}
+                  </>
                 );
-              })}
+              })()}
             </>
+          )}
+
+          {/* Interactive Crosshair lines on Hover (like Yahoo Finance) */}
+          {hoveredPrice !== null && hoveredPrice.index !== undefined && (
+            (() => {
+              const isAllZoom = candleZoom === 'ALL';
+              const candleCountMinusOne = isAllZoom ? historyLengthMinusOne : Math.max(1, visibleCandles.length - 1);
+              const hIdx = hoveredPrice.index - startIndex;
+              if (hIdx < 0 || (isAllZoom ? hoveredPrice.index >= cleanHistory.length : hIdx >= visibleCandles.length)) return null;
+              const hX = padLeft + ((isAllZoom ? hoveredPrice.index : hIdx) / candleCountMinusOne) * chartWidth;
+              const hPrice = hoveredPrice.price;
+              const hY = height - padBottom - ((hPrice - min) / range) * chartHeight;
+
+              return (
+                <g className="pointer-events-none">
+                  {/* Vertical Crosshair Line */}
+                  <line
+                    x1={hX}
+                    y1={padTop}
+                    x2={hX}
+                    y2={height - padBottom}
+                    stroke="#64748b"
+                    strokeWidth="1"
+                    strokeDasharray="3 3"
+                    opacity="0.75"
+                  />
+                  {/* Horizontal Crosshair Line */}
+                  <line
+                    x1={padLeft}
+                    y1={hY}
+                    x2={width - padRight}
+                    y2={hY}
+                    stroke="#64748b"
+                    strokeWidth="1"
+                    strokeDasharray="3 3"
+                    opacity="0.75"
+                  />
+                  {/* Price Tag on Right Axis for Hover */}
+                  <rect
+                    x={width - padRight}
+                    y={hY - 6.5}
+                    width={padRight}
+                    height={13}
+                    rx={2}
+                    fill="#334155"
+                  />
+                  <text
+                    x={width - padRight + 4}
+                    y={hY + 3}
+                    fill="#ffffff"
+                    fontSize="7.5"
+                    fontFamily="monospace"
+                    fontWeight="bold"
+                  >
+                    {hPrice.toFixed(2)}
+                  </text>
+                </g>
+              );
+            })()
           )}
 
           {/* Bound borders for pristine terminal alignment */}
@@ -1144,6 +1441,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             {chartLabels[2]}
           </text>
         </svg>
+        </div>
 
         {/* Live Info Tooltip */}
         <div className="absolute top-2 right-[65px] bg-slate-900 text-slate-100 text-[10px] sm:text-xs px-2.5 py-1.5 rounded-lg shadow-md font-mono flex flex-col min-w-[124px] max-w-[210px] z-10">
@@ -1209,8 +1507,12 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
 
   // Render the zoomed detailed chart inside the overlay modal
   const renderZoomedDetailedChartOnModal = () => {
-    const { prices: rawPrices, labels: rawLabels } = getTimeframeData(selectedStock, timeframe);
-    const N = rawPrices.length;
+    const { prices: fullRawPrices, labels: rawLabels } = getTimeframeData(selectedStock, timeframe);
+    const N = fullRawPrices.length;
+    const limitCount = timeframe === "1J"
+      ? get1DCurrentDayLimit(selectedStock.symbol, profile.marketMode || 'real', N)
+      : N;
+    const rawPrices = fullRawPrices;
     
     // Safety check
     if (N === 0) return null;
@@ -1228,16 +1530,47 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
 
     // Calculate visible window based on zoomLevel and panOffsetPercent
     const visibleCount = Math.max(5, Math.ceil(N / zoomLevel));
+    // For 1J intraday, anchor recent navigation to current limitCount
     const maxStartIndex = Math.max(0, N - visibleCount);
-    // Pan offset is between 0 and 100
-    const startIndex = Math.max(0, Math.min(maxStartIndex, Math.round((panOffsetPercent / 100) * maxStartIndex)));
+    // When timeframe is 1J and market day is in progress, map 100% pan to limitCount
+    const effectiveMaxStart = (timeframe === "1J" && limitCount < N)
+      ? Math.max(0, Math.min(maxStartIndex, limitCount - Math.min(visibleCount, limitCount)))
+      : maxStartIndex;
+
+    const startIndex = Math.max(0, Math.min(maxStartIndex, Math.round((panOffsetPercent / 100) * effectiveMaxStart)));
     const endIndex = Math.min(N, startIndex + visibleCount);
 
     const prices = rawPrices.slice(startIndex, endIndex);
-    const activePointsCount = prices.length;
+    const activePointsCount = Math.max(0, Math.min(prices.length, limitCount - startIndex));
     const historyLengthMinusOne = Math.max(1, prices.length - 1);
 
-    const visibleZoomPrices = prices;
+    const visibleZoomPrices = prices.slice(0, activePointsCount);
+
+    // Zoom anchored to cursor position
+    const handleWheelZoom = (e: React.WheelEvent<SVGSVGElement>) => {
+      e.preventDefault();
+      const direction = e.deltaY < 0 ? 1 : -1;
+      const targetZoom = Math.max(1, Math.min(10, zoomLevel + direction * 0.5));
+      if (targetZoom === zoomLevel) return;
+
+      const rect = e.currentTarget.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const svgX = (mouseX / (rect.width || 1)) * width;
+      const ratio = Math.max(0, Math.min(1, (svgX - padLeft) / chartWidth));
+
+      const currIndexUnderCursor = startIndex + ratio * (visibleCount - 1);
+
+      const nextVisibleCount = Math.max(5, Math.ceil(N / targetZoom));
+      const nextMaxStartIndex = Math.max(0, N - nextVisibleCount);
+      
+      const targetStartIndex = currIndexUnderCursor - ratio * (nextVisibleCount - 1);
+      const clampedStartIndex = Math.max(0, Math.min(nextMaxStartIndex, targetStartIndex));
+
+      const nextPanOffsetPercent = nextMaxStartIndex > 0 ? (clampedStartIndex / nextMaxStartIndex) * 100 : 50;
+
+      setZoomLevel(targetZoom);
+      setPanOffsetPercent(Math.max(0, Math.min(100, nextPanOffsetPercent)));
+    };
 
     // Filter comparisons if active
     const comparisonStock = compareSymbol ? stocks.find(s => s.symbol === compareSymbol) : null;
@@ -1327,12 +1660,6 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
           return Math.max(0, Math.min(100, nextVal));
         });
         setDragStartX(e.clientX);
-      };
-
-      const handleWheelZoom = (e: React.WheelEvent<SVGSVGElement>) => {
-        e.preventDefault();
-        const direction = e.deltaY < 0 ? 1 : -1;
-        setZoomLevel((prev) => Math.max(1, Math.min(10, prev + direction * 0.5)));
       };
 
       return (
@@ -1535,16 +1862,25 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
     }
 
     // SINGLE ASSET INTERACTIVE DETAILS
-    // Generate simulated candlesticks for the subrange
+    // Generate simulated candlesticks for the subrange with tight wicks
     const candlesList = prices.map((val, idx) => {
       const parentIdx = startIndex + idx;
-      const openPrice = parentIdx === 0 ? val * 0.995 : rawPrices[parentIdx - 1] || val * 0.995;
+      const openPrice = parentIdx === 0 ? val * 0.999 : rawPrices[parentIdx - 1] || val * 0.999;
       const closePrice = val;
-      const diff = Math.abs(closePrice - openPrice);
-      const spread = val * 0.008;
-      const varFactor = Math.abs(Math.sin(parentIdx)) * 0.5 + 0.2;
-      const highPrice = Math.max(openPrice, closePrice) + (diff * 0.1) + (spread * varFactor);
-      const lowPrice = Math.min(openPrice, closePrice) - (diff * 0.1) - (spread * varFactor);
+      const body = Math.abs(closePrice - openPrice);
+      const bodyTop = Math.max(openPrice, closePrice);
+      const bodyBottom = Math.min(openPrice, closePrice);
+
+      const seed1 = Math.sin((parentIdx + 1) * 92.17 + (selectedStock.symbol.charCodeAt(0) || 65));
+      const seed2 = Math.cos((parentIdx + 1) * 41.53 + (selectedStock.symbol.charCodeAt(1) || 66));
+      const rand1 = Math.abs(seed1);
+      const rand2 = Math.abs(seed2);
+
+      const upperWick = Math.max(body * 0.15, val * 0.00015 * (0.5 + rand1 * 0.5));
+      const lowerWick = Math.max(body * 0.15, val * 0.00015 * (0.5 + rand2 * 0.5));
+
+      const highPrice = parseFloat((bodyTop + upperWick).toFixed(2));
+      const lowPrice = parseFloat((bodyBottom - lowerWick).toFixed(2));
       return { openPrice, closePrice, highPrice, lowPrice, val, idx };
     });
 
@@ -1553,15 +1889,15 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
     if (chartType === 'CANDLESTICK') {
       const lows = visibleCandlesList.map(c => c.lowPrice);
       const highs = visibleCandlesList.map(c => c.highPrice);
-      min = Math.min(...lows) * 0.995;
-      max = Math.max(...highs) * 1.005;
+      min = visibleCandlesList.length > 0 ? Math.min(...lows) * 0.995 : selectedStock.price * 0.99;
+      max = visibleCandlesList.length > 0 ? Math.max(...highs) * 1.005 : selectedStock.price * 1.01;
     } else {
-      min = Math.min(...visibleZoomPrices) * 0.99;
-      max = Math.max(...visibleZoomPrices) * 1.01;
+      min = visibleZoomPrices.length > 0 ? Math.min(...visibleZoomPrices) * 0.99 : selectedStock.price * 0.99;
+      max = visibleZoomPrices.length > 0 ? Math.max(...visibleZoomPrices) * 1.01 : selectedStock.price * 1.01;
     }
 
-    if (isNaN(min) || !isFinite(min)) min = selectedStock.price * 0.9;
-    if (isNaN(max) || !isFinite(max)) max = selectedStock.price * 1.1;
+    if (isNaN(min) || !isFinite(min)) min = selectedStock.price * 0.99;
+    if (isNaN(max) || !isFinite(max)) max = selectedStock.price * 1.01;
     let range = max - min;
     if (isNaN(range) || range <= 0) range = 1;
 
@@ -1573,6 +1909,20 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
     });
 
     const idxHovered = hoveredZoomPrice?.index ?? null;
+
+    const chartViewportBounds: ChartViewportBounds = {
+      minPrice: min,
+      maxPrice: max,
+      chartWidth: chartWidth,
+      chartHeight: chartHeight,
+      padLeft: padLeft,
+      padRight: padRight,
+      padTop: padTop,
+      padBottom: padBottom,
+      visibleCount: visibleCount,
+      totalCount: N,
+      startIndex: startIndex,
+    };
 
     const handleSvgMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
       setIsDragging(true);
@@ -1592,12 +1942,6 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
       setDragStartX(e.clientX);
     };
 
-    const handleWheelZoom = (e: React.WheelEvent<SVGSVGElement>) => {
-      e.preventDefault();
-      const direction = e.deltaY < 0 ? 1 : -1;
-      setZoomLevel((prev) => Math.max(1, Math.min(10, prev + direction * 0.5)));
-    };
-
     return (
       <div className="relative select-none flex flex-col gap-2 w-full">
         {/* Zoom stats header */}
@@ -1614,16 +1958,22 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
           </div>
         </div>
 
-        {/* SVG Canvas */}
-        <svg 
-          className="w-full h-72 sm:h-80 bg-slate-50 border border-slate-200 rounded-2xl overflow-visible cursor-grab active:cursor-grabbing shadow-xs" 
-          viewBox={`0 0 ${width} ${height}`}
-          onMouseDown={handleSvgMouseDown}
-          onMouseMove={handleSvgMouseMove}
-          onMouseUp={() => setIsDragging(false)}
-          onMouseLeave={() => { setIsDragging(false); setHoveredZoomPrice(null); }}
-          onWheel={handleWheelZoom}
-        >
+        {/* Canvas & Analysis Overlay Container */}
+        <div className="relative w-full overflow-visible">
+          <ChartAnalysisOverlay
+            symbol={selectedStock.symbol}
+            timeframe={timeframe}
+            bounds={chartViewportBounds}
+          />
+          <svg 
+            className="w-full h-72 sm:h-80 bg-slate-50 border border-slate-200 rounded-2xl overflow-visible cursor-grab active:cursor-grabbing shadow-xs" 
+            viewBox={`0 0 ${width} ${height}`}
+            onMouseDown={handleSvgMouseDown}
+            onMouseMove={handleSvgMouseMove}
+            onMouseUp={() => setIsDragging(false)}
+            onMouseLeave={() => { setIsDragging(false); setHoveredZoomPrice(null); }}
+            onWheel={handleWheelZoom}
+          >
           <defs>
             <linearGradient id="zoomChartGlow" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={isIntervalPositive ? "#10b981" : "#f43f5e"} stopOpacity="0.18" />
@@ -1683,6 +2033,31 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                         strokeLinejoin="round"
                       />
                     )}
+                    {/* Live endpoint marker for active intraday tracking */}
+                    {visiblePoints.length > 0 && (
+                      <g className="pointer-events-none">
+                        {timeframe === "1J" && limitCount < N && (
+                          <line
+                            x1={visiblePoints[visiblePoints.length - 1].x}
+                            y1={padTop}
+                            x2={visiblePoints[visiblePoints.length - 1].x}
+                            y2={height - padBottom}
+                            stroke={isIntervalPositive ? "#059669" : "#e11d48"}
+                            strokeWidth="1"
+                            strokeDasharray="2 3"
+                            opacity="0.4"
+                          />
+                        )}
+                        <circle
+                          cx={visiblePoints[visiblePoints.length - 1].x}
+                          cy={visiblePoints[visiblePoints.length - 1].y}
+                          r="3.5"
+                          fill={isIntervalPositive ? "#059669" : "#e11d48"}
+                          stroke="#ffffff"
+                          strokeWidth="1.5"
+                        />
+                      </g>
+                    )}
                   </>
                 );
               })()}
@@ -1716,32 +2091,46 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                 const highY = height - padBottom - ((c.highPrice - min) / range) * chartHeight;
                 const lowY = height - padBottom - ((c.lowPrice - min) / range) * chartHeight;
 
+                const bodyTopY = Math.min(openY, closeY);
+                const bodyBottomY = Math.max(openY, closeY);
+
+                // Compact, clean wicks on every candle in zoom view (2.5px to 6px stem)
+                const rawUpperPx = Math.max(0, bodyTopY - highY);
+                const rawLowerPx = Math.max(0, lowY - bodyBottomY);
+                const upperWickPx = Math.max(2.5, Math.min(rawUpperPx * 0.4, 6));
+                const lowerWickPx = Math.max(2.5, Math.min(rawLowerPx * 0.4, 6));
+                const finalHighY = bodyTopY - upperWickPx;
+                const finalLowY = bodyBottomY + lowerWickPx;
+
                 const isBullish = c.closePrice >= c.openPrice;
-                const strokeColor = isBullish ? "#059669" : "#e11d48";
-                const fillColor = isBullish ? "#10b981" : "#f43f5e";
+                const strokeColor = isBullish ? "#089981" : "#f23645";
+                const fillColor = isBullish ? "#089981" : "#f23645";
 
                 const stepX = chartWidth / historyLengthMinusOne;
-                const candleWidth = Math.max(3, stepX * 0.75); // wider candles on big plan view
+                const candleWidth = Math.max(3, stepX * 0.75);
                 const isHovered = idxHovered === c.idx;
 
                 return (
                   <g key={`zoom-cand-${c.idx}`}>
                     <line
+                      className="apexcharts-candlestick-wick candlestick-wick"
                       x1={x}
-                      y1={highY}
+                      y1={finalHighY}
                       x2={x}
-                      y2={lowY}
+                      y2={finalLowY}
                       stroke={strokeColor}
-                      strokeWidth={isHovered ? 2.5 : 1.5}
+                      strokeWidth={isHovered ? 2 : 1.2}
+                      shapeRendering="crispEdges"
                     />
                     <rect
                       x={x - candleWidth / 2}
-                      y={Math.min(openY, closeY)}
+                      y={bodyTopY}
                       width={candleWidth}
-                      height={Math.max(2, Math.abs(closeY - openY))}
+                      height={Math.max(1.5, bodyBottomY - bodyTopY)}
                       fill={fillColor}
                       stroke={strokeColor}
-                      strokeWidth={isHovered ? 1.5 : 0.8}
+                      strokeWidth={isHovered ? 1.2 : 0.6}
+                      shapeRendering="crispEdges"
                     />
                   </g>
                 );
@@ -1810,10 +2199,11 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             {rawLabels[2]}
           </text>
         </svg>
+        </div>
 
         {/* Dynamic OHLV Tooltip HUD */}
         <div className="bg-slate-50 border border-slate-200 p-3 sm:p-3.5 rounded-2xl flex items-center justify-between font-mono text-xs text-slate-700 min-h-[50px]">
-          {idxHovered !== null ? (
+          {idxHovered !== null && idxHovered < activePointsCount && prices[idxHovered] !== undefined ? (
             chartType === 'LINE' ? (
               <div className="flex justify-between items-center w-full flex-wrap gap-2">
                 <span className="font-bold text-slate-500 uppercase">Valeur à l'index n° {startIndex + idxHovered + 1}</span>
@@ -1964,7 +2354,9 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                   {/* Micro sparkline */}
                   <div className="hidden sm:block">
                     {(() => {
-                      const cardHistory = getTimeframeData(stock, "1J").prices;
+                      const cardHistory = (stock.histories?.["1J"] && stock.histories["1J"].length > 0)
+                        ? stock.histories["1J"]
+                        : stock.history;
                       return renderSparkline(cardHistory, isPos);
                     })()}
                   </div>
@@ -2247,7 +2639,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
               type="button"
               onClick={() => {
                 setIsZoomExpanded(true);
-                setZoomLevel(2);
+                setZoomLevel(1);
                 setPanOffsetPercent(100);
               }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs bg-indigo-50 text-indigo-700 hover:bg-slate-900 hover:text-white transition-all duration-200 border border-indigo-100/60 shadow-xs cursor-pointer"
@@ -3175,10 +3567,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                     const isPos = netValDiff >= 0;
 
                     return (
-                      <tr key={item.symbol} className="hover:bg-slate-50/50 transition cursor-pointer" onClick={() => {
-                        setSelectedSymbol(item.symbol);
-                        setTimeframe("1J");
-                      }}>
+                      <tr key={item.symbol} className="hover:bg-slate-50/50 transition cursor-pointer" onClick={() => setSelectedSymbol(item.symbol)}>
                         <td className="py-3 font-sans">
                           <span className="font-bold text-slate-800 font-mono">{item.symbol}</span>
                           <span className="text-slate-400 block text-[10px]">{currentStock.name}</span>
@@ -3277,6 +3666,109 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
               >
                 <Minimize2 className="w-5 h-5" />
               </button>
+            </div>
+
+            {/* Bande de sélection de Période / Timeframe & Options du graphe dans le mode Zoom */}
+            <div className="flex flex-wrap items-center justify-between gap-3 p-2 bg-slate-50 rounded-xl border border-slate-200/60 shadow-xs">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mr-1">Période :</span>
+                <div className="flex bg-slate-200/70 p-0.5 rounded-lg border border-slate-200/50">
+                  {[
+                    { id: "1J", label: "1 jour" },
+                    { id: "1S", label: "5 jours" },
+                    { id: "1M", label: "30 j." },
+                    { id: "3M", label: "3 mois" },
+                    { id: "6M", label: "6 mois" },
+                    { id: "1A", label: "1 an" },
+                    { id: "Tout", label: "Tout" }
+                  ].map((tf) => {
+                    const isActive = timeframe === tf.id;
+                    return (
+                      <button
+                        key={tf.id}
+                        type="button"
+                        onClick={() => {
+                          setTimeframe(tf.id);
+                          setHoveredZoomPrice(null);
+                          setHoveredPrice(null);
+                        }}
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                          isActive
+                            ? "bg-white text-indigo-600 shadow-xs"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        {tf.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Type de graphe */}
+                <div className="flex bg-slate-200/70 p-0.5 rounded-lg border border-slate-200/50">
+                  <button
+                    type="button"
+                    onClick={() => setChartType('LINE')}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                      chartType === 'LINE'
+                        ? "bg-white text-indigo-600 shadow-xs"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    Courbe
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setChartType('CANDLESTICK')}
+                    disabled={compareSymbol !== null}
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                      chartType === 'CANDLESTICK'
+                        ? "bg-white text-indigo-600 shadow-xs"
+                        : "text-slate-600 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed"
+                    }`}
+                    title={compareSymbol !== null ? "Chandelier n'est pas disponible en mode comparaison" : "Graphique en Chandeliers japonais"}
+                  >
+                    Chandelier
+                  </button>
+                </div>
+
+                {/* Sélecteur de comparaison */}
+                <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Comparer :</span>
+                  <select
+                    value={compareSymbol || ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCompareSymbol(val === "" ? null : val);
+                      if (val !== "") {
+                        setChartType('LINE');
+                      }
+                    }}
+                    className="bg-transparent border-none text-xs font-bold text-slate-700 outline-hidden cursor-pointer focus:ring-0 max-w-[120px]"
+                  >
+                    <option value="">-- Aucun --</option>
+                    {stocks
+                      .filter((s) => s.symbol !== selectedStock.symbol)
+                      .map((s) => (
+                        <option key={s.symbol} value={s.symbol}>
+                          {s.symbol} ({s.name})
+                        </option>
+                      ))}
+                  </select>
+                  {compareSymbol && (
+                    <button
+                      type="button"
+                      onClick={() => setCompareSymbol(null)}
+                      className="text-slate-400 hover:text-rose-500 transition font-bold text-xs"
+                      title="Supprimer la comparaison"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Render dynamically our custom zoomed chart view */}
