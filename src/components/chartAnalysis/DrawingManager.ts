@@ -43,13 +43,16 @@ export class DrawingManager {
     text?: string,
     emoji?: string
   ): DrawingShape {
+    const isOnePoint = ['horizontal_line', 'vertical_line', 'text', 'note', 'price_label', 'emoji'].includes(type);
+    const initialPoints = isOnePoint ? [{ ...startPoint }] : [{ ...startPoint }, { ...startPoint }];
+
     const newShape: DrawingShape = {
       id: 'shape_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
       type,
       symbol,
       timeframe,
-      points: [startPoint],
-      freehandPath: type === 'brush' || type === 'highlighter' ? [startPoint] : undefined,
+      points: initialPoints,
+      freehandPath: type === 'brush' || type === 'highlighter' ? [{ ...startPoint }] : undefined,
       text,
       emoji,
       style: { ...style },
@@ -70,8 +73,8 @@ export class DrawingManager {
       shape.freehandPath.push(currentPoint);
       shape.points = [shape.freehandPath[0], currentPoint];
     } else {
-      if (shape.points.length === 1) {
-        shape.points.push(currentPoint);
+      if (shape.points.length <= 1) {
+        shape.points = [shape.points[0], currentPoint];
       } else {
         shape.points[shape.points.length - 1] = currentPoint;
       }

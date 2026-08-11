@@ -277,6 +277,37 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
         );
         break;
 
+      case 'regression_channel':
+        const channelOffset = 25;
+        shapeContent = (
+          <g opacity={style.opacity}>
+            <polygon
+              points={`${p0.x},${p0.y - channelOffset} ${p1.x},${p1.y - channelOffset} ${p1.x},${p1.y + channelOffset} ${p0.x},${p0.y + channelOffset}`}
+              fill={style.fillColor || 'rgba(99, 102, 241, 0.12)'}
+            />
+            <line
+              x1={p0.x}
+              y1={p0.y - channelOffset}
+              x2={p1.x}
+              y2={p1.y - channelOffset}
+              stroke={style.strokeColor}
+              strokeWidth={style.strokeWidth}
+              strokeDasharray="4,4"
+            />
+            <line x1={p0.x} y1={p0.y} x2={p1.x} y2={p1.y} stroke={style.strokeColor} strokeWidth={style.strokeWidth + 0.5} />
+            <line
+              x1={p0.x}
+              y1={p0.y + channelOffset}
+              x2={p1.x}
+              y2={p1.y + channelOffset}
+              stroke={style.strokeColor}
+              strokeWidth={style.strokeWidth}
+              strokeDasharray="4,4"
+            />
+          </g>
+        );
+        break;
+
       case 'fib_retracement':
         const price0 = shape.points[0]?.price || 0;
         const price1 = shape.points[1]?.price || price0;
@@ -318,6 +349,53 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
                     className="select-none"
                   >
                     {(fib.level * 100).toFixed(1)}% (${fibPrice.toFixed(2)})
+                  </text>
+                </g>
+              );
+            })}
+          </g>
+        );
+        break;
+
+      case 'fib_extension':
+        const priceExt0 = shape.points[0]?.price || 0;
+        const priceExt1 = shape.points[1]?.price || priceExt0;
+        const extDiff = priceExt1 - priceExt0;
+        const fibExtLevels = [
+          { level: 0, color: '#64748b' },
+          { level: 0.618, color: '#3b82f6' },
+          { level: 1.0, color: '#089981' },
+          { level: 1.618, color: '#8b5cf6' },
+          { level: 2.618, color: '#f59e0b' },
+        ];
+        const startExtX = Math.min(p0.x, p1.x);
+        const endExtX = Math.max(p0.x, p1.x) + 40;
+
+        shapeContent = (
+          <g opacity={style.opacity}>
+            {fibExtLevels.map((fib) => {
+              const fibPrice = priceExt1 + extDiff * fib.level;
+              const fibPt = CoordinateUtils.chartToPixel({ price: fibPrice, timeRatio: 0 }, bounds);
+              return (
+                <g key={fib.level}>
+                  <line
+                    x1={startExtX}
+                    y1={fibPt.y}
+                    x2={endExtX}
+                    y2={fibPt.y}
+                    stroke={fib.color}
+                    strokeWidth={1.5}
+                    strokeDasharray={fib.level === 0 ? 'none' : '4,4'}
+                  />
+                  <text
+                    x={endExtX + 4}
+                    y={fibPt.y + 3}
+                    fill={fib.color}
+                    fontSize={10}
+                    fontWeight="bold"
+                    className="select-none"
+                  >
+                    Ext {(fib.level * 100).toFixed(1)}% (${fibPrice.toFixed(2)})
                   </text>
                 </g>
               );
@@ -457,7 +535,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
           e.stopPropagation();
           onSelectShape(shape.id);
         }}
-        className="cursor-pointer"
+        className="cursor-pointer pointer-events-auto"
       >
         {/* Selection/Hover Highlight glow */}
         {(isSelected || isHovered) && (
@@ -505,7 +583,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   };
 
   return (
-    <svg className="absolute inset-0 w-full h-full pointer-events-auto select-none overflow-visible">
+    <svg className="absolute inset-0 w-full h-full pointer-events-none select-none overflow-visible">
       {allShapesToRender.map((shape) => renderSingleShape(shape))}
     </svg>
   );

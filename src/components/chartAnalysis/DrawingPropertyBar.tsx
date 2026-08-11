@@ -37,6 +37,16 @@ const COLOR_PALETTE = [
   '#0f172a', // Dark Navy
 ];
 
+const getFillFromColor = (c: string) => {
+  if (c.startsWith('#') && c.length === 7) {
+    const r = parseInt(c.slice(1, 3), 16);
+    const g = parseInt(c.slice(3, 5), 16);
+    const b = parseInt(c.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, 0.18)`;
+  }
+  return 'rgba(59, 130, 246, 0.15)';
+};
+
 export const DrawingPropertyBar: React.FC<DrawingPropertyBarProps> = ({
   selectedShape,
   onUpdateStyle,
@@ -51,25 +61,48 @@ export const DrawingPropertyBar: React.FC<DrawingPropertyBarProps> = ({
   const { style, isLocked, type, text } = selectedShape;
 
   return (
-    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200 dark:border-slate-800 shadow-2xl text-xs select-none animate-in fade-in slide-in-from-top-2 duration-150">
-      <span className="font-semibold text-slate-500 dark:text-slate-400 capitalize pr-2 border-r border-slate-200 dark:border-slate-800">
+    <div
+      onPointerDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      className="absolute top-3 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-slate-800 shadow-2xl text-xs select-none animate-in fade-in slide-in-from-top-2 duration-150"
+    >
+      <span className="font-semibold text-slate-500 dark:text-slate-400 capitalize pr-2 border-r border-slate-200 dark:border-slate-800 shrink-0">
         {type.replace('_', ' ')}
       </span>
 
       {/* Color Palette Buttons */}
       <div className="flex items-center gap-1 pl-1">
-        <Palette className="w-3.5 h-3.5 text-slate-400" />
+        <Palette className="w-3.5 h-3.5 text-slate-400 shrink-0" />
         {COLOR_PALETTE.map((c) => (
           <button
             key={c}
             type="button"
-            onClick={() => onUpdateStyle({ strokeColor: c, fillColor: `${c}25`, textColor: c })}
-            className={`w-4 h-4 rounded-full border border-slate-300 dark:border-slate-700 transition-transform hover:scale-125 cursor-pointer ${
-              style.strokeColor === c ? 'ring-2 ring-indigo-500 ring-offset-1 dark:ring-offset-slate-900' : ''
+            title={`Couleur: ${c}`}
+            onClick={() => onUpdateStyle({ strokeColor: c, fillColor: getFillFromColor(c), textColor: c })}
+            className={`w-4 h-4 rounded-full border border-slate-300 dark:border-slate-700 transition-transform hover:scale-125 cursor-pointer shrink-0 ${
+              style.strokeColor?.toLowerCase() === c.toLowerCase()
+                ? 'ring-2 ring-indigo-500 ring-offset-1 dark:ring-offset-slate-900 scale-110'
+                : ''
             }`}
             style={{ backgroundColor: c }}
           />
         ))}
+
+        {/* Custom Color Input */}
+        <label
+          title="Choisir une couleur personnalisée"
+          className="relative w-4 h-4 rounded-full border border-slate-300 dark:border-slate-700 transition-transform hover:scale-125 cursor-pointer overflow-hidden flex items-center justify-center shrink-0 bg-gradient-to-tr from-rose-500 via-amber-400 to-indigo-500"
+        >
+          <input
+            type="color"
+            value={style.strokeColor || '#3b82f6'}
+            onChange={(e) => {
+              const hex = e.target.value;
+              onUpdateStyle({ strokeColor: hex, fillColor: getFillFromColor(hex), textColor: hex });
+            }}
+            className="absolute -inset-1 opacity-0 w-8 h-8 cursor-pointer"
+          />
+        </label>
       </div>
 
       <div className="w-px h-4 bg-slate-200 dark:bg-slate-800 my-auto" />

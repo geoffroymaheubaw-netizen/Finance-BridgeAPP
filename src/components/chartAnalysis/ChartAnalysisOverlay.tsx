@@ -49,8 +49,12 @@ export const ChartAnalysisOverlay: React.FC<ChartAnalysisOverlayProps> = ({
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const [selectedEmoji, setSelectedEmoji] = useState('🎯');
+  const [activeColor, setActiveColor] = useState('#3b82f6');
   const [isAllHidden, setIsAllHidden] = useState(false);
   const [isAllLocked, setIsAllLocked] = useState(false);
+
+  const dragStartPixelRef = useRef<PixelPoint | null>(null);
+  const isTwoClickModeRef = useRef<boolean>(false);
 
   // Sync state helpers
   const syncState = useCallback(() => {
@@ -198,7 +202,37 @@ export const ChartAnalysisOverlay: React.FC<ChartAnalysisOverlayProps> = ({
       return;
     }
 
+    // Check if we are already in middle of a two-click drawing
+    const existingDrawing = drawingManagerRef.current.getCurrentDrawingShape();
+    if (existingDrawing && isTwoClickModeRef.current) {
+      drawingManagerRef.current.updateCurrentDrawing(chartPoint);
+      const finalized = drawingManagerRef.current.finalizeCurrentDrawing();
+      isTwoClickModeRef.current = false;
+      dragStartPixelRef.current = null;
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {
+        // ignore
+      }
+      if (finalized) {
+        selectionManagerRef.current.setSelectedId(finalized.id);
+        if (activeTool !== 'brush' && activeTool !== 'highlighter') {
+          handleSelectTool('select');
+        }
+      }
+      syncState();
+      return;
+    }
+
     // Creating new drawing shape
+    dragStartPixelRef.current = pixelPoint;
+    isTwoClickModeRef.current = false;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+
     const defaultStyle = toolManagerRef.current.getDefaultStyle();
     drawingManagerRef.current.startNewDrawing(
       activeT,
@@ -255,17 +289,42 @@ export const ChartAnalysisOverlay: React.FC<ChartAnalysisOverlayProps> = ({
     }
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     selectionManagerRef.current.stopDragging();
 
+    const activeT = toolManagerRef.current.getActiveTool();
+    const isOnePointTool = ['horizontal_line', 'vertical_line', 'text', 'note', 'price_label', 'emoji'].includes(activeT);
+
     if (drawingManagerRef.current.getCurrentDrawingShape()) {
-      const finalized = drawingManagerRef.current.finalizeCurrentDrawing();
-      if (finalized) {
-        selectionManagerRef.current.setSelectedId(finalized.id);
-        // Switch back to select tool after finishing shape creation
-        if (activeTool !== 'brush' && activeTool !== 'highlighter') {
-          handleSelectTool('select');
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const currentPixel: PixelPoint = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      };
+
+      const startPixel = dragStartPixelRef.current || currentPixel;
+      const dist = CoordinateUtils.distanceBetweenPixels(startPixel, currentPixel);
+
+      if (isOnePointTool || dist > 6) {
+        // Finalize drawing immediately (dragged segment OR 1-point tool)
+        const finalized = drawingManagerRef.current.finalizeCurrentDrawing();
+        isTwoClickModeRef.current = false;
+        dragStartPixelRef.current = null;
+        try {
+          e.currentTarget.releasePointerCapture(e.pointerId);
+        } catch {
+          // ignore
         }
+        if (finalized) {
+          selectionManagerRef.current.setSelectedId(finalized.id);
+          if (activeTool !== 'brush' && activeTool !== 'highlighter') {
+            handleSelectTool('select');
+          }
+        }
+      } else {
+        // Single click -> enter two-click mode (do NOT finalize yet)
+        isTwoClickModeRef.current = true;
       }
     }
     syncState();
@@ -286,13 +345,24 @@ export const ChartAnalysisOverlay: React.FC<ChartAnalysisOverlayProps> = ({
       const image = new Image();
       image.onload = () => {
         const canvas = document.createElement('canvas');
-        canvas.width = bounds.chartWidth || 800;
-        canvas.height = bounds.chartHeight || 400;
+        const width = bounds.chartWidth || containerRef.current?.clientWidth || 800;
+        const height = bounds.chartHeight || containerRef.current?.clientHeight || 400;
+        canvas.width = width;
+        canvas.height = height;
         const context = canvas.getContext('2d');
         if (context) {
-          context.fillStyle = '#0f172a';
-          context.fillRect(0, 0, canvas.width, canvas.height);
-          context.drawImage(image, 0, 0);
+          const parent = containerRef.current?.parentElement || containerRef.current;
+          const chartCanvas = parent ? (parent.querySelector('canvas') as HTMLCanvasElement | null) : null;
+
+          if (chartCanvas) {
+            context.drawImage(chartCanvas, 0, 0, width, height);
+          } else {
+            const isDark = document.documentElement.classList.contains('dark');
+            context.fillStyle = isDark ? '#0f172a' : '#ffffff';
+            context.fillRect(0, 0, width, height);
+          }
+
+          context.drawImage(image, 0, 0, width, height);
           const png = canvas.toDataURL('image/png');
           const downloadLink = document.createElement('a');
           downloadLink.href = png;
@@ -300,6 +370,7 @@ export const ChartAnalysisOverlay: React.FC<ChartAnalysisOverlayProps> = ({
           document.body.appendChild(downloadLink);
           downloadLink.click();
           document.body.removeChild(downloadLink);
+          window.URL.revokeObjectURL(blobURL);
         }
       };
       image.src = blobURL;
@@ -324,6 +395,30 @@ export const ChartAnalysisOverlay: React.FC<ChartAnalysisOverlayProps> = ({
       <ChartToolbar
         activeTool={activeTool}
         onSelectTool={handleSelectTool}
+        activeColor={activeColor}
+        onChangeColor={(color) => {
+          setActiveColor(color);
+          const getFillFromColor = (c: string) => {
+            if (c.startsWith('#') && c.length === 7) {
+              const r = parseInt(c.slice(1, 3), 16);
+              const g = parseInt(c.slice(3, 5), 16);
+              const b = parseInt(c.slice(5, 7), 16);
+              return `rgba(${r}, ${g}, ${b}, 0.18)`;
+            }
+            return 'rgba(59, 130, 246, 0.15)';
+          };
+          const patch = { strokeColor: color, fillColor: getFillFromColor(color), textColor: color };
+          toolManagerRef.current.updateDefaultStyle(patch);
+          if (selectedId) {
+            const selShape = drawingManagerRef.current.getShapeById(selectedId);
+            if (selShape) {
+              drawingManagerRef.current.updateShape(selectedId, {
+                style: { ...selShape.style, ...patch },
+              });
+            }
+          }
+          syncState();
+        }}
         onUndo={() => {
           const action = historyManagerRef.current.undo();
           if (action) {
@@ -355,15 +450,20 @@ export const ChartAnalysisOverlay: React.FC<ChartAnalysisOverlayProps> = ({
         onToggleHideAll={() => {
           const nextState = !isAllHidden;
           setIsAllHidden(nextState);
-          const updated = shapes.map((s) => ({ ...s, isHidden: nextState }));
+          const currentShapes = drawingManagerRef.current.getShapes();
+          const updated = currentShapes.map((s) => ({ ...s, isHidden: nextState }));
           drawingManagerRef.current.setShapes(updated, true);
+          if (nextState) {
+            selectionManagerRef.current.setSelectedId(null);
+          }
           syncState();
         }}
         isAllLocked={isAllLocked}
         onToggleLockAll={() => {
           const nextState = !isAllLocked;
           setIsAllLocked(nextState);
-          const updated = shapes.map((s) => ({ ...s, isLocked: nextState }));
+          const currentShapes = drawingManagerRef.current.getShapes();
+          const updated = currentShapes.map((s) => ({ ...s, isLocked: nextState }));
           drawingManagerRef.current.setShapes(updated, true);
           syncState();
         }}
@@ -379,6 +479,9 @@ export const ChartAnalysisOverlay: React.FC<ChartAnalysisOverlayProps> = ({
                 style: { ...selectedShapeObj.style, ...patch },
               });
               toolManagerRef.current.updateDefaultStyle(patch);
+              if (patch.strokeColor) {
+                setActiveColor(patch.strokeColor);
+              }
               syncState();
             }
           }}
