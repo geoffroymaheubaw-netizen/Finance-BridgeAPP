@@ -79,6 +79,24 @@ export const ChartAnalysisOverlay: React.FC<ChartAnalysisOverlayProps> = ({
     StorageManager.saveDrawings(symbol, timeframe, shapes);
   }, [symbol, timeframe, shapes]);
 
+  // Prevent wheel scroll propagation on chart canvas, but allow scrolling inside toolbars / scrollable panels
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handleWheel = (e: WheelEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && target.closest('.overflow-y-auto, .overflow-x-auto, .overflow-y-scroll, .overflow-x-scroll, .custom-scrollbar, button, input, select, label')) {
+        return; // Allow toolbar and panel scrolling
+      }
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    el.addEventListener('wheel', handleWheel, { passive: false, capture: true });
+    return () => {
+      el.removeEventListener('wheel', handleWheel, true);
+    };
+  }, []);
+
   // Handle Tool Change
   const handleSelectTool = (tool: ToolType) => {
     toolManagerRef.current.setActiveTool(tool);

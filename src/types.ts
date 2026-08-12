@@ -29,6 +29,9 @@ export interface PortfolioItem {
   shares: number;
   avgBuyPrice: number;
   stopLoss?: number; // Stop-loss price
+  takeProfit?: number; // Take-profit price
+  trailingStopPct?: number; // Trailing stop percentage
+  peakPrice?: number; // Highest price reached since position opened
 }
 
 export interface Transaction {

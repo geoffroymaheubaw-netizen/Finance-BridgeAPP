@@ -485,20 +485,51 @@ export default function App() {
   }
   const [stopLossAlerts, setStopLossAlerts] = useState<StopLossAlert[]>([]);
 
-  // Automated stop-loss processing effect
+  // Automated stop-loss, take-profit and trailing-stop processing effect
   useEffect(() => {
-    let triggeredSales: { symbol: string; shares: number; price: number; stopLossPrice: number }[] = [];
+    let triggeredSales: { symbol: string; shares: number; price: number; stopLossPrice: number; alertLabel?: string }[] = [];
+
+    // Track peak prices first
+    profile.portfolio.forEach((item) => {
+      const currentStock = stocks.find(s => s.symbol === item.symbol);
+      if (currentStock && currentStock.price > (item.peakPrice || 0)) {
+        item.peakPrice = currentStock.price;
+      }
+    });
 
     profile.portfolio.forEach((item) => {
-      if (item.stopLoss && item.shares > 0) {
+      if (item.shares > 0) {
         const currentStock = stocks.find(s => s.symbol === item.symbol);
-        if (currentStock && currentStock.price <= item.stopLoss) {
-          triggeredSales.push({
-            symbol: item.symbol,
-            shares: item.shares,
-            price: currentStock.price,
-            stopLossPrice: item.stopLoss
-          });
+        if (currentStock) {
+          if (item.stopLoss && currentStock.price <= item.stopLoss) {
+            triggeredSales.push({
+              symbol: item.symbol,
+              shares: item.shares,
+              price: currentStock.price,
+              stopLossPrice: item.stopLoss,
+              alertLabel: "Stop-Loss Déclenché"
+            });
+          } else if (item.takeProfit && currentStock.price >= item.takeProfit) {
+            triggeredSales.push({
+              symbol: item.symbol,
+              shares: item.shares,
+              price: currentStock.price,
+              stopLossPrice: item.takeProfit,
+              alertLabel: "Take-Profit Déclenché"
+            });
+          } else if (item.trailingStopPct) {
+            const peak = item.peakPrice || item.avgBuyPrice || currentStock.price;
+            const threshold = peak * (1 - item.trailingStopPct / 100);
+            if (currentStock.price <= threshold) {
+              triggeredSales.push({
+                symbol: item.symbol,
+                shares: item.shares,
+                price: currentStock.price,
+                stopLossPrice: parseFloat(threshold.toFixed(2)),
+                alertLabel: "Trailing Stop Déclenché"
+              });
+            }
+          }
         }
       }
     });
@@ -524,13 +555,14 @@ export default function App() {
             // Create transaction
             const txId = Math.random().toString(36).substring(2, 9).toUpperCase();
             const dateStr = new Date().toLocaleString("fr-FR");
+            const label = sale.alertLabel || "Stop-Loss Déclenché";
             const stopLossTx = {
               id: txId,
               symbol: sale.symbol,
               type: 'SELL' as const,
               shares: sharesSold,
               price: sale.price,
-              date: `${dateStr} (Stop-Loss Déclenché)`
+              date: `${dateStr} (${label})`
             };
             newTransactions = [stopLossTx, ...newTransactions];
 
@@ -1626,7 +1658,15 @@ export default function App() {
   }, [profile.marketMode]);
 
   // Trade engine function
-  const handleTrade = (symbol: string, type: 'BUY' | 'SELL', shares: number, price: number, stopLoss?: number | null) => {
+  const handleTrade = (
+    symbol: string,
+    type: 'BUY' | 'SELL',
+    shares: number,
+    price: number,
+    stopLoss?: number | null,
+    takeProfit?: number | null,
+    trailingStopPct?: number | null
+  ) => {
     const totalCost = shares * price;
 
     setProfile((prev) => {
@@ -1643,14 +1683,20 @@ export default function App() {
             symbol,
             shares: combinedShares,
             avgBuyPrice: parseFloat(combinedAvgPrice.toFixed(2)),
-            stopLoss: stopLoss !== undefined ? (stopLoss || undefined) : item.stopLoss
+            stopLoss: stopLoss !== undefined ? (stopLoss || undefined) : item.stopLoss,
+            takeProfit: takeProfit !== undefined ? (takeProfit || undefined) : item.takeProfit,
+            trailingStopPct: trailingStopPct !== undefined ? (trailingStopPct || undefined) : item.trailingStopPct,
+            peakPrice: Math.max(item.peakPrice || price, price)
           };
         } else {
           updatedPortfolio.push({
             symbol,
             shares,
             avgBuyPrice: price,
-            stopLoss: stopLoss || undefined
+            stopLoss: stopLoss || undefined,
+            takeProfit: takeProfit || undefined,
+            trailingStopPct: trailingStopPct || undefined,
+            peakPrice: price
           });
         }
       } else {

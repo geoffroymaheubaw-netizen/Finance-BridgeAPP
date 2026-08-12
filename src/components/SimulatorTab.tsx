@@ -310,7 +310,7 @@ export function getTimeframeData(stock: Stock, tf: string): { prices: number[]; 
 interface SimulatorTabProps {
   stocks: Stock[];
   profile: UserProfile;
-  onTrade: (symbol: string, type: 'BUY' | 'SELL', shares: number, price: number, stopLoss?: number | null) => void;
+  onTrade: (symbol: string, type: 'BUY' | 'SELL', shares: number, price: number, stopLoss?: number | null, takeProfit?: number | null, trailingStopPct?: number | null) => void;
   onUpdateStopLoss: (symbol: string, stopLoss?: number | null) => void;
   lang: string;
   t: (key: string) => string;
@@ -365,9 +365,18 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
   
   // Stop-Loss inputs and switches
   const [useStopLoss, setUseStopLoss] = useState<boolean>(false);
+  const [stopLossPct, setStopLossPct] = useState<string>("10");
   const [stopLossValue, setStopLossValue] = useState<string>("");
-  const [stopLossPreset, setStopLossPreset] = useState<'5' | '10' | '15' | '20' | 'custom'>('10');
-  const [customPct, setCustomPct] = useState<number>(12); // Default to a custom 12% drop
+
+  // Take-Profit inputs and switches
+  const [useTakeProfit, setUseTakeProfit] = useState<boolean>(false);
+  const [takeProfitPct, setTakeProfitPct] = useState<string>("15");
+  const [takeProfitValue, setTakeProfitValue] = useState<string>("");
+
+  // Trailing-Stop inputs and switches
+  const [useTrailingStop, setUseTrailingStop] = useState<boolean>(false);
+  const [trailingStopPct, setTrailingStopPct] = useState<string>("5");
+
   const [editStopLossActive, setEditStopLossActive] = useState<boolean>(false);
   const [editStopLossValue, setEditStopLossValue] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -394,29 +403,55 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
 
   const selectedStock = stocks.find(s => s.symbol === selectedSymbol) || stocks[0];
 
-  // Dynamically calculate stop loss value based on selected preset or custom slide percentage
+  // Keep stopLossValue and takeProfitValue in sync when selected stock or price changes
   React.useEffect(() => {
     if (selectedStock) {
-      if (stopLossPreset !== 'custom') {
-        const pct = parseInt(stopLossPreset);
-        setStopLossValue((selectedStock.price * (1 - pct / 100)).toFixed(2));
-      } else {
-        setStopLossValue((selectedStock.price * (1 - customPct / 100)).toFixed(2));
-      }
+      const slPct = parseFloat(stopLossPct) || 10;
+      setStopLossValue((selectedStock.price * (1 - slPct / 100)).toFixed(2));
       setEditStopLossActive(false);
-    }
-  }, [selectedSymbol, stopLossPreset, customPct]);
 
-  // Handler for custom text entry to parse percentage and move customPct slider accordingly
+      const tpPct = parseFloat(takeProfitPct) || 15;
+      setTakeProfitValue((selectedStock.price * (1 + tpPct / 100)).toFixed(2));
+    }
+  }, [selectedSymbol, selectedStock.price]);
+
+  // Handler when user edits the Stop-Loss percentage input
+  const handleStopLossPctChange = (valStr: string) => {
+    setStopLossPct(valStr);
+    const pct = parseFloat(valStr);
+    if (!isNaN(pct) && pct > 0 && pct < 100 && selectedStock && selectedStock.price > 0) {
+      const calculatedPrice = selectedStock.price * (1 - pct / 100);
+      setStopLossValue(calculatedPrice.toFixed(2));
+    }
+  };
+
+  // Handler when user edits the Stop-Loss dollar amount input
   const handleStopLossInputChange = (valStr: string) => {
     setStopLossValue(valStr);
-    const parsed = parseFloat(valStr);
-    if (!isNaN(parsed) && parsed > 0 && selectedStock.price > 0 && parsed < selectedStock.price) {
-      const pctValue = ((selectedStock.price - parsed) / selectedStock.price) * 100;
-      setStopLossPreset('custom');
-      setCustomPct(Math.max(1, Math.min(90, parseFloat(pctValue.toFixed(1)))));
-    } else {
-      setStopLossPreset('custom');
+    const parsedPrice = parseFloat(valStr);
+    if (!isNaN(parsedPrice) && parsedPrice > 0 && selectedStock && selectedStock.price > 0 && parsedPrice < selectedStock.price) {
+      const calculatedPct = ((selectedStock.price - parsedPrice) / selectedStock.price) * 100;
+      setStopLossPct(calculatedPct.toFixed(1));
+    }
+  };
+
+  // Handler when user edits the Take-Profit percentage input
+  const handleTakeProfitPctChange = (valStr: string) => {
+    setTakeProfitPct(valStr);
+    const pct = parseFloat(valStr);
+    if (!isNaN(pct) && pct > 0 && selectedStock && selectedStock.price > 0) {
+      const calculatedPrice = selectedStock.price * (1 + pct / 100);
+      setTakeProfitValue(calculatedPrice.toFixed(2));
+    }
+  };
+
+  // Handler when user edits the Take-Profit dollar amount input
+  const handleTakeProfitInputChange = (valStr: string) => {
+    setTakeProfitValue(valStr);
+    const parsedPrice = parseFloat(valStr);
+    if (!isNaN(parsedPrice) && parsedPrice > 0 && selectedStock && selectedStock.price > 0 && parsedPrice > selectedStock.price) {
+      const calculatedPct = ((parsedPrice - selectedStock.price) / selectedStock.price) * 100;
+      setTakeProfitPct(calculatedPct.toFixed(1));
     }
   };
 
@@ -427,6 +462,36 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
   const [hoveredZoomPrice, setHoveredZoomPrice] = useState<{ price: number; index: number } | null>(null);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [dragStartX, setDragStartX] = useState<number>(0);
+
+  // Prevent page scroll when modal is open
+  React.useEffect(() => {
+    if (isZoomExpanded) {
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prevOverflow;
+      };
+    }
+  }, [isZoomExpanded]);
+
+  // Non-passive wheel event handlers for chart zooming without page/modal scrolling
+  const wheelZoomHandlerRef = React.useRef<((e: any) => void) | null>(null);
+
+  const bindNonPassiveZoomWheel = React.useCallback((node: HTMLElement | SVGSVGElement | null) => {
+    if (!node) return;
+    if ((node as any)._wheelListener) {
+      node.removeEventListener("wheel", (node as any)._wheelListener, true);
+    }
+    const listener = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (wheelZoomHandlerRef.current) {
+        wheelZoomHandlerRef.current(e);
+      }
+    };
+    (node as any)._wheelListener = listener;
+    node.addEventListener("wheel", listener, { passive: false, capture: true });
+  }, []);
 
   const position = profile.portfolio.find(p => p.symbol === selectedStock.symbol);
   const marketType = getStockMarket(selectedStock.symbol);
@@ -485,17 +550,49 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
   const parsedStopLossNum = parseFloat(stopLossValue);
   const isStopLossInvalid = useStopLoss && (isNaN(parsedStopLossNum) || parsedStopLossNum <= 0 || parsedStopLossNum >= selectedStock.price);
 
-  // Render SVG Sparkline
-  const renderSparkline = (history: number[], isPositive: boolean) => {
-    if (!history || history.length === 0) return null;
-    const min = Math.min(...history);
-    const max = Math.max(...history);
+  const parsedTakeProfitNum = parseFloat(takeProfitValue);
+  const isTakeProfitInvalid = useTakeProfit && (isNaN(parsedTakeProfitNum) || parsedTakeProfitNum <= selectedStock.price);
+
+  const parsedTrailingStopNum = parseFloat(trailingStopPct);
+  const isTrailingStopInvalid = useTrailingStop && (isNaN(parsedTrailingStopNum) || parsedTrailingStopNum <= 0 || parsedTrailingStopNum >= 100);
+
+  // Render SVG Sparkline (completes progressively throughout the trading day for 1D view)
+  const renderSparkline = (stockOrHistory: Stock | number[], isPositive: boolean) => {
+    let full1D: number[] = [];
+    let symbol = "";
+
+    if (Array.isArray(stockOrHistory)) {
+      full1D = stockOrHistory;
+    } else if (stockOrHistory) {
+      symbol = stockOrHistory.symbol;
+      full1D = getTimeframeData(stockOrHistory, "1J").prices;
+    }
+
+    if (!full1D || full1D.length === 0) return null;
+
+    const limitCount = symbol
+      ? get1DCurrentDayLimit(symbol, profile.marketMode || 'real', full1D.length)
+      : full1D.length;
+
+    const visibleHistory = full1D.slice(0, limitCount);
+    if (visibleHistory.length === 0) return null;
+
+    const min = Math.min(...full1D);
+    const max = Math.max(...full1D);
     const range = max - min || 1;
-    const points = history.map((val, idx) => {
-      const x = (idx / (history.length - 1)) * 60;
-      const y = 20 - ((val - min) / range) * 15;
-      return `${x},${y}`;
+    const totalPointsMinusOne = Math.max(1, full1D.length - 1);
+
+    const points = visibleHistory.map((val, idx) => {
+      const x = (idx / totalPointsMinusOne) * 60;
+      const y = 17 - ((val - min) / range) * 14;
+      return `${x.toFixed(2)},${y.toFixed(2)}`;
     }).join(" ");
+
+    const lastIdx = visibleHistory.length - 1;
+    const lastX = (lastIdx / totalPointsMinusOne) * 60;
+    const lastVal = visibleHistory[lastIdx];
+    const lastY = 17 - ((lastVal - min) / range) * 14;
+    const isSessionInProgress = symbol ? limitCount < full1D.length : false;
 
     return (
       <svg className="w-16 h-8 overflow-visible" viewBox="0 0 60 20">
@@ -503,8 +600,19 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
           fill="none"
           stroke={isPositive ? "#10b981" : "#f43f5e"}
           strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
           points={points}
         />
+        {isSessionInProgress && (
+          <circle
+            cx={lastX.toFixed(2)}
+            cy={lastY.toFixed(2)}
+            r="2"
+            fill={isPositive ? "#10b981" : "#f43f5e"}
+            className="animate-pulse"
+          />
+        )}
       </svg>
     );
   };
@@ -600,7 +708,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
       const liveYComp = height - padBottom - ((compLatestPerf - min) / range) * chartHeight;
 
       return (
-        <div className="relative">
+        <div className="relative overscroll-contain">
           {/* Statistical Header to maximize data precision */}
           <div className="flex flex-wrap items-center justify-between text-[10px] sm:text-[11px] font-mono text-slate-500 bg-slate-50/70 border border-slate-200/30 px-3 py-1.5 rounded-xl mb-2.5">
             <div className="flex gap-4">
@@ -1035,7 +1143,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
           )}
         </div>
 
-        <div className="relative w-full overflow-visible">
+        <div className="relative w-full overflow-visible overscroll-contain">
           <ChartAnalysisOverlay
             symbol={selectedStock.symbol}
             timeframe={timeframe}
@@ -1518,10 +1626,10 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
     if (N === 0) return null;
 
     // Calculate dimensions
-    const width = 800;
-    const height = 340;
-    const padLeft = 14;
-    const padRight = 65; // dedicated space for vertical prices
+    const width = 1600;
+    const height = 520;
+    const padLeft = 16;
+    const padRight = 75; // dedicated space for vertical prices
     const padTop = 20;
     const padBottom = 25;
 
@@ -1550,27 +1658,35 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
     const handleWheelZoom = (e: React.WheelEvent<SVGSVGElement>) => {
       e.preventDefault();
       const direction = e.deltaY < 0 ? 1 : -1;
-      const targetZoom = Math.max(1, Math.min(10, zoomLevel + direction * 0.5));
-      if (targetZoom === zoomLevel) return;
+      const zoomStep = direction > 0 ? 1.2 : 0.8333;
+      const targetZoom = Math.max(1, Math.min(20, parseFloat((zoomLevel * zoomStep).toFixed(2))));
+      if (Math.abs(targetZoom - zoomLevel) < 0.01) return;
 
       const rect = e.currentTarget.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const svgX = (mouseX / (rect.width || 1)) * width;
       const ratio = Math.max(0, Math.min(1, (svgX - padLeft) / chartWidth));
 
-      const currIndexUnderCursor = startIndex + ratio * (visibleCount - 1);
+      // Compute exact index under mouse pointer
+      const pointsInView = Math.max(1, prices.length - 1);
+      const currIndexUnderCursor = startIndex + ratio * pointsInView;
 
       const nextVisibleCount = Math.max(5, Math.ceil(N / targetZoom));
       const nextMaxStartIndex = Math.max(0, N - nextVisibleCount);
-      
-      const targetStartIndex = currIndexUnderCursor - ratio * (nextVisibleCount - 1);
-      const clampedStartIndex = Math.max(0, Math.min(nextMaxStartIndex, targetStartIndex));
+      const nextEffectiveMaxStart = (timeframe === "1J" && limitCount < N)
+        ? Math.max(0, Math.min(nextMaxStartIndex, limitCount - Math.min(nextVisibleCount, limitCount)))
+        : nextMaxStartIndex;
 
-      const nextPanOffsetPercent = nextMaxStartIndex > 0 ? (clampedStartIndex / nextMaxStartIndex) * 100 : 50;
+      const nextPointsInView = Math.max(1, nextVisibleCount - 1);
+      const targetStartIndex = currIndexUnderCursor - ratio * nextPointsInView;
+      const clampedStartIndex = Math.max(0, Math.min(nextEffectiveMaxStart, targetStartIndex));
+
+      const nextPanOffsetPercent = nextEffectiveMaxStart > 0 ? (clampedStartIndex / nextEffectiveMaxStart) * 100 : 100;
 
       setZoomLevel(targetZoom);
       setPanOffsetPercent(Math.max(0, Math.min(100, nextPanOffsetPercent)));
     };
+    wheelZoomHandlerRef.current = handleWheelZoom;
 
     // Filter comparisons if active
     const comparisonStock = compareSymbol ? stocks.find(s => s.symbol === compareSymbol) : null;
@@ -1663,7 +1779,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
       };
 
       return (
-        <div className="relative select-none flex flex-col gap-2 w-full">
+        <div className="relative select-none flex flex-col gap-2 w-full overscroll-contain" ref={bindNonPassiveZoomWheel}>
           {/* Zoom stats header */}
           <div className="flex flex-wrap items-center justify-between text-xs font-mono bg-slate-905 bg-slate-900 text-slate-100 px-4 py-2 rounded-xl mb-1 shadow-sm">
             <div className="flex gap-4">
@@ -1679,13 +1795,13 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
 
           {/* SVG Canvas */}
           <svg 
-            className="w-full h-72 sm:h-80 bg-slate-50 border border-slate-200 rounded-2xl overflow-visible cursor-grab active:cursor-grabbing shadow-xs" 
+            className="w-full h-[360px] sm:h-[420px] lg:h-[480px] bg-slate-50 border border-slate-200 rounded-2xl overflow-visible cursor-grab active:cursor-grabbing shadow-xs" 
             viewBox={`0 0 ${width} ${height}`}
             onMouseDown={handleSvgMouseDown}
             onMouseMove={handleSvgMouseMove}
             onMouseUp={() => setIsDragging(false)}
             onMouseLeave={() => { setIsDragging(false); setHoveredZoomPrice(null); }}
-            onWheel={handleWheelZoom}
+            ref={bindNonPassiveZoomWheel}
           >
             <defs>
               <linearGradient id="zoomPrimGlow" x1="0" y1="0" x2="0" y2="1">
@@ -1959,20 +2075,20 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
         </div>
 
         {/* Canvas & Analysis Overlay Container */}
-        <div className="relative w-full overflow-visible">
+        <div className="relative w-full overflow-visible overscroll-contain" ref={bindNonPassiveZoomWheel}>
           <ChartAnalysisOverlay
             symbol={selectedStock.symbol}
             timeframe={timeframe}
             bounds={chartViewportBounds}
           />
           <svg 
-            className="w-full h-72 sm:h-80 bg-slate-50 border border-slate-200 rounded-2xl overflow-visible cursor-grab active:cursor-grabbing shadow-xs" 
+            className="w-full h-[360px] sm:h-[420px] lg:h-[480px] bg-slate-50 border border-slate-200 rounded-2xl overflow-visible cursor-grab active:cursor-grabbing shadow-xs" 
             viewBox={`0 0 ${width} ${height}`}
             onMouseDown={handleSvgMouseDown}
             onMouseMove={handleSvgMouseMove}
             onMouseUp={() => setIsDragging(false)}
             onMouseLeave={() => { setIsDragging(false); setHoveredZoomPrice(null); }}
-            onWheel={handleWheelZoom}
+            ref={bindNonPassiveZoomWheel}
           >
           <defs>
             <linearGradient id="zoomChartGlow" x1="0" y1="0" x2="0" y2="1">
@@ -2257,7 +2373,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
   const handleOrderSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (tradeShares <= 0) return;
-    if (tradeType === 'BUY' && (!isAffordable || isStopLossInvalid)) return;
+    if (tradeType === 'BUY' && (!isAffordable || isStopLossInvalid || isTakeProfitInvalid || isTrailingStopInvalid)) return;
     if (tradeType === 'SELL' && !hasSharesToSell) return;
 
     let finalStopLoss: number | null = null;
@@ -2270,9 +2386,31 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
       }
     }
 
-    onTrade(selectedStock.symbol, tradeType, tradeShares, selectedStock.price, finalStopLoss);
+    let finalTakeProfit: number | null = null;
+    if (tradeType === 'BUY' && useTakeProfit) {
+      const parsed = parseFloat(takeProfitValue);
+      if (!isNaN(parsed) && parsed > selectedStock.price) {
+        finalTakeProfit = parseFloat(parsed.toFixed(2));
+      } else {
+        return;
+      }
+    }
+
+    let finalTrailingStop: number | null = null;
+    if (tradeType === 'BUY' && useTrailingStop) {
+      const parsed = parseFloat(trailingStopPct);
+      if (!isNaN(parsed) && parsed > 0 && parsed < 100) {
+        finalTrailingStop = parseFloat(parsed.toFixed(2));
+      } else {
+        return;
+      }
+    }
+
+    onTrade(selectedStock.symbol, tradeType, tradeShares, selectedStock.price, finalStopLoss, finalTakeProfit, finalTrailingStop);
     setTradeShares(1);
     setUseStopLoss(false);
+    setUseTakeProfit(false);
+    setUseTrailingStop(false);
   };
 
   return (
@@ -2353,12 +2491,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
 
                   {/* Micro sparkline */}
                   <div className="hidden sm:block">
-                    {(() => {
-                      const cardHistory = (stock.histories?.["1J"] && stock.histories["1J"].length > 0)
-                        ? stock.histories["1J"]
-                        : stock.history;
-                      return renderSparkline(cardHistory, isPos);
-                    })()}
+                    {renderSparkline(stock, isPos)}
                   </div>
 
                   <div className="text-right space-y-0.5">
@@ -2429,6 +2562,11 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                       <p className="text-[10px] text-slate-500 truncate w-24 dark:text-slate-400">
                         {stock.name}
                       </p>
+                    </div>
+
+                    {/* Micro sparkline */}
+                    <div className="hidden sm:block">
+                      {renderSparkline(stock, isPos)}
                     </div>
 
                     <div className="flex items-center gap-1.5">
@@ -2521,6 +2659,240 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             </div>
             <div className="flex-shrink-0">
               <StockPriceBadgeWidget symbol={selectedStock.symbol} price={selectedStock.price} change={selectedStock.change} />
+            </div>
+          </div>
+
+          {/* BANDE D'ACHAT ET VENTE RAPIDE EN HAUT DU GRAPHIQUE */}
+          <div className="bg-slate-900 dark:bg-slate-950 text-white rounded-2xl p-3 sm:p-4 shadow-md flex flex-wrap items-center justify-between gap-3 border border-slate-800 my-4">
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* Quantité */}
+              <div className="flex items-center gap-1.5 bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-700/60">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Quantité:</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={tradeShares}
+                  onChange={(e) => setTradeShares(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-16 bg-slate-900 text-white font-mono font-bold text-xs text-center border border-slate-700 rounded-lg py-1 outline-none focus:border-indigo-400"
+                />
+              </div>
+
+              {/* Stop-Loss Option */}
+              <div className="flex flex-wrap items-center gap-2 bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-700/60">
+                <label className="text-[11px] font-bold text-slate-200 flex items-center gap-1.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={useStopLoss}
+                    onChange={(e) => setUseStopLoss(e.target.checked)}
+                    className="rounded-sm border-slate-600 text-indigo-500 focus:ring-indigo-500 accent-indigo-500 w-3.5 h-3.5 cursor-pointer"
+                  />
+                  <span>Stop-Loss 🛡️</span>
+                </label>
+
+                {useStopLoss && (
+                  <div className="flex flex-wrap items-center gap-2 pl-2 border-l border-slate-700/80">
+                    {/* Exact % input */}
+                    <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1">
+                      <span className="text-[10px] font-bold text-slate-400">-%</span>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0.1"
+                        max="99"
+                        value={stopLossPct}
+                        onChange={(e) => handleStopLossPctChange(e.target.value)}
+                        className="w-12 bg-transparent text-white font-mono font-bold text-xs text-center outline-none"
+                        placeholder="10"
+                        title="Pourcentage de baisse (%)"
+                      />
+                    </div>
+
+                    <span className="text-slate-500 text-[11px] font-bold">ou</span>
+
+                    {/* Exact $ input */}
+                    <div className={`flex items-center gap-1 bg-slate-900 border ${isStopLossInvalid ? "border-rose-500" : "border-slate-700"} rounded-lg px-2 py-1`}>
+                      <span className="text-[10px] font-bold text-slate-400">$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        max={(selectedStock.price - 0.01).toFixed(2)}
+                        value={stopLossValue}
+                        onChange={(e) => handleStopLossInputChange(e.target.value)}
+                        className="w-16 bg-transparent text-white font-mono font-bold text-xs text-center outline-none"
+                        placeholder="Prix $"
+                        title="Prix d'exécution exact du Stop-Loss en $"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Take-Profit Option */}
+              <div className="flex flex-wrap items-center gap-2 bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-700/60">
+                <label className="text-[11px] font-bold text-slate-200 flex items-center gap-1.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={useTakeProfit}
+                    onChange={(e) => setUseTakeProfit(e.target.checked)}
+                    className="rounded-sm border-slate-600 text-emerald-500 focus:ring-emerald-500 accent-emerald-500 w-3.5 h-3.5 cursor-pointer"
+                  />
+                  <span>Take-Profit 🎯</span>
+                </label>
+
+                {useTakeProfit && (
+                  <div className="flex flex-wrap items-center gap-2 pl-2 border-l border-slate-700/80">
+                    {/* Exact % input */}
+                    <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1">
+                      <span className="text-[10px] font-bold text-emerald-400">+%</span>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0.1"
+                        max="500"
+                        value={takeProfitPct}
+                        onChange={(e) => handleTakeProfitPctChange(e.target.value)}
+                        className="w-12 bg-transparent text-white font-mono font-bold text-xs text-center outline-none"
+                        placeholder="15"
+                        title="Pourcentage de hausse (%)"
+                      />
+                    </div>
+
+                    <span className="text-slate-500 text-[11px] font-bold">ou</span>
+
+                    {/* Exact $ input */}
+                    <div className={`flex items-center gap-1 bg-slate-900 border ${isTakeProfitInvalid ? "border-rose-500" : "border-slate-700"} rounded-lg px-2 py-1`}>
+                      <span className="text-[10px] font-bold text-slate-400">$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min={(selectedStock.price + 0.01).toFixed(2)}
+                        value={takeProfitValue}
+                        onChange={(e) => handleTakeProfitInputChange(e.target.value)}
+                        className="w-16 bg-transparent text-white font-mono font-bold text-xs text-center outline-none"
+                        placeholder="Prix $"
+                        title="Prix d'exécution exact du Take-Profit en $"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Trailing-Stop Option */}
+              <div className="flex flex-wrap items-center gap-2 bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-700/60">
+                <label className="text-[11px] font-bold text-slate-200 flex items-center gap-1.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={useTrailingStop}
+                    onChange={(e) => setUseTrailingStop(e.target.checked)}
+                    className="rounded-sm border-slate-600 text-amber-500 focus:ring-amber-500 accent-amber-500 w-3.5 h-3.5 cursor-pointer"
+                  />
+                  <span>Trailing Stop 📈</span>
+                </label>
+
+                {useTrailingStop && (
+                  <div className="flex flex-wrap items-center gap-2 pl-2 border-l border-slate-700/80">
+                    <div className={`flex items-center gap-1 bg-slate-900 border ${isTrailingStopInvalid ? "border-rose-500" : "border-slate-700"} rounded-lg px-2 py-1`}>
+                      <span className="text-[10px] font-bold text-amber-400">-%</span>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0.1"
+                        max="99"
+                        value={trailingStopPct}
+                        onChange={(e) => setTrailingStopPct(e.target.value)}
+                        className="w-12 bg-transparent text-white font-mono font-bold text-xs text-center outline-none"
+                        placeholder="5"
+                        title="Distance de suivi (%)"
+                      />
+                    </div>
+                    <span className="text-[10px] font-mono font-bold text-amber-300" title="Seuil de déclenchement initial">
+                      ({(selectedStock.price * (1 - (parseFloat(trailingStopPct) || 5) / 100)).toFixed(2)} $)
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Position badge */}
+              {position && position.shares > 0 && (
+                <div className="text-xs font-semibold text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Possédé:</span>
+                  <strong className="font-mono">{position.shares} action{position.shares > 1 ? 's' : ''}</strong>
+                </div>
+              )}
+            </div>
+
+            {/* Quick Buy & Sell Buttons */}
+            <div className="flex items-center gap-2.5 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  setTradeType('BUY');
+                  let finalStopLoss: number | null = null;
+                  if (useStopLoss) {
+                    const parsed = parseFloat(stopLossValue);
+                    if (!isNaN(parsed) && parsed > 0 && parsed < selectedStock.price) {
+                      finalStopLoss = parseFloat(parsed.toFixed(2));
+                    }
+                  }
+                  let finalTakeProfit: number | null = null;
+                  if (useTakeProfit) {
+                    const parsed = parseFloat(takeProfitValue);
+                    if (!isNaN(parsed) && parsed > selectedStock.price) {
+                      finalTakeProfit = parseFloat(parsed.toFixed(2));
+                    }
+                  }
+                  let finalTrailingStop: number | null = null;
+                  if (useTrailingStop) {
+                    const parsed = parseFloat(trailingStopPct);
+                    if (!isNaN(parsed) && parsed > 0 && parsed < 100) {
+                      finalTrailingStop = parseFloat(parsed.toFixed(2));
+                    }
+                  }
+                  onTrade(selectedStock.symbol, 'BUY', tradeShares, selectedStock.price, finalStopLoss, finalTakeProfit, finalTrailingStop);
+                }}
+                disabled={!isAffordable || (useStopLoss && isStopLossInvalid) || (useTakeProfit && isTakeProfitInvalid) || (useTrailingStop && isTrailingStopInvalid)}
+                className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-500 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-lg shadow-emerald-900/40 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                title={
+                  !isAffordable 
+                    ? "Solde insuffisant" 
+                    : isStopLossInvalid 
+                    ? "Le prix de Stop-Loss est invalide" 
+                    : isTakeProfitInvalid
+                    ? "Le prix de Take-Profit est invalide"
+                    : isTrailingStopInvalid
+                    ? "L'écart du Trailing Stop est invalide"
+                    : `Acheter ${tradeShares} action(s) à ${selectedStock.price.toFixed(2)} $${useStopLoss ? ` (Stop-loss: ${stopLossValue} $)` : ''}${useTakeProfit ? ` (Take-profit: ${takeProfitValue} $)` : ''}${useTrailingStop ? ` (Trailing stop: -${trailingStopPct}%)` : ''}`
+                }
+              >
+                <ArrowUpRight className="w-4 h-4" />
+                <span>ACHETER</span>
+                <span className="font-mono text-[11px] font-bold opacity-90">({(selectedStock.price * tradeShares).toFixed(2)} $)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setTradeType('SELL');
+                  onTrade(selectedStock.symbol, 'SELL', tradeShares, selectedStock.price, null);
+                }}
+                disabled={!hasSharesToSell}
+                className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm bg-rose-600 hover:bg-rose-500 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-lg shadow-rose-900/40 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                title={!hasSharesToSell ? "Actions insuffisantes" : `Vendre ${tradeShares} action(s) à ${selectedStock.price.toFixed(2)} $`}
+              >
+                <ArrowDownRight className="w-4 h-4" />
+                <span>VENDRE</span>
+                <span className="font-mono text-[11px] font-bold opacity-90">({(selectedStock.price * tradeShares).toFixed(2)} $)</span>
+              </button>
+
+              <a
+                href="#transaction-desk-grid"
+                className="hidden lg:flex p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition text-xs font-bold items-center gap-1 cursor-pointer"
+                title="Options d'ordre avancées (Stop-loss, Carnet d'ordres)"
+              >
+                <span>⚙️</span>
+              </a>
             </div>
           </div>
 
@@ -2642,11 +3014,10 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                 setZoomLevel(1);
                 setPanOffsetPercent(100);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs bg-indigo-50 text-indigo-700 hover:bg-slate-900 hover:text-white transition-all duration-200 border border-indigo-100/60 shadow-xs cursor-pointer"
-              title="Agrandir le graphique et zoomer interactivement"
+              className="p-2 rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-600 hover:text-white transition-all duration-200 border border-indigo-100/60 shadow-xs cursor-pointer flex items-center justify-center"
+              title="Gros plan & Zoom 🔍 (Agrandir le graphique)"
             >
-              <Maximize2 className="w-3.5 h-3.5 text-indigo-500 hover:text-white" />
-              <span>Gros plan & Zoom 🔍</span>
+              <Maximize2 className="w-4 h-4" />
             </button>
           </div>
           
@@ -2867,253 +3238,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
           const spreadPct = parseFloat(((spreadAmount / basePrice) * 100).toFixed(3));
 
           return (
-            <div id="transaction-desk-grid" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 relative">
-              {/* Order Desk */}
-              <div className="bg-white border border-slate-100 dark:border-slate-800 dark:bg-slate-900 rounded-2xl p-5 shadow-xs">
-                <h4 className="font-bold text-slate-800 dark:text-white text-base mb-3 flex items-center gap-1.5">
-                  <DollarSign className="w-4.5 h-4.5 text-emerald-600" />
-                  {t("orderDesk")}
-                </h4>
-                <div className="flex gap-2 border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">
-                  <button
-                    type="button"
-                    onClick={() => setTradeType('BUY')}
-                    className={`flex-1 py-1.5 rounded-lg font-bold text-xs transition cursor-pointer ${
-                      tradeType === 'BUY'
-                        ? "bg-emerald-500 text-white shadow-xs"
-                        : "bg-slate-50 text-slate-500 dark:bg-slate-850 dark:text-slate-400 hover:bg-slate-100"
-                    }`}
-                  >
-                    {t("buy")} ({selectedStock.symbol})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTradeType('SELL')}
-                    className={`flex-1 py-1.5 rounded-lg font-bold text-xs transition cursor-pointer ${
-                      tradeType === 'SELL'
-                        ? "bg-rose-500 text-white shadow-xs"
-                        : "bg-slate-50 text-slate-500 dark:bg-slate-850 dark:text-slate-400 hover:bg-slate-100"
-                    }`}
-                  >
-                    {t("sell")} ({selectedStock.symbol})
-                  </button>
-                </div>
-
-                <form onSubmit={handleOrderSubmit} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs text-slate-500">
-                      <label htmlFor="shares-input" className="font-semibold">{t("sharesCount")}</label>
-                      <span>{t("cashBalance")} : <strong className="text-slate-800 dark:text-slate-200">{profile.cash.toLocaleString(lang === 'zh' ? 'zh-CN' : 'fr-FR', { maximumFractionDigits: 2 })} $</strong></span>
-                    </div>
-                    <input
-                      id="shares-input"
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={tradeShares}
-                      onChange={(e) => setTradeShares(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-full border border-slate-200 dark:border-slate-800 dark:bg-slate-950 dark:text-white outline-hidden focus:border-indigo-500 bg-slate-50/50 p-2.5 rounded-xl text-sm font-bold font-mono"
-                    />
-                  </div>
-
-                  {tradeType === 'BUY' && (
-                    <div className="bg-slate-50 dark:bg-slate-950/60 p-4 rounded-xl border border-slate-100 dark:border-slate-805 space-y-3.5">
-                      <div className="flex items-center justify-between">
-                        <label htmlFor="stop-loss-toggle" className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2 cursor-pointer">
-                          <input
-                            id="stop-loss-toggle"
-                            type="checkbox"
-                            checked={useStopLoss}
-                            onChange={(e) => setUseStopLoss(e.target.checked)}
-                            className="rounded-sm border-slate-300 text-indigo-600 focus:ring-indigo-500 accent-indigo-600 w-4 h-4 cursor-pointer"
-                          />
-                          Activer un Stop-Loss protecteur
-                        </label>
-                      </div>
-
-                      {useStopLoss && (
-                        <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800/60">
-                          {/* Presets choice */}
-                          <div className="space-y-1.5">
-                            <span className="text-[11px] font-bold text-slate-500 block">Choisissez la perte maximale tolérée :</span>
-                            <div className="grid grid-cols-5 gap-1">
-                              {(['5', '10', '15', '20'] as const).map((pct) => (
-                                <button
-                                  key={pct}
-                                  type="button"
-                                  onClick={() => setStopLossPreset(pct)}
-                                  className={`py-1.5 rounded-lg text-xs font-bold font-mono transition cursor-pointer border ${
-                                    stopLossPreset === pct
-                                      ? "bg-slate-900 border-slate-950 text-white dark:bg-indigo-600 dark:border-indigo-600"
-                                      : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-800 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800/40"
-                                  }`}
-                                >
-                                  -{pct}%
-                                </button>
-                              ))}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setStopLossPreset('custom');
-                                  // Pre-fill slider percentage to current drop if visible
-                                  const val = parseFloat(stopLossValue);
-                                  if (!isNaN(val) && val > 0 && selectedStock.price > 0 && val < selectedStock.price) {
-                                    const calculated = ((selectedStock.price - val) / selectedStock.price) * 100;
-                                    setCustomPct(Math.max(1, Math.min(90, parseFloat(calculated.toFixed(1)))));
-                                  }
-                                }}
-                                className={`py-1.5 rounded-lg text-[10px] font-bold transition cursor-pointer border ${
-                                  stopLossPreset === 'custom'
-                                    ? "bg-indigo-600 border-indigo-700 text-white"
-                                    : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400"
-                                }`}
-                              >
-                                Perso
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Manual / Range sliders */}
-                          <div className="space-y-3 bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 p-3 rounded-xl">
-                            <div className="flex justify-between items-center text-[11px]">
-                              <span className="font-semibold text-slate-500">
-                                {stopLossPreset === 'custom' ? "💥 Seuil personnalisé" : "🛡️ Seuil sélectionné"}
-                              </span>
-                              {(() => {
-                                const val = parseFloat(stopLossValue);
-                                if (!isNaN(val) && val > 0 && selectedStock.price > 0) {
-                                  const pct = ((selectedStock.price - val) / selectedStock.price) * 100;
-                                  return (
-                                    <span className="text-rose-600 font-extrabold font-mono text-[11px]">
-                                      Baisse de -{pct.toFixed(pct % 1 === 0 ? 0 : 1)}%
-                                    </span>
-                                  );
-                                }
-                                return null;
-                              })()}
-                            </div>
-
-                            {/* Custom Percentage Slider */}
-                            <div className="space-y-1">
-                              <div className="flex justify-between text-[10px] text-slate-400 font-medium">
-                                <span>Ajuster % de baisse</span>
-                                <span className="font-mono font-bold text-slate-600 dark:text-slate-350">-{stopLossPreset === 'custom' ? customPct.toFixed(1) : stopLossPreset}%</span>
-                              </div>
-                              <input
-                                type="range"
-                                min="1"
-                                max="75"
-                                step="0.5"
-                                value={stopLossPreset === 'custom' ? customPct : parseInt(stopLossPreset)}
-                                onChange={(e) => {
-                                  const sliderVal = parseFloat(e.target.value);
-                                  setStopLossPreset('custom');
-                                  setCustomPct(sliderVal);
-                                }}
-                                className="w-full h-1.5 bg-slate-105 dark:bg-slate-800 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-indigo-600 focus:outline-hidden"
-                              />
-                            </div>
-
-                            {/* Custom Price Output & Precise input */}
-                            <div className="space-y-1">
-                              <label htmlFor="stop-loss-input" className="text-[10px] text-slate-400 block font-medium">
-                                Ou saisissez le prix exact ($) :
-                              </label>
-                              <div className="relative">
-                                <input
-                                  id="stop-loss-input"
-                                  type="number"
-                                  min="0.01"
-                                  max={(selectedStock.price - 0.01).toFixed(2)}
-                                  step="0.01"
-                                  value={stopLossValue}
-                                  onChange={(e) => handleStopLossInputChange(e.target.value)}
-                                  className="w-full border border-slate-200 dark:border-slate-800 bg-slate-50/40 p-2 rounded-xl text-xs font-mono font-extrabold outline-hidden focus:border-indigo-500 focus:bg-white dark:bg-slate-950"
-                                  placeholder={`${(selectedStock.price * 0.90).toFixed(2)}`}
-                                />
-                                <span className="absolute right-3 top-2 text-[10px] text-slate-400 font-mono font-bold">USD</span>
-                              </div>
-                            </div>
-
-                            {isStopLossInvalid && (() => {
-                              const val = parseFloat(stopLossValue);
-                              if (!isNaN(val) && val >= selectedStock.price) {
-                                return (
-                                  <div className="text-[10px] text-rose-700 font-semibold bg-rose-50 p-2 rounded-lg leading-normal border border-rose-100 pl-2.5">
-                                    ⚠️ Le prix de Stop-Loss doit être strictement inférieur au cours d'achat de l'action ({selectedStock.price.toFixed(2)} $).
-                                  </div>
-                                );
-                              }
-                              if (!isNaN(val) && val <= 0) {
-                                return (
-                                  <div className="text-[10px] text-rose-700 font-semibold bg-rose-50 p-2 rounded-lg leading-normal border border-rose-100 pl-2.5">
-                                    ⚠️ Le seuil doit être supérieur à zéro.
-                                  </div>
-                                );
-                              }
-                              return null;
-                            })()}
-                          </div>
-
-                          <p className="text-[10px] text-slate-400 leading-normal">
-                            Si le cours descend sous votre seuil protecteur choisi de <strong>{stopLossValue} $</strong>, les actions de <strong>{selectedStock.symbol}</strong> seront vendues instantanément pour sécuriser votre investissement.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="bg-slate-50 dark:bg-slate-950/60 p-3 rounded-xl space-y-1.5 text-xs">
-                    <div className="flex justify-between text-slate-400">
-                      <span>Prix unitaire :</span>
-                      <span className="font-bold text-slate-705 dark:text-slate-200 font-mono">{selectedStock.price.toFixed(2)} $</span>
-                    </div>
-                    <div className="flex justify-between text-slate-400">
-                      <span>Estimation totale :</span>
-                      <span className="font-extrabold text-slate-800 dark:text-slate-100 font-mono">{estimatedCost.toFixed(2)} $</span>
-                    </div>
-                    {tradeType === 'BUY' && (
-                      <div className="flex justify-between items-center text-[10px] pt-1.5 border-t border-slate-100 dark:border-slate-800">
-                        <span className="font-semibold text-slate-400">Restant post-achat :</span>
-                        <span className={`font-mono font-bold ${isAffordable ? "text-emerald-600" : "text-rose-500"}`}>
-                          {(profile.cash - estimatedCost).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} $
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Status prompt details */}
-                  {tradeType === 'BUY' && !isAffordable && (
-                    <div className="bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400 p-2.5 rounded-lg text-[11px] font-semibold">
-                      Solde insuffisant pour couvrir cette transaction boursière.
-                    </div>
-                  )}
-                  {tradeType === 'SELL' && !hasSharesToSell && (
-                    <div className="bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400 p-2.5 rounded-lg text-[11px] font-semibold">
-                      Vous ne possédez pas autant d'actions {selectedStock.symbol} (Possédé : {position?.shares || 0}).
-                    </div>
-                  )}
-
-                  {profile.marketMode !== "continuous" && !isStockMarketOpen && (
-                    <div className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 p-3 rounded-xl text-[11px] font-semibold leading-relaxed">
-                      ⚠️ Le marché sous-jacent est actuellement fermé (cours gelé). Pour vous entraîner hors session, votre ordre virtuel est exécuté immédiatement au dernier cours connu.
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={tradeType === 'BUY' ? (!isAffordable || isStopLossInvalid) : !hasSharesToSell}
-                    className={`w-full py-3 rounded-xl font-bold text-sm text-white cursor-pointer transition shadow-xs ${
-                      tradeType === 'BUY'
-                        ? "bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
-                        : "bg-rose-600 hover:bg-rose-700 disabled:opacity-50"
-                    }`}
-                  >
-                    Valider l'Ordre Fictif
-                  </button>
-                </form>
-              </div>
-
+            <div id="transaction-desk-grid" className="grid grid-cols-1 md:grid-cols-2 gap-6 relative">
               {/* Live Order Book with Guided Learning */}
               <div className="bg-white border border-slate-100 dark:border-slate-800 dark:bg-slate-900 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
                 <div>
@@ -3638,8 +3763,8 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
 
       {/* MODAL ZOOM ULTRA-HAUTE PRÉCISION ET GROS PLAN */}
       {isZoomExpanded && (
-        <div className="fixed inset-0 bg-slate-900/75 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-5xl w-full p-4 sm:p-6 flex flex-col gap-4 animate-scale-up max-h-[95vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[9999] flex flex-col w-screen h-screen p-2 sm:p-4 overflow-hidden animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full h-full p-4 sm:p-6 flex flex-col gap-3 justify-between overflow-y-auto overscroll-contain">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2.5">
@@ -3655,17 +3780,49 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsZoomExpanded(false);
-                  setHoveredZoomPrice(null);
-                }}
-                className="p-1.5 hover:bg-slate-100 rounded-full transition text-slate-400 hover:text-slate-700 cursor-pointer"
-                title="Fermer le plein écran"
-              >
-                <Minimize2 className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-3">
+                <div className="hidden sm:flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTradeType('BUY');
+                      onTrade(selectedStock.symbol, 'BUY', tradeShares, selectedStock.price, null);
+                    }}
+                    disabled={!isAffordable}
+                    className="px-4 py-2 rounded-xl font-black text-xs bg-emerald-600 hover:bg-emerald-500 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <ArrowUpRight className="w-3.5 h-3.5" />
+                    <span>ACHETER</span>
+                    <span className="font-mono text-[10px]">({selectedStock.price.toFixed(2)} $)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTradeType('SELL');
+                      onTrade(selectedStock.symbol, 'SELL', tradeShares, selectedStock.price, null);
+                    }}
+                    disabled={!hasSharesToSell}
+                    className="px-4 py-2 rounded-xl font-black text-xs bg-rose-600 hover:bg-rose-500 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <ArrowDownRight className="w-3.5 h-3.5" />
+                    <span>VENDRE</span>
+                    <span className="font-mono text-[10px]">({selectedStock.price.toFixed(2)} $)</span>
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsZoomExpanded(false);
+                    setHoveredZoomPrice(null);
+                  }}
+                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer ml-1"
+                  title="Fermer le plein écran"
+                >
+                  <Minimize2 className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Bande de sélection de Période / Timeframe & Options du graphe dans le mode Zoom */}
@@ -3800,7 +3957,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                   <input
                     type="range"
                     min="1"
-                    max="10"
+                    max="20"
                     step="0.1"
                     value={zoomLevel}
                     onChange={(e) => setZoomLevel(parseFloat(e.target.value))}
@@ -3808,8 +3965,8 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                   />
                   <button
                     type="button"
-                    disabled={zoomLevel >= 10}
-                    onClick={() => setZoomLevel(prev => Math.min(10, prev + 0.5))}
+                    disabled={zoomLevel >= 20}
+                    onClick={() => setZoomLevel(prev => Math.min(20, prev + 0.5))}
                     className="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition cursor-pointer disabled:opacity-40"
                     title="Zoom avant"
                   >
