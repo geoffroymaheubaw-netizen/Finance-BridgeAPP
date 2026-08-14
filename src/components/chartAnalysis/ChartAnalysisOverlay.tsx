@@ -23,6 +23,9 @@ interface ChartAnalysisOverlayProps {
   bounds: ChartViewportBounds;
   isPanActive?: boolean;
   onPanStateChange?: (active: boolean) => void;
+  isZoomedModal?: boolean;
+  containerWheelRef?: (node: HTMLElement | null) => void;
+  children?: React.ReactNode;
 }
 
 export const ChartAnalysisOverlay: React.FC<ChartAnalysisOverlayProps> = ({
@@ -31,6 +34,9 @@ export const ChartAnalysisOverlay: React.FC<ChartAnalysisOverlayProps> = ({
   bounds,
   isPanActive,
   onPanStateChange,
+  isZoomedModal = false,
+  containerWheelRef,
+  children,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -399,9 +405,205 @@ export const ChartAnalysisOverlay: React.FC<ChartAnalysisOverlayProps> = ({
 
   const selectedShapeObj = selectedId ? drawingManagerRef.current.getShapeById(selectedId) : null;
 
+  const renderToolbar = (isExternal = false) => (
+    <ChartToolbar
+      isExternal={isExternal}
+      activeTool={activeTool}
+      onSelectTool={handleSelectTool}
+      activeColor={activeColor}
+      onChangeColor={(color) => {
+        setActiveColor(color);
+        const getFillFromColor = (c: string) => {
+          if (c.startsWith('#') && c.length === 7) {
+            const r = parseInt(c.slice(1, 3), 16);
+            const g = parseInt(c.slice(3, 5), 16);
+            const b = parseInt(c.slice(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, 0.18)`;
+          }
+          return 'rgba(59, 130, 246, 0.15)';
+        };
+        const patch = { strokeColor: color, fillColor: getFillFromColor(color), textColor: color };
+        toolManagerRef.current.updateDefaultStyle(patch);
+        if (selectedId) {
+          const selShape = drawingManagerRef.current.getShapeById(selectedId);
+          if (selShape) {
+            drawingManagerRef.current.updateShape(selectedId, {
+              style: { ...selShape.style, ...patch },
+            });
+          }
+        }
+        syncState();
+      }}
+      onUndo={() => {
+        const action = historyManagerRef.current.undo();
+        if (action) {
+          drawingManagerRef.current.setShapes(action.shapesBefore, false);
+          syncState();
+        }
+      }}
+      onRedo={() => {
+        const action = historyManagerRef.current.redo();
+        if (action) {
+          drawingManagerRef.current.setShapes(action.shapesAfter, false);
+          syncState();
+        }
+      }}
+      canUndo={canUndo}
+      canRedo={canRedo}
+      onClearAll={() => {
+        drawingManagerRef.current.clearAllShapes();
+        selectionManagerRef.current.setSelectedId(null);
+        syncState();
+      }}
+      onTakeScreenshot={handleScreenshot}
+      onSelectEmoji={(emoji) => {
+        setSelectedEmoji(emoji);
+        toolManagerRef.current.setSelectedEmoji(emoji);
+      }}
+      selectedEmoji={selectedEmoji}
+      isAllHidden={isAllHidden}
+      onToggleHideAll={() => {
+        const nextState = !isAllHidden;
+        setIsAllHidden(nextState);
+        const currentShapes = drawingManagerRef.current.getShapes();
+        const updated = currentShapes.map((s) => ({ ...s, isHidden: nextState }));
+        drawingManagerRef.current.setShapes(updated, true);
+        if (nextState) {
+          selectionManagerRef.current.setSelectedId(null);
+        }
+        syncState();
+      }}
+      isAllLocked={isAllLocked}
+      onToggleLockAll={() => {
+        const nextState = !isAllLocked;
+        setIsAllLocked(nextState);
+        const currentShapes = drawingManagerRef.current.getShapes();
+        const updated = currentShapes.map((s) => ({ ...s, isLocked: nextState }));
+        drawingManagerRef.current.setShapes(updated, true);
+        syncState();
+      }}
+    />
+  );
+
+  const setOverlayRef = useCallback((node: HTMLDivElement | null) => {
+    (containerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+  }, []);
+
+  const setNonModalContainerRef = useCallback((node: HTMLDivElement | null) => {
+    (containerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+    if (containerWheelRef) {
+      containerWheelRef(node);
+    }
+  }, [containerWheelRef]);
+
+  if (isZoomedModal) {
+    return (
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-start gap-3.5 w-full">
+        {/* External Toolbar outside the chart canvas */}
+        <div className="shrink-0 z-30">
+          {renderToolbar(true)}
+        </div>
+
+        {/* Chart Canvas & Overlay Container on the right */}
+        <div className="relative flex-1 w-full min-w-0" ref={containerWheelRef}>
+          <div
+            ref={setOverlayRef}
+            className={`absolute inset-0 z-20 pointer-events-auto select-none overflow-hidden rounded-2xl ${
+              activeTool === 'pan' ? 'cursor-grab' : activeTool === 'select' ? 'cursor-default' : 'cursor-crosshair'
+            }`}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+          >
+            {/* Floating Property Bar when shape selected */}
+            {selectedShapeObj && (
+              <DrawingPropertyBar
+                selectedShape={selectedShapeObj}
+                onUpdateStyle={(patch) => {
+                  if (selectedId) {
+                    drawingManagerRef.current.updateShape(selectedId, {
+                      style: { ...selectedShapeObj.style, ...patch },
+                    });
+                    toolManagerRef.current.updateDefaultStyle(patch);
+                    if (patch.strokeColor) {
+                      setActiveColor(patch.strokeColor);
+                    }
+                    syncState();
+                  }
+                }}
+                onUpdateText={(text) => {
+                  if (selectedId) {
+                    drawingManagerRef.current.updateShape(selectedId, { text });
+                    syncState();
+                  }
+                }}
+                onDuplicate={() => {
+                  if (selectedId) {
+                    const dup = drawingManagerRef.current.duplicateShape(selectedId);
+                    if (dup) {
+                      selectionManagerRef.current.setSelectedId(dup.id);
+                      syncState();
+                    }
+                  }
+                }}
+                onDelete={() => {
+                  if (selectedId) {
+                    drawingManagerRef.current.deleteShape(selectedId);
+                    selectionManagerRef.current.setSelectedId(null);
+                    syncState();
+                  }
+                }}
+                onToggleLock={() => {
+                  if (selectedId) {
+                    drawingManagerRef.current.toggleLock(selectedId);
+                    syncState();
+                  }
+                }}
+                onBringToFront={() => {
+                  if (selectedId) {
+                    drawingManagerRef.current.bringToFront(selectedId);
+                    syncState();
+                  }
+                }}
+                onSendToBack={() => {
+                  if (selectedId) {
+                    drawingManagerRef.current.sendToBack(selectedId);
+                    syncState();
+                  }
+                }}
+                onClose={() => {
+                  selectionManagerRef.current.setSelectedId(null);
+                  syncState();
+                }}
+              />
+            )}
+
+            {/* Shapes Renderer */}
+            <ShapeRenderer
+              shapes={shapes}
+              currentDrawingShape={currentDrawingShape}
+              selectedId={selectedId}
+              hoveredId={hoveredId}
+              bounds={bounds}
+              onSelectShape={(id) => {
+                selectionManagerRef.current.setSelectedId(id);
+                syncState();
+              }}
+              onStartHandleDrag={(handleIdx) => {
+                selectionManagerRef.current.setActiveHandleIndex(handleIdx);
+              }}
+            />
+          </div>
+
+          {children}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
-      ref={containerRef}
+      ref={setNonModalContainerRef}
       className={`absolute inset-0 z-20 pointer-events-auto select-none overflow-hidden ${
         activeTool === 'pan' ? 'cursor-grab' : activeTool === 'select' ? 'cursor-default' : 'cursor-crosshair'
       }`}
@@ -410,82 +612,7 @@ export const ChartAnalysisOverlay: React.FC<ChartAnalysisOverlayProps> = ({
       onPointerUp={handlePointerUp}
     >
       {/* Vertical Left Toolbar */}
-      <ChartToolbar
-        activeTool={activeTool}
-        onSelectTool={handleSelectTool}
-        activeColor={activeColor}
-        onChangeColor={(color) => {
-          setActiveColor(color);
-          const getFillFromColor = (c: string) => {
-            if (c.startsWith('#') && c.length === 7) {
-              const r = parseInt(c.slice(1, 3), 16);
-              const g = parseInt(c.slice(3, 5), 16);
-              const b = parseInt(c.slice(5, 7), 16);
-              return `rgba(${r}, ${g}, ${b}, 0.18)`;
-            }
-            return 'rgba(59, 130, 246, 0.15)';
-          };
-          const patch = { strokeColor: color, fillColor: getFillFromColor(color), textColor: color };
-          toolManagerRef.current.updateDefaultStyle(patch);
-          if (selectedId) {
-            const selShape = drawingManagerRef.current.getShapeById(selectedId);
-            if (selShape) {
-              drawingManagerRef.current.updateShape(selectedId, {
-                style: { ...selShape.style, ...patch },
-              });
-            }
-          }
-          syncState();
-        }}
-        onUndo={() => {
-          const action = historyManagerRef.current.undo();
-          if (action) {
-            drawingManagerRef.current.setShapes(action.shapesBefore, false);
-            syncState();
-          }
-        }}
-        onRedo={() => {
-          const action = historyManagerRef.current.redo();
-          if (action) {
-            drawingManagerRef.current.setShapes(action.shapesAfter, false);
-            syncState();
-          }
-        }}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        onClearAll={() => {
-          drawingManagerRef.current.clearAllShapes();
-          selectionManagerRef.current.setSelectedId(null);
-          syncState();
-        }}
-        onTakeScreenshot={handleScreenshot}
-        onSelectEmoji={(emoji) => {
-          setSelectedEmoji(emoji);
-          toolManagerRef.current.setSelectedEmoji(emoji);
-        }}
-        selectedEmoji={selectedEmoji}
-        isAllHidden={isAllHidden}
-        onToggleHideAll={() => {
-          const nextState = !isAllHidden;
-          setIsAllHidden(nextState);
-          const currentShapes = drawingManagerRef.current.getShapes();
-          const updated = currentShapes.map((s) => ({ ...s, isHidden: nextState }));
-          drawingManagerRef.current.setShapes(updated, true);
-          if (nextState) {
-            selectionManagerRef.current.setSelectedId(null);
-          }
-          syncState();
-        }}
-        isAllLocked={isAllLocked}
-        onToggleLockAll={() => {
-          const nextState = !isAllLocked;
-          setIsAllLocked(nextState);
-          const currentShapes = drawingManagerRef.current.getShapes();
-          const updated = currentShapes.map((s) => ({ ...s, isLocked: nextState }));
-          drawingManagerRef.current.setShapes(updated, true);
-          syncState();
-        }}
-      />
+      {renderToolbar(false)}
 
       {/* Floating Property Bar when shape selected */}
       {selectedShapeObj && (

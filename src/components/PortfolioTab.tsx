@@ -495,17 +495,17 @@ export default function PortfolioTab({ stocks, profile, onTrade, onUpdateStopLos
         </div>
 
         {/* Standard reference banner */}
-        <div className="bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-2xl p-5 shadow-xs flex flex-col justify-between relative overflow-hidden">
+        <div className="bg-white dark:bg-gradient-to-br dark:from-slate-900 dark:to-indigo-950 border border-slate-100 dark:border-slate-800 text-slate-800 dark:text-white rounded-2xl p-5 shadow-xs flex flex-col justify-between relative overflow-hidden">
           <div className="relative z-10">
-            <h4 className="text-xs font-extrabold uppercase tracking-widest text-indigo-300">Portefeuille Éducatif</h4>
-            <p className="text-[11px] text-slate-350 leading-relaxed mt-1.5">
+            <h4 className="text-xs font-extrabold uppercase tracking-widest text-indigo-600 dark:text-indigo-300">Portefeuille Éducatif</h4>
+            <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed mt-1.5">
               {lang === "fr" 
                 ? "Simulez vos arbitrages en temps réel avec un suivi précis de vos performances."
                 : "Manage and liquidate positions instantly with advanced risk control tracking."}
             </p>
           </div>
-          <div className="absolute right-0 bottom-0 translate-y-3 translate-x-3 opacity-15">
-            <Briefcase className="w-24 h-24 text-white" />
+          <div className="absolute right-0 bottom-0 translate-y-3 translate-x-3 opacity-10 dark:opacity-15">
+            <Briefcase className="w-24 h-24 text-indigo-600 dark:text-white" />
           </div>
         </div>
       </div>

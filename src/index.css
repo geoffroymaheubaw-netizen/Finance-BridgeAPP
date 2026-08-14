@@ -664,6 +664,12 @@ html:not(.dark) div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(
   color: #fbbf24 !important; /* Price display text */
 }
 
+/* Ensure selected news card element background is pure white in light mode */
+html:not(.dark) div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#simulator-tab:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(1),
+html:not(.dark) div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#simulator-tab:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > div:nth-of-type(2) > div:nth-of-type(1) {
+  background-color: #ffffff !important;
+}
+
 /* Ensure the statistical/analytical header is dark and highly readable in Dark Mode instead of light gray */
 html.dark div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#simulator-tab:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(1),
 html.dark #simulator-tab .relative > div.flex.flex-wrap.items-center.justify-between {
@@ -885,6 +891,58 @@ line.candlestick-wick {
 .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(129, 140, 248, 0.8);
 }
+
+/* Ensure BUY and SELL trade action buttons are ALWAYS pure crisp white in BOTH Light and Dark modes */
+.btn-trade-action,
+.btn-trade-action *,
+.btn-trade-buy,
+.btn-trade-buy *,
+.btn-trade-sell,
+.btn-trade-sell *,
+html:not(.dark) .btn-trade-action,
+html:not(.dark) .btn-trade-action *,
+html:not(.dark) .btn-trade-buy,
+html:not(.dark) .btn-trade-buy *,
+html:not(.dark) .btn-trade-sell,
+html:not(.dark) .btn-trade-sell *,
+html:not(.dark) #simulator-tab button.bg-emerald-600,
+html:not(.dark) #simulator-tab button.bg-emerald-600 *,
+html:not(.dark) #simulator-tab button.bg-rose-600,
+html:not(.dark) #simulator-tab button.bg-rose-600 *,
+html:not(.dark) div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#simulator-tab:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > button:nth-of-type(1) span,
+html:not(.dark) div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#simulator-tab:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > button:nth-of-type(2) span,
+html:not(.dark) div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#simulator-tab:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > button:nth-of-type(1) svg,
+html:not(.dark) div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div#simulator-tab:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > button:nth-of-type(2) svg {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+/* Analysis Toolbar Light / Dark styling */
+.chart-analysis-toolbar {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+html:not(.dark) .chart-analysis-toolbar {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+  border-color: rgba(226, 232, 240, 0.95) !important;
+  color: #1e293b !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.04) !important;
+}
+
+html:not(.dark) .chart-analysis-toolbar * {
+  border-color: rgba(226, 232, 240, 0.9);
+}
+
+html.dark .chart-analysis-toolbar {
+  background-color: rgba(15, 23, 42, 0.95) !important;
+  background: rgba(15, 23, 42, 0.95) !important;
+  border-color: rgba(30, 41, 59, 1) !important;
+  color: #f1f5f9 !important;
+}
+
+
 
 
 

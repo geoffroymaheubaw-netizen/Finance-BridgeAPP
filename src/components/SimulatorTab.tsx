@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Stock, UserProfile, PortfolioItem } from "../types";
 import { ChartAnalysisOverlay } from "./chartAnalysis/ChartAnalysisOverlay";
 import { ChartViewportBounds } from "./chartAnalysis/types";
-import { ArrowUpRight, ArrowDownRight, DollarSign, Briefcase, History, TrendingUp, Info, Newspaper, Maximize2, Minimize2, ZoomIn, ZoomOut, RotateCcw, Search, Layers, GraduationCap, Star } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, DollarSign, Briefcase, History, TrendingUp, Info, Newspaper, Maximize2, Minimize2, ZoomIn, ZoomOut, RotateCcw, Search, Layers, GraduationCap, Star, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { getStockMarket, isMarketOpenForStock, getZonedDateTime } from "../utils";
 import StockPriceBadgeWidget from "./StockPriceBadgeWidget";
@@ -710,11 +710,11 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
       return (
         <div className="relative overscroll-contain">
           {/* Statistical Header to maximize data precision */}
-          <div className="flex flex-wrap items-center justify-between text-[10px] sm:text-[11px] font-mono text-slate-500 bg-slate-50/70 border border-slate-200/30 px-3 py-1.5 rounded-xl mb-2.5">
+          <div className="flex flex-wrap items-center justify-between text-[10px] sm:text-[11px] font-mono text-slate-500 dark:text-slate-400 bg-slate-50/70 dark:bg-slate-900/90 border border-slate-200/30 dark:border-slate-800 px-3 py-1.5 rounded-xl mb-2.5">
             <div className="flex gap-4">
-              <span>Haut (Rel.): <strong className="text-emerald-600">+{maxPerfVal.toFixed(1)}%</strong></span>
-              <span>Bas (Rel.): <strong className="text-rose-600">{minPerfVal.toFixed(1)}%</strong></span>
-              <span>Amplitude : <strong className="text-slate-700">{(maxPerfVal - minPerfVal).toFixed(1)}%</strong></span>
+              <span>Haut (Rel.): <strong className="text-emerald-600 dark:text-emerald-400">+{maxPerfVal.toFixed(1)}%</strong></span>
+              <span>Bas (Rel.): <strong className="text-rose-600 dark:text-rose-400">{minPerfVal.toFixed(1)}%</strong></span>
+              <span>Amplitude : <strong className="text-slate-700 dark:text-slate-200">{(maxPerfVal - minPerfVal).toFixed(1)}%</strong></span>
             </div>
             <div className="flex gap-2">
               <span className="text-indigo-600 font-bold">{selectedStock.symbol} : {primLatestPerf >= 0 ? "+" : ""}{primLatestPerf.toFixed(2)}%</span>
@@ -1113,31 +1113,31 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
     return (
       <div className="relative">
         {/* Analytical header for extremes and drift metrics / OHLC bar */}
-        <div className="flex flex-wrap items-center justify-between text-[10px] sm:text-[11px] font-mono text-slate-500 bg-slate-50/70 border border-slate-200/40 px-3 py-1.5 rounded-xl mb-2.5 shadow-xs">
+        <div className="flex flex-wrap items-center justify-between text-[10px] sm:text-[11px] font-mono text-slate-500 dark:text-slate-400 bg-slate-50/70 dark:bg-slate-900/90 border border-slate-200/40 dark:border-slate-800 px-3 py-1.5 rounded-xl mb-2.5 shadow-xs">
           {chartType === 'CANDLESTICK' && activeCandle ? (
             <div className="flex flex-wrap gap-3 sm:gap-5 items-center w-full justify-between">
-              <div className="flex items-center gap-1.5 font-bold text-slate-700">
+              <div className="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-200">
                 <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
                 <span>{selectedStock.symbol}</span>
-                <span className="text-[9.5px] font-normal text-slate-400">({timeframe})</span>
+                <span className="text-[9.5px] font-normal text-slate-400 dark:text-slate-400">({timeframe})</span>
               </div>
               <div className="flex flex-wrap gap-2 sm:gap-4 font-mono text-[10.5px]">
-                <span>O : <strong className="text-slate-700">{activeCandle.openPrice.toFixed(2)}</strong></span>
-                <span>H : <strong className="text-emerald-600">{activeCandle.highPrice.toFixed(2)}</strong></span>
-                <span>B : <strong className="text-rose-600">{activeCandle.lowPrice.toFixed(2)}</strong></span>
-                <span>C : <strong className={activeCandle.closePrice >= activeCandle.openPrice ? "text-emerald-600" : "text-rose-600"}>{activeCandle.closePrice.toFixed(2)}</strong></span>
-                <span className="hidden sm:inline">V : <strong className="text-slate-600">{(activeCandle.volume / 1000).toFixed(1)}k</strong></span>
+                <span>O : <strong className="text-slate-700 dark:text-slate-200">{activeCandle.openPrice.toFixed(2)}</strong></span>
+                <span>H : <strong className="text-emerald-600 dark:text-emerald-400">{activeCandle.highPrice.toFixed(2)}</strong></span>
+                <span>B : <strong className="text-rose-600 dark:text-rose-400">{activeCandle.lowPrice.toFixed(2)}</strong></span>
+                <span>C : <strong className={activeCandle.closePrice >= activeCandle.openPrice ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>{activeCandle.closePrice.toFixed(2)}</strong></span>
+                <span className="hidden sm:inline">V : <strong className="text-slate-600 dark:text-slate-300">{(activeCandle.volume / 1000).toFixed(1)}k</strong></span>
               </div>
             </div>
           ) : (
             <>
               <div className="flex gap-4 sm:gap-6">
-                <span>Plus Haut : <strong className="text-emerald-700">{max.toFixed(2)} $</strong></span>
-                <span>Plus Bas : <strong className="text-rose-700">{min.toFixed(2)} $</strong></span>
-                <span>Médiane : <strong className="text-slate-700">{((min + max) / 2).toFixed(2)} $</strong></span>
+                <span>Plus Haut : <strong className="text-emerald-700 dark:text-emerald-400">{max.toFixed(2)} $</strong></span>
+                <span>Plus Bas : <strong className="text-rose-700 dark:text-rose-400">{min.toFixed(2)} $</strong></span>
+                <span>Médiane : <strong className="text-slate-700 dark:text-slate-200">{((min + max) / 2).toFixed(2)} $</strong></span>
               </div>
               <div className="flex gap-2">
-                <span>Écart total : <strong className="text-indigo-600">{(max - min).toFixed(2)} $</strong></span>
+                <span>Écart total : <strong className="text-indigo-600 dark:text-indigo-400">{(max - min).toFixed(2)} $</strong></span>
               </div>
             </>
           )}
@@ -1655,16 +1655,22 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
     const visibleZoomPrices = prices.slice(0, activePointsCount);
 
     // Zoom anchored to cursor position
-    const handleWheelZoom = (e: React.WheelEvent<SVGSVGElement>) => {
-      e.preventDefault();
+    const handleWheelZoom = (e: any) => {
+      if (e.preventDefault) e.preventDefault();
+      if (e.stopPropagation) e.stopPropagation();
+
       const direction = e.deltaY < 0 ? 1 : -1;
-      const zoomStep = direction > 0 ? 1.2 : 0.8333;
-      const targetZoom = Math.max(1, Math.min(20, parseFloat((zoomLevel * zoomStep).toFixed(2))));
+      const zoomStep = direction > 0 ? 1.18 : 0.847;
+      const targetZoom = Math.max(1, Math.min(30, parseFloat((zoomLevel * zoomStep).toFixed(2))));
       if (Math.abs(targetZoom - zoomLevel) < 0.01) return;
 
-      const rect = e.currentTarget.getBoundingClientRect();
+      const container = e.boundNode || e.currentTarget || (e.target as HTMLElement)?.closest('.relative') || e.target;
+      if (!container) return;
+      const rect = (container as HTMLElement).getBoundingClientRect();
+      if (!rect || !rect.width) return;
+
       const mouseX = e.clientX - rect.left;
-      const svgX = (mouseX / (rect.width || 1)) * width;
+      const svgX = (mouseX / rect.width) * width;
       const ratio = Math.max(0, Math.min(1, (svgX - padLeft) / chartWidth));
 
       // Compute exact index under mouse pointer
@@ -1781,7 +1787,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
       return (
         <div className="relative select-none flex flex-col gap-2 w-full overscroll-contain" ref={bindNonPassiveZoomWheel}>
           {/* Zoom stats header */}
-          <div className="flex flex-wrap items-center justify-between text-xs font-mono bg-slate-905 bg-slate-900 text-slate-100 px-4 py-2 rounded-xl mb-1 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between text-xs font-mono bg-slate-900 text-slate-100 px-4 py-2 rounded-xl mb-1 shadow-sm">
             <div className="flex gap-4">
               <span>Haut (visible) : <span className="text-emerald-400 font-bold">+{maxPerfVal.toFixed(2)}%</span></span>
               <span>Bas (visible) : <span className="text-rose-400 font-bold">{minPerfVal.toFixed(2)}%</span></span>
@@ -2068,19 +2074,20 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             <span>Écart visible : <span className="text-slate-300 font-bold">{(max - min).toFixed(2)} $</span></span>
           </div>
           <div className="flex gap-2">
-            <span className={isIntervalPositive ? "text-emerald-405 text-emerald-400 font-bold font-mono" : "text-rose-400 font-bold font-mono"}>
+            <span className={isIntervalPositive ? "text-emerald-400 font-bold font-mono" : "text-rose-400 font-bold font-mono"}>
               Tendance : {isIntervalPositive ? "HAUSSIÈRE ▲" : "BAISSIÈRE ▼"}
             </span>
           </div>
         </div>
 
         {/* Canvas & Analysis Overlay Container */}
-        <div className="relative w-full overflow-visible overscroll-contain" ref={bindNonPassiveZoomWheel}>
-          <ChartAnalysisOverlay
-            symbol={selectedStock.symbol}
-            timeframe={timeframe}
-            bounds={chartViewportBounds}
-          />
+        <ChartAnalysisOverlay
+          symbol={selectedStock.symbol}
+          timeframe={timeframe}
+          bounds={chartViewportBounds}
+          isZoomedModal={true}
+          containerWheelRef={bindNonPassiveZoomWheel}
+        >
           <svg 
             className="w-full h-[360px] sm:h-[420px] lg:h-[480px] bg-slate-50 border border-slate-200 rounded-2xl overflow-visible cursor-grab active:cursor-grabbing shadow-xs" 
             viewBox={`0 0 ${width} ${height}`}
@@ -2088,7 +2095,6 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             onMouseMove={handleSvgMouseMove}
             onMouseUp={() => setIsDragging(false)}
             onMouseLeave={() => { setIsDragging(false); setHoveredZoomPrice(null); }}
-            ref={bindNonPassiveZoomWheel}
           >
           <defs>
             <linearGradient id="zoomChartGlow" x1="0" y1="0" x2="0" y2="1">
@@ -2315,10 +2321,10 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             {rawLabels[2]}
           </text>
         </svg>
-        </div>
+        </ChartAnalysisOverlay>
 
         {/* Dynamic OHLV Tooltip HUD */}
-        <div className="bg-slate-50 border border-slate-200 p-3 sm:p-3.5 rounded-2xl flex items-center justify-between font-mono text-xs text-slate-700 min-h-[50px]">
+        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 sm:p-3.5 rounded-2xl flex items-center justify-between font-mono text-xs text-slate-700 dark:text-slate-200 min-h-[50px]">
           {idxHovered !== null && idxHovered < activePointsCount && prices[idxHovered] !== undefined ? (
             chartType === 'LINE' ? (
               <div className="flex justify-between items-center w-full flex-wrap gap-2">
@@ -2544,17 +2550,17 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                     }}
                     className={`p-2.5 rounded-xl cursor-pointer border transition flex items-center justify-between ${
                       isSelected 
-                        ? "bg-slate-50 border-slate-900 text-slate-900 ring-1 ring-slate-900 dark:bg-slate-900 dark:border-indigo-650 dark:text-white" 
-                        : "bg-slate-50/40 hover:bg-slate-50 border-slate-150 text-slate-800 dark:bg-slate-950/40 dark:hover:bg-slate-900/60 dark:border-slate-800/80 dark:text-slate-250"
+                        ? "bg-white border-blue-500 text-slate-950 ring-2 ring-blue-500 dark:bg-slate-900 dark:border-blue-500 dark:text-white dark:ring-2 dark:ring-blue-500" 
+                        : "bg-white hover:bg-slate-50/80 border-slate-200 text-slate-800 dark:bg-slate-950/40 dark:hover:bg-slate-900/60 dark:border-slate-800/80 dark:text-slate-250"
                     }`}
                   >
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-1.5">
                         <span className="font-bold font-mono text-xs text-slate-950 dark:text-white">{stock.symbol}</span>
-                        <span className={`text-[9px] px-1 py-0.1 rounded font-bold ${
+                        <span className={`text-[9px] px-1 py-0.5 rounded font-bold border ${
                           isPos 
-                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400" 
-                            : "bg-rose-100 text-rose-800 dark:bg-rose-950/30 dark:text-rose-400"
+                            ? "bg-white text-emerald-600 border-emerald-200/80 dark:border-transparent dark:bg-black dark:text-emerald-400" 
+                            : "bg-white text-rose-600 border-rose-200/80 dark:border-transparent dark:bg-black dark:text-rose-400"
                         }`}>
                           {isPos ? "+" : ""}{stock.change.toFixed(2)}%
                         </span>
@@ -2603,14 +2609,14 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
 
       {/* Main pane (Detailed graph + transaction desk) */}
       <div className="lg:col-span-2 space-y-6">
-        <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-xs">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 border-b border-slate-100 pb-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <span className="bg-slate-100 text-slate-800 font-mono text-xs px-2.5 py-1 rounded font-bold">
+                <span className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-mono text-xs px-2.5 py-1 rounded font-bold">
                   {selectedStock.symbol}
                 </span>
-                <h2 className="text-xl font-extrabold text-slate-800">{selectedStock.name}</h2>
+                <h2 className="text-xl font-extrabold text-slate-800 dark:text-slate-100">{selectedStock.name}</h2>
                 <button
                   onClick={() => toggleWatchlist(selectedStock.symbol)}
                   className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 group transition cursor-pointer flex items-center justify-center ml-1"
@@ -2651,8 +2657,8 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                     : "NYSE/NASDAQ (Lun-Ven, 09:30 - 16:00 EST)"
                   }
                 </span>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/40 text-[10px] font-extrabold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-purple-600 animate-pulse"></span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-500/15 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 border border-purple-500/30 dark:border-purple-700/60 text-[10px] font-extrabold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse"></span>
                   Yahoo Finance Live
                 </span>
               </div>
@@ -2663,37 +2669,37 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
           </div>
 
           {/* BANDE D'ACHAT ET VENTE RAPIDE EN HAUT DU GRAPHIQUE */}
-          <div className="bg-slate-900 dark:bg-slate-950 text-white rounded-2xl p-3 sm:p-4 shadow-md flex flex-wrap items-center justify-between gap-3 border border-slate-800 my-4">
+          <div className="bg-white dark:bg-slate-950 text-slate-800 dark:text-white rounded-2xl p-3 sm:p-4 shadow-md border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 my-4">
             <div className="flex flex-wrap items-center gap-2.5">
               {/* Quantité */}
-              <div className="flex items-center gap-1.5 bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-700/60">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Quantité:</span>
+              <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700/60">
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Quantité:</span>
                 <input
                   type="number"
                   min="1"
                   value={tradeShares}
                   onChange={(e) => setTradeShares(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-16 bg-slate-900 text-white font-mono font-bold text-xs text-center border border-slate-700 rounded-lg py-1 outline-none focus:border-indigo-400"
+                  className="w-16 bg-white dark:bg-slate-900 text-slate-800 dark:text-white font-mono font-bold text-xs text-center border border-slate-300 dark:border-slate-700 rounded-lg py-1 outline-none focus:border-indigo-500"
                 />
               </div>
 
               {/* Stop-Loss Option */}
-              <div className="flex flex-wrap items-center gap-2 bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-700/60">
-                <label className="text-[11px] font-bold text-slate-200 flex items-center gap-1.5 cursor-pointer select-none">
+              <div className="flex flex-wrap items-center gap-2 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700/60">
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={useStopLoss}
                     onChange={(e) => setUseStopLoss(e.target.checked)}
-                    className="rounded-sm border-slate-600 text-indigo-500 focus:ring-indigo-500 accent-indigo-500 w-3.5 h-3.5 cursor-pointer"
+                    className="rounded-sm border-slate-300 dark:border-slate-600 text-indigo-500 focus:ring-indigo-500 accent-indigo-500 w-3.5 h-3.5 cursor-pointer"
                   />
                   <span>Stop-Loss 🛡️</span>
                 </label>
 
                 {useStopLoss && (
-                  <div className="flex flex-wrap items-center gap-2 pl-2 border-l border-slate-700/80">
+                  <div className="flex flex-wrap items-center gap-2 pl-2 border-l border-slate-300 dark:border-slate-700/80">
                     {/* Exact % input */}
-                    <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1">
-                      <span className="text-[10px] font-bold text-slate-400">-%</span>
+                    <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1">
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">-%</span>
                       <input
                         type="number"
                         step="0.1"
@@ -2701,17 +2707,17 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                         max="99"
                         value={stopLossPct}
                         onChange={(e) => handleStopLossPctChange(e.target.value)}
-                        className="w-12 bg-transparent text-white font-mono font-bold text-xs text-center outline-none"
+                        className="w-12 bg-transparent text-slate-800 dark:text-white font-mono font-bold text-xs text-center outline-none"
                         placeholder="10"
                         title="Pourcentage de baisse (%)"
                       />
                     </div>
 
-                    <span className="text-slate-500 text-[11px] font-bold">ou</span>
+                    <span className="text-slate-400 dark:text-slate-500 text-[11px] font-bold">ou</span>
 
                     {/* Exact $ input */}
-                    <div className={`flex items-center gap-1 bg-slate-900 border ${isStopLossInvalid ? "border-rose-500" : "border-slate-700"} rounded-lg px-2 py-1`}>
-                      <span className="text-[10px] font-bold text-slate-400">$</span>
+                    <div className={`flex items-center gap-1 bg-white dark:bg-slate-900 border ${isStopLossInvalid ? "border-rose-500" : "border-slate-300 dark:border-slate-700"} rounded-lg px-2 py-1`}>
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">$</span>
                       <input
                         type="number"
                         step="0.01"
@@ -2719,7 +2725,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                         max={(selectedStock.price - 0.01).toFixed(2)}
                         value={stopLossValue}
                         onChange={(e) => handleStopLossInputChange(e.target.value)}
-                        className="w-16 bg-transparent text-white font-mono font-bold text-xs text-center outline-none"
+                        className="w-16 bg-transparent text-slate-800 dark:text-white font-mono font-bold text-xs text-center outline-none"
                         placeholder="Prix $"
                         title="Prix d'exécution exact du Stop-Loss en $"
                       />
@@ -2729,22 +2735,22 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
               </div>
 
               {/* Take-Profit Option */}
-              <div className="flex flex-wrap items-center gap-2 bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-700/60">
-                <label className="text-[11px] font-bold text-slate-200 flex items-center gap-1.5 cursor-pointer select-none">
+              <div className="flex flex-wrap items-center gap-2 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700/60">
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={useTakeProfit}
                     onChange={(e) => setUseTakeProfit(e.target.checked)}
-                    className="rounded-sm border-slate-600 text-emerald-500 focus:ring-emerald-500 accent-emerald-500 w-3.5 h-3.5 cursor-pointer"
+                    className="rounded-sm border-slate-300 dark:border-slate-600 text-emerald-500 focus:ring-emerald-500 accent-emerald-500 w-3.5 h-3.5 cursor-pointer"
                   />
                   <span>Take-Profit 🎯</span>
                 </label>
 
                 {useTakeProfit && (
-                  <div className="flex flex-wrap items-center gap-2 pl-2 border-l border-slate-700/80">
+                  <div className="flex flex-wrap items-center gap-2 pl-2 border-l border-slate-300 dark:border-slate-700/80">
                     {/* Exact % input */}
-                    <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1">
-                      <span className="text-[10px] font-bold text-emerald-400">+%</span>
+                    <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1">
+                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">+%</span>
                       <input
                         type="number"
                         step="0.1"
@@ -2752,24 +2758,24 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                         max="500"
                         value={takeProfitPct}
                         onChange={(e) => handleTakeProfitPctChange(e.target.value)}
-                        className="w-12 bg-transparent text-white font-mono font-bold text-xs text-center outline-none"
+                        className="w-12 bg-transparent text-slate-800 dark:text-white font-mono font-bold text-xs text-center outline-none"
                         placeholder="15"
                         title="Pourcentage de hausse (%)"
                       />
                     </div>
 
-                    <span className="text-slate-500 text-[11px] font-bold">ou</span>
+                    <span className="text-slate-400 dark:text-slate-500 text-[11px] font-bold">ou</span>
 
                     {/* Exact $ input */}
-                    <div className={`flex items-center gap-1 bg-slate-900 border ${isTakeProfitInvalid ? "border-rose-500" : "border-slate-700"} rounded-lg px-2 py-1`}>
-                      <span className="text-[10px] font-bold text-slate-400">$</span>
+                    <div className={`flex items-center gap-1 bg-white dark:bg-slate-900 border ${isTakeProfitInvalid ? "border-rose-500" : "border-slate-300 dark:border-slate-700"} rounded-lg px-2 py-1`}>
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">$</span>
                       <input
                         type="number"
                         step="0.01"
                         min={(selectedStock.price + 0.01).toFixed(2)}
                         value={takeProfitValue}
                         onChange={(e) => handleTakeProfitInputChange(e.target.value)}
-                        className="w-16 bg-transparent text-white font-mono font-bold text-xs text-center outline-none"
+                        className="w-16 bg-transparent text-slate-800 dark:text-white font-mono font-bold text-xs text-center outline-none"
                         placeholder="Prix $"
                         title="Prix d'exécution exact du Take-Profit en $"
                       />
@@ -2779,21 +2785,21 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
               </div>
 
               {/* Trailing-Stop Option */}
-              <div className="flex flex-wrap items-center gap-2 bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-700/60">
-                <label className="text-[11px] font-bold text-slate-200 flex items-center gap-1.5 cursor-pointer select-none">
+              <div className="flex flex-wrap items-center gap-2 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700/60">
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={useTrailingStop}
                     onChange={(e) => setUseTrailingStop(e.target.checked)}
-                    className="rounded-sm border-slate-600 text-amber-500 focus:ring-amber-500 accent-amber-500 w-3.5 h-3.5 cursor-pointer"
+                    className="rounded-sm border-slate-300 dark:border-slate-600 text-amber-500 focus:ring-amber-500 accent-amber-500 w-3.5 h-3.5 cursor-pointer"
                   />
                   <span>Trailing Stop 📈</span>
                 </label>
 
                 {useTrailingStop && (
-                  <div className="flex flex-wrap items-center gap-2 pl-2 border-l border-slate-700/80">
-                    <div className={`flex items-center gap-1 bg-slate-900 border ${isTrailingStopInvalid ? "border-rose-500" : "border-slate-700"} rounded-lg px-2 py-1`}>
-                      <span className="text-[10px] font-bold text-amber-400">-%</span>
+                  <div className="flex flex-wrap items-center gap-2 pl-2 border-l border-slate-300 dark:border-slate-700/80">
+                    <div className={`flex items-center gap-1 bg-white dark:bg-slate-900 border ${isTrailingStopInvalid ? "border-rose-500" : "border-slate-300 dark:border-slate-700"} rounded-lg px-2 py-1`}>
+                      <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">-%</span>
                       <input
                         type="number"
                         step="0.1"
@@ -2801,12 +2807,12 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                         max="99"
                         value={trailingStopPct}
                         onChange={(e) => setTrailingStopPct(e.target.value)}
-                        className="w-12 bg-transparent text-white font-mono font-bold text-xs text-center outline-none"
+                        className="w-12 bg-transparent text-slate-800 dark:text-white font-mono font-bold text-xs text-center outline-none"
                         placeholder="5"
                         title="Distance de suivi (%)"
                       />
                     </div>
-                    <span className="text-[10px] font-mono font-bold text-amber-300" title="Seuil de déclenchement initial">
+                    <span className="text-[10px] font-mono font-bold text-amber-600 dark:text-amber-300" title="Seuil de déclenchement initial">
                       ({(selectedStock.price * (1 - (parseFloat(trailingStopPct) || 5) / 100)).toFixed(2)} $)
                     </span>
                   </div>
@@ -2815,8 +2821,8 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
 
               {/* Position badge */}
               {position && position.shares > 0 && (
-                <div className="text-xs font-semibold text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
                   <span>Possédé:</span>
                   <strong className="font-mono">{position.shares} action{position.shares > 1 ? 's' : ''}</strong>
                 </div>
@@ -2853,7 +2859,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                   onTrade(selectedStock.symbol, 'BUY', tradeShares, selectedStock.price, finalStopLoss, finalTakeProfit, finalTrailingStop);
                 }}
                 disabled={!isAffordable || (useStopLoss && isStopLossInvalid) || (useTakeProfit && isTakeProfitInvalid) || (useTrailingStop && isTrailingStopInvalid)}
-                className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-500 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-lg shadow-emerald-900/40 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="btn-trade-buy btn-trade-action flex-1 sm:flex-initial px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-500 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed !text-white shadow-lg shadow-emerald-900/20 dark:shadow-emerald-900/40 transition-all flex items-center justify-center gap-2 cursor-pointer"
                 title={
                   !isAffordable 
                     ? "Solde insuffisant" 
@@ -2866,9 +2872,9 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                     : `Acheter ${tradeShares} action(s) à ${selectedStock.price.toFixed(2)} $${useStopLoss ? ` (Stop-loss: ${stopLossValue} $)` : ''}${useTakeProfit ? ` (Take-profit: ${takeProfitValue} $)` : ''}${useTrailingStop ? ` (Trailing stop: -${trailingStopPct}%)` : ''}`
                 }
               >
-                <ArrowUpRight className="w-4 h-4" />
-                <span>ACHETER</span>
-                <span className="font-mono text-[11px] font-bold opacity-90">({(selectedStock.price * tradeShares).toFixed(2)} $)</span>
+                <ArrowUpRight className="w-4 h-4 !text-white" style={{ color: '#ffffff' }} />
+                <span className="!text-white font-bold" style={{ color: '#ffffff' }}>ACHETER</span>
+                <span className="font-mono text-[11px] font-bold !text-white opacity-90" style={{ color: '#ffffff' }}>({(selectedStock.price * tradeShares).toFixed(2)} $)</span>
               </button>
 
               <button
@@ -2878,21 +2884,15 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                   onTrade(selectedStock.symbol, 'SELL', tradeShares, selectedStock.price, null);
                 }}
                 disabled={!hasSharesToSell}
-                className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm bg-rose-600 hover:bg-rose-500 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-lg shadow-rose-900/40 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="btn-trade-sell btn-trade-action flex-1 sm:flex-initial px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm bg-rose-600 hover:bg-rose-500 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed !text-white shadow-lg shadow-rose-900/20 dark:shadow-rose-900/40 transition-all flex items-center justify-center gap-2 cursor-pointer"
                 title={!hasSharesToSell ? "Actions insuffisantes" : `Vendre ${tradeShares} action(s) à ${selectedStock.price.toFixed(2)} $`}
               >
-                <ArrowDownRight className="w-4 h-4" />
-                <span>VENDRE</span>
-                <span className="font-mono text-[11px] font-bold opacity-90">({(selectedStock.price * tradeShares).toFixed(2)} $)</span>
+                <ArrowDownRight className="w-4 h-4 !text-white" style={{ color: '#ffffff' }} />
+                <span className="!text-white font-bold" style={{ color: '#ffffff' }}>VENDRE</span>
+                <span className="font-mono text-[11px] font-bold !text-white opacity-90" style={{ color: '#ffffff' }}>({(selectedStock.price * tradeShares).toFixed(2)} $)</span>
               </button>
 
-              <a
-                href="#transaction-desk-grid"
-                className="hidden lg:flex p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition text-xs font-bold items-center gap-1 cursor-pointer"
-                title="Options d'ordre avancées (Stop-loss, Carnet d'ordres)"
-              >
-                <span>⚙️</span>
-              </a>
+
             </div>
           </div>
 
@@ -2907,8 +2907,8 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             
             <div className="flex flex-wrap items-center gap-2.5">
               {/* Sélecteur de comparaison */}
-              <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200">
-                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Comparer :</span>
+              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Comparer :</span>
                 <select
                   value={compareSymbol || ""}
                   onChange={(e) => {
@@ -2918,7 +2918,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                       setChartType('LINE');
                     }
                   }}
-                  className="bg-transparent border-none text-xs font-bold font-sans text-slate-700 outline-hidden cursor-pointer focus:ring-0 max-w-[130px]"
+                  className="bg-transparent border-none text-xs font-bold font-sans text-slate-700 dark:text-slate-200 outline-hidden cursor-pointer focus:ring-0 max-w-[130px]"
                 >
                   <option value="">-- Aucun --</option>
                   {stocks
@@ -2942,13 +2942,13 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
               </div>
 
               {/* Type de graphe */}
-              <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200/40">
+              <div className="flex bg-white dark:bg-slate-900/95 p-0.5 rounded-lg border border-slate-200/80 dark:border-slate-800 shadow-xs">
                 <button
                   type="button"
                   onClick={() => setChartType('LINE')}
                   className={`px-2.5 py-1.5 rounded-md text-[10px] sm:text-[11px] font-bold transition-all cursor-pointer ${
                     chartType === 'LINE'
-                      ? "bg-white text-indigo-600 shadow-xs dark:bg-slate-700 dark:text-white"
+                      ? "bg-indigo-50 text-indigo-600 border border-indigo-200/60 dark:border-transparent dark:bg-slate-800 dark:text-white shadow-xs"
                       : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
                   }`}
                 >
@@ -2960,7 +2960,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                   disabled={compareSymbol !== null}
                   className={`px-2.5 py-1.5 rounded-md text-[10px] sm:text-[11px] font-bold transition-all cursor-pointer ${
                     chartType === 'CANDLESTICK'
-                      ? "bg-white text-indigo-600 shadow-xs dark:bg-slate-700 dark:text-white"
+                      ? "bg-indigo-50 text-indigo-600 border border-indigo-200/60 dark:border-transparent dark:bg-slate-800 dark:text-white shadow-xs"
                       : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed"
                   }`}
                   title={compareSymbol !== null ? "Chandelier n'est pas disponible en mode comparaison" : "Graphique en Chandeliers japonais"}
@@ -2972,10 +2972,10 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
           </div>
 
           {/* SÉLECTEUR DE TIMEFRAME */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-3 pb-1 border-b border-slate-50/50">
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-3 pb-1 border-b border-slate-50/50 dark:border-slate-800">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mr-1">Période :</span>
-              <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200/40">
+              <div className="flex bg-white dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200/80 dark:border-slate-700/60 shadow-xs">
                 {[
                   { id: "1J", label: "1 jour" },
                   { id: "1S", label: "5 jours" },
@@ -2996,8 +2996,8 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                       }}
                       className={`px-2 py-1 rounded-md text-[10px] sm:text-[11px] font-bold transition-all cursor-pointer ${
                         isActive
-                          ? "bg-white text-indigo-600 shadow-xs"
-                          : "text-slate-500 hover:text-slate-800"
+                          ? "bg-indigo-50 text-indigo-600 border border-indigo-200/60 dark:border-transparent dark:bg-slate-700 dark:text-indigo-300 shadow-xs"
+                          : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100"
                       }`}
                     >
                       {tf.label}
@@ -3031,31 +3031,31 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
           })()}
 
           {/* Quick Metrics */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl text-xs font-mono text-slate-600">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl text-xs font-mono text-slate-600 dark:text-slate-300">
             <div>
               <span className="text-slate-400 block text-[10px] uppercase font-sans font-semibold mb-0.5">Plus bas (24h)</span>
-              <span className="text-slate-800 font-bold">{selectedStock.low24h.toFixed(2)} $</span>
+              <span className="text-slate-800 dark:text-slate-100 font-bold">{selectedStock.low24h.toFixed(2)} $</span>
             </div>
             <div>
               <span className="text-slate-400 block text-[10px] uppercase font-sans font-semibold mb-0.5">Plus haut (24h)</span>
-              <span className="text-slate-800 font-bold">{selectedStock.high24h.toFixed(2)} $</span>
+              <span className="text-slate-800 dark:text-slate-100 font-bold">{selectedStock.high24h.toFixed(2)} $</span>
             </div>
             <div>
               <span className="text-slate-400 block text-[10px] uppercase font-sans font-semibold mb-0.5">Vol. d'échanges</span>
-              <span className="text-slate-800 font-bold">{selectedStock.volume}</span>
+              <span className="text-slate-800 dark:text-slate-100 font-bold">{selectedStock.volume}</span>
             </div>
             <div>
               <span className="text-slate-400 block text-[10px] uppercase font-sans font-semibold mb-0.5">Cap. Boursière</span>
-              <span className="text-slate-800 font-bold">{selectedStock.marketCap}</span>
+              <span className="text-slate-800 dark:text-slate-100 font-bold">{selectedStock.marketCap}</span>
             </div>
           </div>
         </div>
 
         {/* Actualités & Analyse de l'action */}
-        <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-xs space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
+        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-5 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 gap-2">
             <div>
-              <h3 className="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-1.5">
+              <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm sm:text-base flex items-center gap-1.5">
                 <Newspaper className="w-4.5 h-4.5 text-indigo-505 shadow-2xs text-indigo-500" />
                 Actualités Temps Réel : {selectedStock.symbol}
               </h3>
@@ -3065,29 +3065,37 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             </div>
             
             <div className="flex gap-2">
-              <span className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-extrabold uppercase tracking-wide self-start flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                Yahoo Finance Live
-              </span>
+              {isNewsLoading ? (
+                <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/60 px-2.5 py-0.5 rounded-full font-extrabold uppercase tracking-wide self-start flex items-center gap-1.5 animate-pulse">
+                  <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />
+                  Chargement des actualités...
+                </span>
+              ) : (
+                <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full font-extrabold uppercase tracking-wide self-start flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                  Yahoo Finance Live
+                </span>
+              )}
             </div>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {isNewsLoading ? (
               Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="border border-slate-100 p-4 rounded-xl space-y-4 bg-slate-50/20 animate-pulse">
+                <div key={i} className="border border-slate-200 dark:border-slate-800 p-4 rounded-xl space-y-3.5 bg-slate-50/80 dark:bg-slate-800/40 animate-pulse shadow-2xs">
                   <div className="flex justify-between items-center">
-                    <div className="h-2 bg-slate-100 roundedIndex w-16" />
-                    <div className="h-2 bg-slate-100 roundedIndex w-10" />
+                    <div className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded-full w-20" />
+                    <div className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded-full w-12" />
                   </div>
-                  <div className="space-y-2">
-                    <div className="h-3 bg-slate-200 rounded-md w-11/12" />
-                    <div className="h-2.5 bg-slate-100 rounded-md w-full" />
-                    <div className="h-2.5 bg-slate-100 rounded-md w-10/12" />
+                  <div className="space-y-2 py-1">
+                    <div className="h-3.5 bg-slate-300 dark:bg-slate-600 rounded-md w-11/12" />
+                    <div className="h-3.5 bg-slate-200 dark:bg-slate-700 rounded-md w-3/4" />
+                    <div className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded-md w-full mt-2" />
+                    <div className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded-md w-10/12" />
                   </div>
-                  <div className="pt-2 border-t border-slate-100/30 flex justify-between items-center">
-                    <div className="h-2.5 bg-slate-150 rounded-sm w-16" />
-                    <div className="h-2.5 bg-slate-150 rounded-sm w-12" />
+                  <div className="pt-2.5 border-t border-slate-200/60 dark:border-slate-700/60 flex justify-between items-center">
+                    <div className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded-full w-20" />
+                    <div className="h-2.5 bg-indigo-200 dark:bg-indigo-900/50 rounded-full w-16" />
                   </div>
                 </div>
               ))
@@ -3106,8 +3114,8 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                     onClick={() => setSelectedNewsId(isSelected ? null : item.id)}
                     className={`border p-4 rounded-xl cursor-pointer transition duration-300 flex flex-col justify-between space-y-3 ${
                       isSelected
-                        ? "border-indigo-500 bg-indigo-50/25 shadow-xs"
-                        : "border-slate-100 hover:border-slate-200 bg-slate-50/30 hover:bg-white"
+                        ? "border-indigo-500 bg-white dark:bg-indigo-950/40 shadow-xs"
+                        : "border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 bg-white dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800"
                     }`}
                   >
                     <div className="space-y-1.55">
@@ -3154,24 +3162,24 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             return (
               <div className="space-y-4 mt-2">
                 {/* Full Article Content Card */}
-                <div className="bg-slate-50 border border-slate-150 rounded-xl p-5 space-y-3">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-3">
                   <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold uppercase tracking-wider">
                     <span>{activeNews.source} • Article Complet</span>
                     <span>{activeNews.timestamp}</span>
                   </div>
-                  <h3 className="text-xs sm:text-sm font-extrabold text-slate-900">{activeNews.title}</h3>
-                  <div className="text-slate-700 text-[11px] sm:text-xs leading-relaxed space-y-2 font-sans whitespace-pre-line">
+                  <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-slate-100">{activeNews.title}</h3>
+                  <div className="text-slate-700 dark:text-slate-300 text-[11px] sm:text-xs leading-relaxed space-y-2 font-sans whitespace-pre-line">
                     {activeNews.fullText || activeNews.summary}
                   </div>
                   {(() => {
                     const articleLink = activeNews.link || `https://news.google.com/search?q=${encodeURIComponent(activeNews.title + " " + activeNews.source)}`;
                     return (
-                      <div className="pt-2 border-t border-slate-150/50 mt-2">
+                      <div className="pt-2 border-t border-slate-150/50 dark:border-slate-800 mt-2">
                         <a
                           href={articleLink}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 font-extrabold text-[11px] text-indigo-600 hover:text-indigo-850 transition underline underline-offset-2 hover:no-underline"
+                          className="inline-flex items-center gap-1 font-extrabold text-[11px] text-indigo-600 dark:text-indigo-400 hover:text-indigo-850 transition underline underline-offset-2 hover:no-underline"
                         >
                           Consulter l'article d'origine sur {activeNews.source} →
                         </a>
@@ -3181,7 +3189,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                 </div>
 
                 {/* Educational Deciphering Explanation Card */}
-                <div className="bg-indigo-50/40 border border-indigo-100/50 rounded-xl p-4 text-xs space-y-2.5">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 text-xs space-y-2.5">
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-indigo-500" />
                     <strong className="text-indigo-950 font-sans uppercase tracking-wider text-[10px]">
@@ -3428,7 +3436,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.15 }}
-                        className="p-3 bg-indigo-50/60 dark:bg-slate-800/40 border border-indigo-100/50 dark:border-indigo-900/30 rounded-xl"
+                        className="p-3 bg-white dark:bg-slate-800/40 border border-slate-200/80 dark:border-indigo-900/30 rounded-xl shadow-xs"
                       >
                         {(() => {
                           if (activeTooltip === "asks") {
@@ -3507,7 +3515,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                         })()}
                       </motion.div>
                     ) : (
-                      <div className="bg-slate-50 dark:bg-slate-800/25 p-3 rounded-xl flex items-center justify-between gap-3 text-xs text-slate-500">
+                      <div className="bg-white dark:bg-slate-800/25 border border-slate-200/80 dark:border-transparent p-3 rounded-xl flex items-center justify-between gap-3 text-xs text-slate-500 shadow-xs">
                         <div className="flex items-center gap-2">
                           <GraduationCap className="w-4 h-4 text-slate-400 shrink-0 animate-bounce" />
                           <span className="text-[10px] sm:text-[11px] leading-snug">Touchez « Apprendre 🎓 » pour des explications contextuelles de ce carnet.</span>
@@ -3529,11 +3537,11 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                   {position ? (
                     <div className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl animate-fade-in">
+                        <div className="bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-transparent p-3 rounded-xl shadow-xs animate-fade-in">
                           <span className="text-[10px] text-slate-400 uppercase block font-semibold mb-0.5">Actions Détenues</span>
                           <span className="text-xl font-bold text-slate-800 dark:text-white font-mono">{position.shares}</span>
                         </div>
-                        <div className="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl animate-fade-in">
+                        <div className="bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-transparent p-3 rounded-xl shadow-xs animate-fade-in">
                           <span className="text-[10px] text-slate-400 uppercase block font-semibold mb-0.5">C.U.M.P (*)</span>
                           <span className="text-xl font-bold text-slate-800 dark:text-white font-mono">{position.avgBuyPrice.toFixed(2)} $</span>
                         </div>
@@ -3566,7 +3574,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                       </div>
 
                       {/* Stop Loss Management inside the holding position box */}
-                      <div className="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-100 dark:border-slate-805 flex flex-col gap-2 mt-3">
+                      <div className="bg-white dark:bg-slate-950 p-3 rounded-xl border border-slate-200/80 dark:border-slate-805 shadow-xs flex flex-col gap-2 mt-3">
                         <div className="flex justify-between items-center text-xs">
                           <span className="text-slate-500 dark:text-slate-350 flex items-center gap-1 font-semibold">
                             🛡️ Stop-Loss Actif
@@ -3662,103 +3670,6 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
           );
         })()}
 
-        {/* Global Portfolio list & Transaction records */}
-        <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-xs space-y-4">
-          <h4 className="font-bold text-slate-800 text-base flex items-center gap-1.5 border-b border-slate-100 pb-3">
-            <Briefcase className="w-4.5 h-4.5 text-emerald-600" />
-            Résumé de toutes vos positions actuelles
-          </h4>
-
-          {profile.portfolio.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="text-slate-400 font-semibold border-b border-slate-100 uppercase tracking-wider">
-                    <th className="py-2.5">Action</th>
-                    <th className="py-2.5">Quantité</th>
-                    <th className="py-2.5">Prix d'Achat</th>
-                    <th className="py-2.5">Cours Actuel</th>
-                    <th className="py-2.5 text-right">Valeur Actuelle</th>
-                    <th className="py-2.5 text-right">+/- Value</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50 font-mono">
-                  {profile.portfolio.map((item) => {
-                    const currentStock = stocks.find(s => s.symbol === item.symbol) || selectedStock;
-                    const val = currentStock.price * item.shares;
-                    const investVal = item.avgBuyPrice * item.shares;
-                    const netValDiff = val - investVal;
-                    const netValPercent = (netValDiff / investVal) * 100;
-                    const isPos = netValDiff >= 0;
-
-                    return (
-                      <tr key={item.symbol} className="hover:bg-slate-50/50 transition cursor-pointer" onClick={() => setSelectedSymbol(item.symbol)}>
-                        <td className="py-3 font-sans">
-                          <span className="font-bold text-slate-800 font-mono">{item.symbol}</span>
-                          <span className="text-slate-400 block text-[10px]">{currentStock.name}</span>
-                        </td>
-                        <td className="py-3 font-bold text-slate-700">{item.shares}</td>
-                        <td className="py-3 text-slate-500">{item.avgBuyPrice.toFixed(2)} $</td>
-                        <td className="py-3 text-slate-800">{currentStock.price.toFixed(2)} $</td>
-                        <td className="py-3 text-right font-bold text-slate-800">{val.toFixed(2)} $</td>
-                        <td className={`py-3 text-right font-extrabold ${isPos ? "text-emerald-600" : "text-rose-500"}`}>
-                          {isPos ? "+" : ""}{netValDiff.toFixed(2)} $
-                          <span className="block text-[10px] font-semibold font-sans">{isPos ? "+" : ""}{netValPercent.toFixed(2)}%</span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="text-center py-6 text-slate-400 text-xs">
-              Votre portefeuille est vide. Explorez la liste des cours boursiers pour faire votre première simulation boursière !
-            </div>
-          )}
-        </div>
-
-        {/* Ledger Transaction History logs */}
-        <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-xs space-y-4">
-          <h4 className="font-bold text-slate-800 text-base flex items-center gap-1.5 border-b border-slate-100 pb-3">
-            <History className="w-4.5 h-4.5 text-indigo-500" />
-            Historique des ordres exécutés
-          </h4>
-
-          {profile.transactions.length > 0 ? (
-            <div className="space-y-2 overflow-y-auto max-h-[180px] pr-1">
-              {profile.transactions.map((tx) => {
-                const isBuy = tx.type === 'BUY';
-                return (
-                  <div key={tx.id} className="flex justify-between items-center text-xs border-b border-slate-50 pb-2.5">
-                    <div className="space-y-0.5">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`px-1.5 py-0.5 rounded-[4px] font-extrabold text-[9px] ${
-                          isBuy ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
-                        }`}>
-                          {isBuy ? "ACHAT" : "VENTE"}
-                        </span>
-                        <span className="font-bold font-mono text-slate-800">{tx.symbol}</span>
-                      </div>
-                      <p className="text-slate-400 text-[10px]">{tx.date}</p>
-                    </div>
-                    <div className="text-right font-mono">
-                      <span className="text-slate-700 font-bold">{tx.shares} Actions</span>
-                      <p className="text-slate-500 text-[10px]">Moy. {tx.price.toFixed(2)} $</p>
-                    </div>
-                    <div className="text-right font-mono font-bold text-slate-800">
-                      {(tx.shares * tx.price).toFixed(2)} $
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="text-center py-4 text-slate-400 text-xs font-sans">
-              Aucune transaction effectuée pour le moment.
-            </div>
-          )}
-        </div>
       </div>
 
       {/* MODAL ZOOM ULTRA-HAUTE PRÉCISION ET GROS PLAN */}
@@ -3789,11 +3700,11 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                       onTrade(selectedStock.symbol, 'BUY', tradeShares, selectedStock.price, null);
                     }}
                     disabled={!isAffordable}
-                    className="px-4 py-2 rounded-xl font-black text-xs bg-emerald-600 hover:bg-emerald-500 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+                    className="btn-trade-buy btn-trade-action px-4 py-2 rounded-xl font-black text-xs bg-emerald-600 hover:bg-emerald-500 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed !text-white shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
                   >
-                    <ArrowUpRight className="w-3.5 h-3.5" />
-                    <span>ACHETER</span>
-                    <span className="font-mono text-[10px]">({selectedStock.price.toFixed(2)} $)</span>
+                    <ArrowUpRight className="w-3.5 h-3.5 !text-white" style={{ color: '#ffffff' }} />
+                    <span className="!text-white font-bold" style={{ color: '#ffffff' }}>ACHETER</span>
+                    <span className="font-mono text-[10px] !text-white" style={{ color: '#ffffff' }}>({selectedStock.price.toFixed(2)} $)</span>
                   </button>
 
                   <button
@@ -3803,11 +3714,11 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                       onTrade(selectedStock.symbol, 'SELL', tradeShares, selectedStock.price, null);
                     }}
                     disabled={!hasSharesToSell}
-                    className="px-4 py-2 rounded-xl font-black text-xs bg-rose-600 hover:bg-rose-500 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+                    className="btn-trade-sell btn-trade-action px-4 py-2 rounded-xl font-black text-xs bg-rose-600 hover:bg-rose-500 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed !text-white shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
                   >
-                    <ArrowDownRight className="w-3.5 h-3.5" />
-                    <span>VENDRE</span>
-                    <span className="font-mono text-[10px]">({selectedStock.price.toFixed(2)} $)</span>
+                    <ArrowDownRight className="w-3.5 h-3.5 !text-white" style={{ color: '#ffffff' }} />
+                    <span className="!text-white font-bold" style={{ color: '#ffffff' }}>VENDRE</span>
+                    <span className="font-mono text-[10px] !text-white" style={{ color: '#ffffff' }}>({selectedStock.price.toFixed(2)} $)</span>
                   </button>
                 </div>
 
@@ -3826,10 +3737,10 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             </div>
 
             {/* Bande de sélection de Période / Timeframe & Options du graphe dans le mode Zoom */}
-            <div className="flex flex-wrap items-center justify-between gap-3 p-2 bg-slate-50 rounded-xl border border-slate-200/60 shadow-xs">
+            <div className="flex flex-wrap items-center justify-between gap-3 p-2 bg-white dark:bg-slate-900/90 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mr-1">Période :</span>
-                <div className="flex bg-slate-200/70 p-0.5 rounded-lg border border-slate-200/50">
+                <div className="flex bg-white dark:bg-black p-0.5 rounded-lg border border-slate-200/80 dark:border-black shadow-xs">
                   {[
                     { id: "1J", label: "1 jour" },
                     { id: "1S", label: "5 jours" },
@@ -3851,8 +3762,8 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                         }}
                         className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
                           isActive
-                            ? "bg-white text-indigo-600 shadow-xs"
-                            : "text-slate-600 hover:text-slate-900"
+                            ? "bg-indigo-50 text-indigo-600 border border-indigo-200/60 dark:border-transparent dark:bg-slate-700 dark:text-indigo-300 shadow-xs"
+                            : "text-slate-500 hover:text-slate-800 dark:text-slate-300 dark:hover:text-white"
                         }`}
                       >
                         {tf.label}
@@ -3864,14 +3775,14 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
 
               <div className="flex flex-wrap items-center gap-2">
                 {/* Type de graphe */}
-                <div className="flex bg-slate-200/70 p-0.5 rounded-lg border border-slate-200/50">
+                <div className="flex bg-white dark:bg-black p-0.5 rounded-lg border border-slate-200/80 dark:border-black shadow-xs">
                   <button
                     type="button"
                     onClick={() => setChartType('LINE')}
                     className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
                       chartType === 'LINE'
-                        ? "bg-white text-indigo-600 shadow-xs"
-                        : "text-slate-600 hover:text-slate-900"
+                        ? "bg-indigo-50 text-indigo-600 border border-indigo-200/60 dark:border-transparent dark:bg-slate-700 dark:text-indigo-300 shadow-xs"
+                        : "text-slate-500 hover:text-slate-800 dark:text-slate-300 dark:hover:text-white"
                     }`}
                   >
                     Courbe
@@ -3882,8 +3793,8 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                     disabled={compareSymbol !== null}
                     className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
                       chartType === 'CANDLESTICK'
-                        ? "bg-white text-indigo-600 shadow-xs"
-                        : "text-slate-600 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed"
+                        ? "bg-indigo-50 text-indigo-600 border border-indigo-200/60 dark:border-transparent dark:bg-slate-700 dark:text-indigo-300 shadow-xs"
+                        : "text-slate-500 hover:text-slate-800 dark:text-slate-300 dark:hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
                     }`}
                     title={compareSymbol !== null ? "Chandelier n'est pas disponible en mode comparaison" : "Graphique en Chandeliers japonais"}
                   >
@@ -3892,7 +3803,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                 </div>
 
                 {/* Sélecteur de comparaison */}
-                <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
+                <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800">
                   <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Comparer :</span>
                   <select
                     value={compareSymbol || ""}
@@ -4001,7 +3912,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             </div>
 
             {/* Footer with actions */}
-            <div className="flex items-center justify-between border-t border-slate-100 pt-3.5">
+            <div className="flex items-center justify-start border-t border-slate-100 pt-3.5">
               <button
                 type="button"
                 onClick={() => {
@@ -4014,18 +3925,6 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Réinitialiser Vues</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setIsZoomExpanded(false);
-                  setHoveredZoomPrice(null);
-                }}
-                className="flex items-center gap-1.5 px-5 py-2 bg-slate-900 border border-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs sm:text-sm rounded-xl transition shadow-sm cursor-pointer"
-              >
-                <Minimize2 className="w-4 h-4" />
-                <span>Retour au Simulateur</span>
               </button>
             </div>
           </div>

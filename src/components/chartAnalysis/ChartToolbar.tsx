@@ -38,6 +38,7 @@ import {
 import { ToolType } from './types';
 
 interface ChartToolbarProps {
+  isExternal?: boolean;
   activeTool: ToolType;
   onSelectTool: (tool: ToolType) => void;
   activeColor?: string;
@@ -64,6 +65,7 @@ interface ToolGroup {
 }
 
 export const ChartToolbar: React.FC<ChartToolbarProps> = ({
+  isExternal = false,
   activeTool,
   onSelectTool,
   activeColor = '#3b82f6',
@@ -216,18 +218,26 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
       ref={toolbarRef}
       onPointerDown={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
-      className={`absolute top-3 left-3 z-30 bg-slate-900/95 text-slate-100 backdrop-blur-xl border border-slate-800 shadow-2xl select-none transition-all duration-300 rounded-2xl max-h-[calc(100%-1.5rem)] flex flex-col ${
-        isExpanded
-          ? 'w-80 sm:w-96 p-3.5'
-          : 'w-14 sm:w-16 p-2 items-center'
-      }`}
+      className={
+        isExternal
+          ? `chart-analysis-toolbar relative z-30 bg-white text-slate-800 dark:bg-slate-900/95 dark:text-slate-100 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800 shadow-xl select-none transition-all duration-300 rounded-2xl max-h-[360px] sm:max-h-[420px] lg:max-h-[480px] h-full flex flex-col shrink-0 ${
+              isExpanded
+                ? 'w-72 sm:w-80 p-3.5'
+                : 'w-14 sm:w-16 p-2 items-center'
+            }`
+          : `chart-analysis-toolbar absolute top-3 left-3 z-30 bg-white text-slate-800 dark:bg-slate-900/95 dark:text-slate-100 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800 shadow-2xl select-none transition-all duration-300 rounded-2xl max-h-[calc(100%-1.5rem)] flex flex-col ${
+              isExpanded
+                ? 'w-80 sm:w-96 p-3.5'
+                : 'w-14 sm:w-16 p-2 items-center'
+            }`
+      }
     >
       {/* Header */}
       {isExpanded && (
-        <div className="flex items-center justify-between pb-2.5 mb-1.5 border-b border-slate-800 shrink-0">
+        <div className="flex items-center justify-between pb-2.5 mb-1.5 border-b border-slate-200 dark:border-slate-800 shrink-0">
           <div className="flex items-center gap-1.5">
             <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
-            <span className="text-xs font-bold text-slate-200 uppercase tracking-wide">
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wide">
               Analyse
             </span>
           </div>
@@ -243,12 +253,12 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
         >
           <div style={{ direction: 'ltr' }} className="flex flex-col gap-2 w-full">
             {/* Undo / Redo in Expanded */}
-            <div className="flex items-center gap-2 pb-2 border-b border-slate-800/80">
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-800/80">
               <button
                 type="button"
                 onClick={onUndo}
                 disabled={!canUndo}
-                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-slate-800 transition-all cursor-pointer"
+                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-slate-100 dark:disabled:hover:bg-slate-800 transition-all cursor-pointer"
               >
                 <Undo2 className="w-3.5 h-3.5" />
                 <span>Annuler</span>
@@ -257,7 +267,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
                 type="button"
                 onClick={onRedo}
                 disabled={!canRedo}
-                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-slate-800 transition-all cursor-pointer"
+                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-slate-100 dark:disabled:hover:bg-slate-800 transition-all cursor-pointer"
               >
                 <Redo2 className="w-3.5 h-3.5" />
                 <span>Rétablir</span>
@@ -266,14 +276,14 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
 
             {/* Line Color Picker in Expanded */}
             {onChangeColor && (
-              <div className="flex flex-col gap-1.5 p-2 rounded-xl border border-slate-800 bg-slate-800/40">
-                <div className="flex items-center justify-between text-xs font-bold text-slate-200">
+              <div className="flex flex-col gap-1.5 p-2 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200">
                   <div className="flex items-center gap-1.5">
                     <Palette className="w-3.5 h-3.5 text-indigo-500" />
                     <span>Couleur du tracé</span>
                   </div>
                   <div
-                    className="w-3.5 h-3.5 rounded-full border border-slate-700 shadow-2xs"
+                    className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-700 shadow-2xs"
                     style={{ backgroundColor: activeColor }}
                   />
                 </div>
@@ -284,9 +294,9 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
                       type="button"
                       title={`Couleur: ${c}`}
                       onClick={() => onChangeColor(c)}
-                      className={`w-5 h-5 rounded-full border border-slate-700 transition-transform hover:scale-125 cursor-pointer shrink-0 ${
+                      className={`w-5 h-5 rounded-full border border-slate-300 dark:border-slate-700 transition-transform hover:scale-125 cursor-pointer shrink-0 ${
                         activeColor.toLowerCase() === c.toLowerCase()
-                          ? 'ring-2 ring-indigo-500 ring-offset-1 ring-offset-slate-900 scale-110'
+                          ? 'ring-2 ring-indigo-500 ring-offset-1 dark:ring-offset-slate-900 scale-110'
                           : ''
                       }`}
                       style={{ backgroundColor: c }}
@@ -294,7 +304,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
                   ))}
                   <label
                     title="Choisir une couleur personnalisée"
-                    className="relative w-5 h-5 rounded-full border border-slate-700 transition-transform hover:scale-125 cursor-pointer overflow-hidden flex items-center justify-center shrink-0 bg-gradient-to-tr from-rose-500 via-amber-400 to-indigo-500"
+                    className="relative w-5 h-5 rounded-full border border-slate-300 dark:border-slate-700 transition-transform hover:scale-125 cursor-pointer overflow-hidden flex items-center justify-center shrink-0 bg-gradient-to-tr from-rose-500 via-amber-400 to-indigo-500"
                   >
                     <input
                       type="color"
@@ -313,15 +323,15 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
               return (
                 <div
                   key={group.id}
-                  className="rounded-xl border border-slate-800 bg-slate-800/40 overflow-hidden"
+                  className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 overflow-hidden"
                 >
                   <button
                     type="button"
                     onClick={() => toggleAccordion(group.id)}
-                    className="w-full px-2.5 py-1.5 flex items-center justify-between text-xs font-bold text-slate-200 hover:bg-slate-800/70 transition-colors cursor-pointer"
+                    className="w-full px-2.5 py-1.5 flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors cursor-pointer"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-indigo-400">{group.icon}</span>
+                      <span className="text-indigo-500 dark:text-indigo-400">{group.icon}</span>
                       <span>{group.name}</span>
                     </div>
                     {isAccordionOpen ? (
@@ -332,7 +342,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
                   </button>
 
                   {isAccordionOpen && (
-                    <div className="p-1 flex flex-col gap-0.5 border-t border-slate-800/60 bg-slate-900/80">
+                    <div className="p-1 flex flex-col gap-0.5 border-t border-slate-200/80 dark:border-slate-800/60 bg-white dark:bg-slate-900/80">
                       {group.tools.map((tool) => (
                         <button
                           key={tool.id}
@@ -346,7 +356,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
                           className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                             activeTool === tool.id
                               ? 'bg-indigo-600 text-white shadow-xs font-bold'
-                              : 'text-slate-300 hover:bg-slate-800/80'
+                              : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80'
                           }`}
                         >
                           {tool.icon}
@@ -367,7 +377,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTool === 'measure'
                     ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'text-slate-200 bg-slate-800/40 border border-slate-800 hover:bg-slate-800'
+                    : 'text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
                 <Ruler className="w-4 h-4 text-indigo-500" />
@@ -380,7 +390,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTool === 'eraser'
                     ? 'bg-amber-500 text-white shadow-xs'
-                    : 'text-slate-200 bg-slate-800/40 border border-slate-800 hover:bg-slate-800'
+                    : 'text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
                 <Eraser className="w-4 h-4 text-amber-500" />
@@ -388,7 +398,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
               </button>
             </div>
 
-            <div className="w-full my-1 border-t border-slate-800/60" />
+            <div className="w-full my-1 border-t border-slate-200 dark:border-slate-800/60" />
 
             {/* Bottom Actions in Expanded */}
             <div className="grid grid-cols-2 gap-1.5 pt-1">
@@ -397,8 +407,8 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
                 onClick={onToggleLockAll}
                 className={`flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   isAllLocked
-                    ? 'bg-amber-500/20 text-amber-300'
-                    : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
+                    ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700'
                 }`}
               >
                 <Lock className="w-3.5 h-3.5" />
@@ -410,8 +420,8 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
                 onClick={onToggleHideAll}
                 className={`flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   isAllHidden
-                    ? 'bg-indigo-500/20 text-indigo-300'
-                    : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
+                    ? 'bg-indigo-500/20 text-indigo-700 dark:text-indigo-300'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700'
                 }`}
               >
                 {isAllHidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -421,7 +431,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
               <button
                 type="button"
                 onClick={onTakeScreenshot}
-                className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-200 hover:bg-slate-700 transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer"
               >
                 <Camera className="w-3.5 h-3.5 text-indigo-500" />
                 <span>Capture PNG</span>
@@ -430,7 +440,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
               <button
                 type="button"
                 onClick={onClearAll}
-                className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-xs font-semibold bg-rose-950/40 text-rose-400 hover:bg-rose-900/50 transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-xs font-semibold bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-all cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Tout effacer</span>
@@ -448,13 +458,13 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
         >
           <div style={{ direction: 'ltr' }} className="flex flex-col items-center gap-1 w-full">
             {/* Undo / Redo */}
-            <div className="flex flex-col gap-1 pb-1.5 border-b border-slate-800/60 w-full items-center">
+            <div className="flex flex-col gap-1 pb-1.5 border-b border-slate-200 dark:border-slate-800 w-full items-center">
               <button
                 type="button"
                 onClick={onUndo}
                 disabled={!canUndo}
                 title="Annuler (Ctrl+Z)"
-                className="p-2 rounded-xl text-slate-300 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
+                className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 active:bg-slate-200 dark:active:bg-slate-750 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
               >
                 <Undo2 className="w-4 h-4" />
               </button>
@@ -463,7 +473,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
                 onClick={onRedo}
                 disabled={!canRedo}
                 title="Rétablir (Ctrl+Y)"
-                className="p-2 rounded-xl text-slate-300 hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
+                className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 active:bg-slate-200 dark:active:bg-slate-750 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
               >
                 <Redo2 className="w-4 h-4" />
               </button>
@@ -471,10 +481,10 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
 
             {/* Active Color Circle in Compact Mode */}
             {onChangeColor && (
-              <div className="pb-1.5 border-b border-slate-800/60 w-full flex justify-center">
+              <div className="pb-1.5 border-b border-slate-200 dark:border-slate-800 w-full flex justify-center">
                 <label
                   title="Changer la couleur des lignes"
-                  className="w-7 h-7 rounded-full border-2 border-slate-800 shadow-md transition-transform hover:scale-110 cursor-pointer overflow-hidden flex items-center justify-center relative ring-1 ring-slate-700"
+                  className="w-7 h-7 rounded-full border-2 border-slate-300 dark:border-slate-700 shadow-xs transition-transform hover:scale-110 cursor-pointer overflow-hidden flex items-center justify-center relative ring-1 ring-slate-200 dark:ring-slate-800"
                   style={{ backgroundColor: activeColor }}
                 >
                   <input
@@ -517,13 +527,13 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
                       className={`relative p-2 rounded-xl transition-all cursor-pointer flex items-center justify-center w-9 h-9 ${
                         isGroupActive
                           ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                          : 'text-slate-300 hover:bg-slate-800'
+                          : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
                       }`}
                       title={`${group.name} (${currentToolInGroup.label})`}
                     >
                       {currentToolInGroup.icon}
                       {group.tools.length > 1 && (
-                        <span className="absolute bottom-0.5 right-0.5 w-1 h-1 rounded-full bg-slate-500" />
+                        <span className="absolute bottom-0.5 right-0.5 w-1 h-1 rounded-full bg-slate-400 dark:bg-slate-500" />
                       )}
                     </button>
                   </div>
@@ -540,7 +550,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
                 className={`p-2 rounded-xl transition-all cursor-pointer flex items-center justify-center w-9 h-9 ${
                   activeTool === 'measure'
                     ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                    : 'text-slate-300 hover:bg-slate-800'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
                 }`}
                 title="Outil de mesure (Règle)"
               >
@@ -556,7 +566,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
                 className={`p-2 rounded-xl transition-all cursor-pointer flex items-center justify-center w-9 h-9 ${
                   activeTool === 'eraser'
                     ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
-                    : 'text-slate-300 hover:bg-slate-800'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
                 }`}
                 title="Gomme (Effacer un dessin)"
               >
@@ -564,7 +574,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
               </button>
             </div>
 
-            <div className="w-full my-1 border-t border-slate-800/60" />
+            <div className="w-full my-1 border-t border-slate-200 dark:border-slate-800" />
 
             {/* Action Toggles: Lock, Hide, Camera, Clear */}
             <div className="flex flex-col gap-1 w-full items-center">
@@ -574,8 +584,8 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
                 title={isAllLocked ? 'Déverrouiller les dessins' : 'Verrouiller les dessins'}
                 className={`p-2 rounded-xl transition-all cursor-pointer flex items-center justify-center w-9 h-9 ${
                   isAllLocked
-                    ? 'bg-amber-500/20 text-amber-400'
-                    : 'text-slate-300 hover:bg-slate-800'
+                    ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <Lock className="w-4 h-4" />
@@ -587,8 +597,8 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
                 title={isAllHidden ? 'Afficher tous les dessins' : 'Masquer tous les dessins'}
                 className={`p-2 rounded-xl transition-all cursor-pointer flex items-center justify-center w-9 h-9 ${
                   isAllHidden
-                    ? 'bg-indigo-500/20 text-indigo-400'
-                    : 'text-slate-300 hover:bg-slate-800'
+                    ? 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 {isAllHidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -598,16 +608,16 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
                 type="button"
                 onClick={onTakeScreenshot}
                 title="Capture d'écran du graphique"
-                className="p-2 rounded-xl text-slate-300 hover:bg-slate-800 transition-all cursor-pointer flex items-center justify-center w-9 h-9"
+                className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer flex items-center justify-center w-9 h-9"
               >
-                <Camera className="w-4 h-4 text-indigo-500" />
+                <Camera className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
               </button>
 
               <button
                 type="button"
                 onClick={onClearAll}
                 title="Effacer tous les dessins"
-                className="p-2 rounded-xl text-rose-400 hover:bg-rose-950/40 transition-all cursor-pointer flex items-center justify-center w-9 h-9"
+                className="p-2 rounded-xl text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-all cursor-pointer flex items-center justify-center w-9 h-9"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -623,12 +633,12 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
 
         return (
           <div
-            className="absolute left-full top-0 ml-3 py-2 px-1.5 min-w-[220px] max-h-[280px] flex flex-col bg-slate-900 text-slate-100 rounded-2xl border border-slate-800 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150"
+            className="absolute left-full top-0 ml-3 py-2 px-1.5 min-w-[220px] max-h-[280px] flex flex-col bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150"
           >
-            <div className="px-2.5 py-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 mb-1.5 flex items-center justify-between shrink-0">
-              <span className="flex items-center gap-1.5 text-indigo-400">
+            <div className="px-2.5 py-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 mb-1.5 flex items-center justify-between shrink-0">
+              <span className="flex items-center gap-1.5 text-indigo-500 dark:text-indigo-400">
                 {group.icon}
-                <span className="text-slate-200">{group.name}</span>
+                <span className="text-slate-700 dark:text-slate-200">{group.name}</span>
               </span>
               <button
                 type="button"
@@ -636,7 +646,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
                   e.stopPropagation();
                   setActiveGroupMenu(null);
                 }}
-                className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-200 cursor-pointer"
+                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -657,7 +667,7 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
                   className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                     activeTool === tool.id
                       ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                      : 'text-slate-200 hover:bg-slate-800'
+                      : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
                   }`}
                 >
                   <span className="w-4 h-4 flex items-center justify-center shrink-0">{tool.icon}</span>
@@ -671,18 +681,18 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
 
       {/* Emoji Stamp Picker Popover */}
       {showEmojiPicker && (
-        <div className="absolute left-full top-0 ml-3 p-3 bg-slate-900 text-slate-100 rounded-2xl border border-slate-800 shadow-2xl z-50 w-52 flex flex-col animate-in fade-in zoom-in-95 duration-150">
-          <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 shrink-0">
-            <span className="text-xs font-bold text-slate-200">Choisir un Emoji</span>
+        <div className="absolute left-full top-0 ml-3 p-3 bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl z-50 w-52 flex flex-col animate-in fade-in zoom-in-95 duration-150">
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-200 dark:border-slate-800 shrink-0">
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Choisir un Emoji</span>
             <button
               type="button"
               onClick={() => setShowEmojiPicker(false)}
-              className="text-slate-400 hover:text-slate-200 cursor-pointer p-0.5 rounded-lg hover:bg-slate-800 transition-colors"
+              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-0.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
-          <div className="grid grid-cols-4 gap-1.5 overflow-y-auto custom-scrollbar max-h-[180px] pr-1.5">
+          <div className="grid grid-cols-4 gap-1.5 max-h-48 overflow-y-auto custom-scrollbar p-0.5">
             {emojis.map((emoji) => (
               <button
                 key={emoji}
@@ -692,8 +702,8 @@ export const ChartToolbar: React.FC<ChartToolbarProps> = ({
                   onSelectTool('emoji');
                   setShowEmojiPicker(false);
                 }}
-                className={`text-xl p-1.5 rounded-xl hover:bg-slate-800 transition-transform hover:scale-110 cursor-pointer flex items-center justify-center ${
-                  selectedEmoji === emoji ? 'bg-indigo-950/50 border border-indigo-500' : ''
+                className={`text-xl p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-transform hover:scale-110 cursor-pointer flex items-center justify-center ${
+                  selectedEmoji === emoji ? 'bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-500' : ''
                 }`}
               >
                 {emoji}

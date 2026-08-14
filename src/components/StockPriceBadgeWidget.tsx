@@ -77,10 +77,10 @@ export default function StockPriceBadgeWidget({ symbol, compact = false, price, 
       </div>
       <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-800 mt-1.5">
         <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Variation (24h)</span>
-        <div className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold font-mono ${
+        <div className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold font-mono border ${
           isPos 
-            ? "bg-emerald-50/60 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400" 
-            : "bg-rose-50/60 text-rose-700 dark:bg-rose-950/20 dark:text-rose-400"
+            ? "bg-white text-emerald-600 border-emerald-200/80 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-transparent" 
+            : "bg-white text-rose-600 border-rose-200/80 dark:bg-rose-950/20 dark:text-rose-400 dark:border-transparent"
         }`}>
           <span>{isPos ? "▲" : "▼"}</span>
           <span>{formattedChange}</span>
