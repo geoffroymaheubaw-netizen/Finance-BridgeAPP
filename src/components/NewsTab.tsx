@@ -2304,7 +2304,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       ? t("newsSentimentBullish") 
       : sentimentType === "negative"
         ? t("newsSentimentBearish")
-        : (lang === "fr" ? "Neutre" : "Neutral");
+        : t("newsSentimentNeutral");
         
     const color = sentimentType === "positive" 
       ? "text-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-100 dark:border-emerald-900/50" 
@@ -2360,7 +2360,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
                 </div>
                 <div>
                   <h3 className="font-extrabold text-slate-850 dark:text-slate-200 text-base tracking-tight">{t("tabNews")}</h3>
-                  <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-none">{t("newsTitle")} Global Real-time feed</p>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-none">{t("newsFeedSubtitle") || "Global Real-time feed"}</p>
                 </div>
               </div>
 
@@ -2371,7 +2371,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
                   <span className={`relative inline-flex rounded-full h-2 w-2 ${activeShock ? "bg-red-500" : "bg-emerald-500"}`}></span>
                 </span>
                 <span className="font-mono text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">
-                  {activeShock ? "MARKET DISTURBANCE ACTIVE" : "STABLE PEDAGOGICAL RATE"}
+                  {activeShock ? (t("newsStatusDisturbance") || "MARKET DISTURBANCE ACTIVE") : (t("newsStatusStable") || "STABLE PEDAGOGICAL RATE")}
                 </span>
               </div>
             </div>
@@ -2425,13 +2425,13 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
             {filteredArticles.length === 0 ? (
               <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-12 text-center text-slate-400 dark:text-slate-500 space-y-2">
                 <Newspaper className="w-10 h-10 mx-auto text-slate-300" />
-                <p className="text-xs font-bold">Aucune actualité ne correspond à vos filtres de recherche.</p>
+                <p className="text-xs font-bold">{t("newsNoArticles") || "Aucune actualité ne correspond à vos filtres de recherche."}</p>
                 <button 
                   type="button" 
                   onClick={() => { setSelectedCategory("all"); setSearchQuery("_default_all_news_"); }}
                   className="text-xs font-extrabold text-indigo-600 dark:text-indigo-400 underline cursor-pointer"
                 >
-                  Réinitialiser les filtres
+                  {t("newsResetFilters") || "Réinitialiser les filtres"}
                 </button>
               </div>
             ) : (
@@ -2555,7 +2555,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
                           }}
                           className="text-slate-500 dark:text-slate-400 hover:text-indigo-650 dark:hover:text-indigo-350 flex items-center gap-1.5 cursor-pointer transition select-none"
                         >
-                          <span>{isExpanded ? collapseText : (lang === "fr" ? "Aperçu rapide" : "Quick preview")}</span>
+                          <span>{isExpanded ? collapseText : (t("newsQuickPreview") || "Aperçu rapide")}</span>
                           {isExpanded ? (
                             <ChevronUp className="w-3.5 h-3.5 text-indigo-500 transition" />
                           ) : (
@@ -2575,13 +2575,13 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
                           }}
                           className="text-indigo-650 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 flex items-center gap-1.5 cursor-pointer transition font-black select-none"
                         >
-                          <span>{lang === "fr" ? "Lire l'article complet ↗" : "Read full article ↗"}</span>
+                          <span>{t("newsReadFullArticle") || "Lire l'article complet ↗"}</span>
                         </a>
                       </div>
 
                       <span className="text-slate-400 dark:text-slate-500 flex items-center gap-1.5 uppercase tracking-tight">
                         <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                        Avis de l'IA Tutoriel inclus
+                        {t("newsAiAdviceIncluded") || "Avis de l'IA Tutoriel inclus"}
                       </span>
                     </div>
                   </div>
@@ -2645,13 +2645,13 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
                   {sentimentStats.label}
                 </p>
                 <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                  Indice de confiance pondéré : <strong className="font-mono text-slate-700 dark:text-slate-350">{sentimentStats.percentage}%</strong>
+                  {t("newsConfidenceIndex")} <strong className="font-mono text-slate-700 dark:text-slate-350">{sentimentStats.percentage}%</strong>
                 </p>
               </div>
             </div>
 
             <p className="border-t border-slate-50 dark:border-slate-850 pt-3 text-[10px] text-slate-400 dark:text-slate-500 leading-relaxed text-center">
-              Mises à jour calculées dynamiquement d'après les rapports macroéconomiques en direct du simulateur.
+              {t("newsSentimentDisclaimer")}
             </p>
           </div>
 
@@ -2659,10 +2659,10 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
           <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-5 shadow-xs space-y-3.5">
             <h4 className="font-extrabold text-slate-850 dark:text-slate-200 text-xs uppercase tracking-wider text-slate-450 dark:text-slate-500 flex items-center gap-1.5">
               <LineChart className="w-4 h-4 text-indigo-500 shrink-0" />
-              Impact sur les Actifs
+              {t("newsAssetImpactTitle")}
             </h4>
             <span className="text-[10px] text-slate-450 dark:text-slate-500 block leading-tight">
-              Aperçu de la dépréciation des titres en direct lors du choc financier pour comprendre la volatilité :
+              {t("newsAssetImpactDesc")}
             </span>
 
             <div className="space-y-2.5">
@@ -2695,10 +2695,10 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
             <div className="relative z-10 space-y-2.5">
               <h4 className="font-black text-xs uppercase tracking-wider text-indigo-300 flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-amber-400" />
-                Labo Pédagogique
+                {t("newsEduLabTitle")}
               </h4>
               <p className="text-xs text-indigo-200 leading-relaxed font-semibold">
-                Expérimentez en temps réel l'effet de levier et le mouvement des capitaux lors d'une crise avec notre module de simulation de cygne noir :
+                {t("newsEduLabDesc")}
               </p>
 
               <button
@@ -2789,14 +2789,14 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
                 rel="noopener noreferrer"
                 className="py-2 px-5 border border-indigo-650 hover:bg-indigo-50 dark:border-indigo-400 text-indigo-650 dark:text-indigo-400 dark:hover:bg-indigo-950/40 rounded-xl text-xs font-extrabold cursor-pointer transition flex items-center gap-1"
               >
-                <span>{lang === "fr" ? "Consulter l'article d'origine ↗" : "Consult original source ↗"}</span>
+                <span>{t("newsConsultSource") || "Consulter l'article d'origine ↗"}</span>
               </a>
               <button
                 type="button"
                 onClick={() => setSelectedArticle(null)}
                 className="py-2 px-5 bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-700 text-white rounded-xl text-xs font-black cursor-pointer transition"
               >
-                J'ai compris l'explication éducative
+                {t("newsUnderstoodExplanation") || "J'ai compris l'explication éducative"}
               </button>
             </div>
 

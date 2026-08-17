@@ -6,6 +6,7 @@ import { ArrowUpRight, ArrowDownRight, DollarSign, Briefcase, History, TrendingU
 import { motion, AnimatePresence } from "motion/react";
 import { getStockMarket, isMarketOpenForStock, getZonedDateTime } from "../utils";
 import StockPriceBadgeWidget from "./StockPriceBadgeWidget";
+import { getStockDescription } from "../stockDescriptions";
 
 // Stable LCG pseudo-random generator
 function getSeededRandom(seedStr: string) {
@@ -512,7 +513,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
 
     const fetchNews = async () => {
       try {
-        const response = await fetch(`/api/news/${selectedSymbol}`);
+        const response = await fetch(`/api/news/${selectedSymbol}?lang=${encodeURIComponent(lang || 'fr')}`);
         if (!response.ok) {
           throw new Error(`HTTP error ${response.status}`);
         }
@@ -538,7 +539,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
     return () => {
       active = false;
     };
-  }, [selectedSymbol]);
+  }, [selectedSymbol, lang]);
 
   const displayNews = localNews.length > 0 ? localNews : (selectedStock.news || []);
 
@@ -1551,18 +1552,24 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
         </svg>
         </div>
 
-        {/* Live Info Tooltip */}
-        <div className="absolute top-2 right-[65px] bg-slate-900 text-slate-100 text-[10px] sm:text-xs px-2.5 py-1.5 rounded-lg shadow-md font-mono flex flex-col min-w-[124px] max-w-[210px] z-10">
+        {/* Dynamic OHLV Tooltip HUD */}
+        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 sm:p-3.5 rounded-2xl flex items-center justify-between font-mono text-xs text-slate-700 dark:text-slate-200 min-h-[50px]">
           {chartType === 'LINE' ? (
             <>
-              <span>
-                {hoveredPrice 
-                  ? (timeframe === "1m" ? `Minute ${hoveredPrice.index + 1}` : timeframe === "1h" ? `Heure ${hoveredPrice.index + 1}` : timeframe === "1J" ? `Séc ${hoveredPrice.index + 1}` : `Jour ${hoveredPrice.index + 1}`) 
-                  : "Historique du cours"}
-              </span>
-              <span className="font-bold text-sm text-amber-400">
-                {hoveredPrice ? `${hoveredPrice.price.toFixed(2)} $` : `${selectedStock.price.toFixed(2)} $`}
-              </span>
+              {hoveredPrice ? (
+                <div className="flex justify-between items-center w-full flex-wrap gap-2">
+                  <span className="font-bold text-slate-500 uppercase">{t("hoverValueIndex")} {hoveredPrice.index + 1}</span>
+                  <div className="flex gap-4 items-center">
+                    <span className="font-bold">{t("priceCol")} :</span>
+                    <span className="font-extrabold text-slate-900 dark:text-white text-sm">{hoveredPrice.price.toFixed(2)} $</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex justify-between items-center w-full">
+                  <span className="text-slate-400 italic">{t("hoverLineHint")}</span>
+                  <span className="font-bold text-indigo-500">{selectedStock.price.toFixed(2)} $</span>
+                </div>
+              )}
             </>
           ) : (
             <>
@@ -1572,22 +1579,22 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                 return (
                   <div className="space-y-0.5">
                     <span className="text-slate-400 font-sans block font-bold text-[9px] uppercase border-b border-slate-800 pb-0.5 mb-1 text-center">
-                      Bougie : {timeframe === "1m" ? `Minute ${c.idx + 1}` : timeframe === "1h" ? `Heure ${c.idx + 1}` : timeframe === "1J" ? `Séc ${c.idx + 1}` : `Jour ${c.idx + 1}`}
+                      {t("candlePrefix")}: {timeframe === "1m" ? `${t("minutePrefix")} ${c.idx + 1}` : timeframe === "1h" ? `${t("hourPrefix")} ${c.idx + 1}` : timeframe === "1J" ? `${t("secPrefix")} ${c.idx + 1}` : `${t("dayPrefix")} ${c.idx + 1}`}
                     </span>
                     <div className="flex justify-between gap-3 text-slate-300">
-                      <span className="text-emerald-400">O (Ouvre):</span>
+                      <span className="text-emerald-400">{t("openShort")}</span>
                       <span className="font-bold">{c.openPrice.toFixed(2)} $</span>
                     </div>
                     <div className="flex justify-between gap-3 text-slate-300 font-semibold mb-0.2">
-                      <span className="text-amber-400">H (Hau.) :</span>
+                      <span className="text-amber-400">{t("highShort")}</span>
                       <span className="font-bold">{c.highPrice.toFixed(2)} $</span>
                     </div>
                     <div className="flex justify-between gap-3 text-slate-300 font-semibold mb-0.2">
-                      <span className="text-rose-400">L (Bas)  :</span>
+                      <span className="text-rose-400">{t("lowShort")}</span>
                       <span className="font-bold">{c.lowPrice.toFixed(2)} $</span>
                     </div>
                     <div className="flex justify-between gap-3 font-bold text-white border-t border-slate-800 pt-0.5">
-                      <span>C (Clôt.):</span>
+                      <span>{t("closeShort")}</span>
                       <span className={c.closePrice >= c.openPrice ? "text-emerald-400" : "text-rose-400"}>{c.closePrice.toFixed(2)} $</span>
                     </div>
                   </div>
@@ -1595,14 +1602,14 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
               })() : (
                 <div className="space-y-0.5">
                   <span className="text-slate-400 font-sans block text-[9px] uppercase border-b border-slate-800 pb-0.5 mb-1 text-center">
-                    Suivi Temps Réel
+                    {t("liveTrackingTitle")}
                   </span>
                   <div className="flex justify-between gap-3 text-slate-300">
-                    <span>Dernier :</span>
+                    <span>{t("lastLabel")}:</span>
                     <span className="font-bold text-amber-400">{selectedStock.price.toFixed(2)} $</span>
                   </div>
                   <div className="text-[9px] text-slate-400 font-sans leading-tight mt-1">
-                    Survolez une bougie pour voir ses détails OHLW.
+                    {t("hoverCandleHint")}
                   </div>
                 </div>
               )}
@@ -2069,25 +2076,26 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
         {/* Zoom stats header */}
         <div className="flex flex-wrap items-center justify-between text-xs font-mono bg-slate-900 text-slate-100 px-4 py-2 rounded-xl mb-1 shadow-sm">
           <div className="flex gap-4">
-            <span>Plus Haut (visible) : <span className="text-emerald-400 font-bold">{max.toFixed(2)} $</span></span>
-            <span>Plus Bas (visible) : <span className="text-rose-400 font-bold">{min.toFixed(2)} $</span></span>
-            <span>Écart visible : <span className="text-slate-300 font-bold">{(max - min).toFixed(2)} $</span></span>
+            <span>{t("visibleHigh")} <span className="text-emerald-400 font-bold">{max.toFixed(2)} $</span></span>
+            <span>{t("visibleLow")} <span className="text-rose-400 font-bold">{min.toFixed(2)} $</span></span>
+            <span>{t("visibleRange")} <span className="text-slate-300 font-bold">{(max - min).toFixed(2)} $</span></span>
           </div>
           <div className="flex gap-2">
             <span className={isIntervalPositive ? "text-emerald-400 font-bold font-mono" : "text-rose-400 font-bold font-mono"}>
-              Tendance : {isIntervalPositive ? "HAUSSIÈRE ▲" : "BAISSIÈRE ▼"}
+              {t("trendLabel")} {isIntervalPositive ? t("trendBullish") : t("trendBearish")}
             </span>
           </div>
         </div>
 
         {/* Canvas & Analysis Overlay Container */}
-        <ChartAnalysisOverlay
-          symbol={selectedStock.symbol}
-          timeframe={timeframe}
-          bounds={chartViewportBounds}
-          isZoomedModal={true}
-          containerWheelRef={bindNonPassiveZoomWheel}
-        >
+        <div className="relative w-full overflow-visible overscroll-contain">
+          <ChartAnalysisOverlay
+            symbol={selectedStock.symbol}
+            timeframe={timeframe}
+            bounds={chartViewportBounds}
+            isZoomedModal={true}
+            containerWheelRef={bindNonPassiveZoomWheel}
+          />
           <svg 
             className="w-full h-[360px] sm:h-[420px] lg:h-[480px] bg-slate-50 border border-slate-200 rounded-2xl overflow-visible cursor-grab active:cursor-grabbing shadow-xs" 
             viewBox={`0 0 ${width} ${height}`}
@@ -2315,22 +2323,22 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             {rawLabels[0]}
           </text>
           <text x={(width - padRight) / 2} y={height - 7} fill="#64748b" fontSize="9" textAnchor="middle" fontWeight="bold">
-            Intervalle : #{startIndex + 1} à #{endIndex} du parcours ({timeframe})
+            {t("intervalRangeLabel").replace("{start}", String(startIndex + 1)).replace("{end}", String(endIndex)).replace("{tf}", timeframe)}
           </text>
           <text x={width - padRight} y={height - 7} fill="#64748b" fontSize="9" textAnchor="end" fontWeight="bold">
             {rawLabels[2]}
           </text>
         </svg>
-        </ChartAnalysisOverlay>
+        </div>
 
         {/* Dynamic OHLV Tooltip HUD */}
         <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 sm:p-3.5 rounded-2xl flex items-center justify-between font-mono text-xs text-slate-700 dark:text-slate-200 min-h-[50px]">
           {idxHovered !== null && idxHovered < activePointsCount && prices[idxHovered] !== undefined ? (
             chartType === 'LINE' ? (
               <div className="flex justify-between items-center w-full flex-wrap gap-2">
-                <span className="font-bold text-slate-500 uppercase">Valeur à l'index n° {startIndex + idxHovered + 1}</span>
+                <span className="font-bold text-slate-500 uppercase">{t("hoverValueIndex")} {startIndex + idxHovered + 1}</span>
                 <div className="flex gap-4 items-center">
-                  <span className="font-bold">Cours :</span>
+                  <span className="font-bold">{t("priceCol")} :</span>
                   <span className="font-extrabold text-slate-900 text-sm">{prices[idxHovered].toFixed(2)} $</span>
                   {idxHovered > 0 ? (
                     (() => {
@@ -2338,7 +2346,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                       const change = ((prices[idxHovered] - prevPrice) / prevPrice) * 100;
                       return (
                         <span className={`font-bold ${change >= 0 ? "text-emerald-600" : "text-rose-550 text-rose-500"}`}>
-                          ({change >= 0 ? "+" : ""}{change.toFixed(2)}% vs préc.)
+                          ({change >= 0 ? "+" : ""}{change.toFixed(2)}% {t("vsPrev")})
                         </span>
                       );
                     })()
@@ -2352,13 +2360,13 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                 const isBull = c.closePrice >= c.openPrice;
                 return (
                   <div className="flex items-center justify-between w-full flex-wrap gap-2">
-                    <span className="font-bold text-slate-500 uppercase">Bougie #{startIndex + idxHovered + 1} :</span>
+                    <span className="font-bold text-slate-500 uppercase">{t("hoverCandleIndex")}{startIndex + idxHovered + 1} :</span>
                     <div className="flex flex-wrap gap-4 text-[11px] sm:text-xs">
-                      <div><span className="text-slate-400 font-bold">O (Ouvr.) :</span> <strong className="text-slate-800">{c.openPrice.toFixed(2)} $</strong></div>
-                      <div><span className="text-emerald-500 font-bold">H (Haut) :</span> <strong className="text-slate-800">{c.highPrice.toFixed(2)} $</strong></div>
-                      <div><span className="text-rose-500 font-bold">L (Bas) :</span> <strong className="text-slate-800">{c.lowPrice.toFixed(2)} $</strong></div>
+                      <div><span className="text-slate-400 font-bold">{t("openShort")}</span> <strong className="text-slate-800">{c.openPrice.toFixed(2)} $</strong></div>
+                      <div><span className="text-emerald-500 font-bold">{t("highShort")}</span> <strong className="text-slate-800">{c.highPrice.toFixed(2)} $</strong></div>
+                      <div><span className="text-rose-500 font-bold">{t("lowShort")}</span> <strong className="text-slate-800">{c.lowPrice.toFixed(2)} $</strong></div>
                       <div className="border-l border-slate-200 pl-3">
-                        <span className="text-slate-600 font-bold">C (Clôt.) :</span> 
+                        <span className="text-slate-600 font-bold">{t("closeShort")}</span> 
                         <strong className={`ml-1 text-sm ${isBull ? "text-emerald-600" : "text-rose-600"}`}>{c.closePrice.toFixed(2)} $</strong>
                       </div>
                     </div>
@@ -2368,7 +2376,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             )
           ) : (
             <span className="text-slate-400 italic text-center w-full">
-              Glissez la souris de gauche à droite sur l'encadré pour naviguer temporellement. Survolez chaque point pour une lecture OHLV de grande précision.
+              {t("zoomNavigationHint")}
             </span>
           )}
         </div>
@@ -2426,10 +2434,10 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
         <div className="space-y-1">
           <h3 className="font-bold text-slate-800 dark:text-slate-100 text-base px-1 flex items-center gap-1.5">
             <TrendingUp className="w-4 h-4 text-emerald-600" />
-            {t("marketPrices")}
+            {t("marketRates")}
           </h3>
           <p className="text-slate-400 text-xs px-1 pb-1">
-            {t("simulatedFluctuations")}
+            {t("fluctuationMotto")}
           </p>
         </div>
 
@@ -2443,7 +2451,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-8 py-2 text-xs border border-slate-200 dark:border-slate-850 focus:border-indigo-500 focus:bg-white bg-slate-50/50 dark:bg-slate-950/80 rounded-xl outline-hidden font-medium placeholder:text-slate-400 text-slate-800 dark:text-slate-100 transition"
-            placeholder="Rechercher une action (ex: AAPL, TSLA...)"
+            placeholder={t("searchStockPlaceholder")}
           />
           {searchQuery && (
             <button
@@ -2512,8 +2520,8 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
           ) : (
             <div className="text-center py-10 px-4 border border-dashed border-slate-200 rounded-2xl bg-slate-50/40">
               <span className="text-lg block mb-1">🔍</span>
-              <p className="text-xs font-bold text-slate-600 block">Aucune action trouvée</p>
-              <p className="text-[10px] text-slate-400 mt-1">Essayez un autre symbole ou nom de l'entreprise.</p>
+              <p className="text-xs font-bold text-slate-600 block">{t("noStockFound")}</p>
+              <p className="text-[10px] text-slate-400 mt-1">{t("noStockFoundDesc")}</p>
             </div>
           )}
         </div>
@@ -2523,10 +2531,10 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
           <div className="space-y-1">
             <h4 className="font-bold text-slate-850 dark:text-slate-150 text-xs px-1 flex items-center gap-1.5 uppercase tracking-wider">
               <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500 animate-pulse" />
-              {lang === "fr" ? "Actions suivies" : "Market watchlist"}
+              {t("watchlistTitle")}
             </h4>
             <p className="text-slate-400 dark:text-slate-500 text-[10px] px-1 pb-1">
-              {lang === "fr" ? "Vos favoris suivis en temps réel" : "Your favorites tracked in real-time"}
+              {t("watchlistSubtitle")}
             </p>
           </div>
 
@@ -2585,7 +2593,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                           toggleWatchlist(stock.symbol);
                         }}
                         className="text-amber-500 hover:text-slate-300 dark:hover:text-slate-650 p-1 rounded-md transition hover:scale-110 cursor-pointer"
-                        title={lang === "fr" ? "Ne plus suivre l'action" : "Unfollow stock"}
+                        title={t("watchlistRemove")}
                       >
                         <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
                       </button>
@@ -2596,10 +2604,10 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             ) : (
               <div className="text-center py-4 px-3 border border-dashed border-slate-200 rounded-xl bg-slate-50/10 dark:border-slate-800/60 dark:bg-slate-950/10">
                 <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                  {lang === "fr" ? "Aucun favori" : "Empty watchlist"}
+                  {t("watchlistEmpty")}
                 </p>
                 <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-1">
-                  {lang === "fr" ? "Cliquez sur l'étoile ★ d'une action pour la suivre ici." : "Click the ★ star on any action to list it here."}
+                  {t("watchlistHint")}
                 </p>
               </div>
             )}
@@ -2620,7 +2628,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                 <button
                   onClick={() => toggleWatchlist(selectedStock.symbol)}
                   className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 group transition cursor-pointer flex items-center justify-center ml-1"
-                  title={watchlist.includes(selectedStock.symbol) ? (lang === "fr" ? "Ne plus suivre l'action" : "Unfollow stock") : (lang === "fr" ? "Suivre cette action" : "Follow stock")}
+                  title={watchlist.includes(selectedStock.symbol) ? t("watchlistRemove") : t("watchlistAdd")}
                 >
                   <Star 
                     className={`w-5 h-5 transition-transform group-hover:scale-110 ${
@@ -2632,7 +2640,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                 </button>
               </div>
               <p className="text-slate-400 text-xs">
-                {selectedStock.description}
+                {getStockDescription(selectedStock.symbol, lang, selectedStock.description)}
               </p>
 
               {/* Market Status and Hours */}
@@ -2653,8 +2661,8 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                 </span>
                 <span className="text-slate-400 font-bold font-sans">
                   {marketType === 'EU'
-                    ? "Euronext Paris (Lun-Ven, 09:00 - 17:30 CET)"
-                    : "NYSE/NASDAQ (Lun-Ven, 09:30 - 16:00 EST)"
+                    ? t("marketHoursEuronext")
+                    : t("marketHoursUS")
                   }
                 </span>
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-500/15 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 border border-purple-500/30 dark:border-purple-700/60 text-[10px] font-extrabold">
@@ -2673,7 +2681,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             <div className="flex flex-wrap items-center gap-2.5">
               {/* Quantité */}
               <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700/60">
-                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Quantité:</span>
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{t("quantity")}:</span>
                 <input
                   type="number"
                   min="1"
@@ -2692,7 +2700,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                     onChange={(e) => setUseStopLoss(e.target.checked)}
                     className="rounded-sm border-slate-300 dark:border-slate-600 text-indigo-500 focus:ring-indigo-500 accent-indigo-500 w-3.5 h-3.5 cursor-pointer"
                   />
-                  <span>Stop-Loss 🛡️</span>
+                  <span>{t("stopLoss")}</span>
                 </label>
 
                 {useStopLoss && (
@@ -2713,7 +2721,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                       />
                     </div>
 
-                    <span className="text-slate-400 dark:text-slate-500 text-[11px] font-bold">ou</span>
+                    <span className="text-slate-400 dark:text-slate-500 text-[11px] font-bold">{t("orWord")}</span>
 
                     {/* Exact $ input */}
                     <div className={`flex items-center gap-1 bg-white dark:bg-slate-900 border ${isStopLossInvalid ? "border-rose-500" : "border-slate-300 dark:border-slate-700"} rounded-lg px-2 py-1`}>
@@ -2743,7 +2751,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                     onChange={(e) => setUseTakeProfit(e.target.checked)}
                     className="rounded-sm border-slate-300 dark:border-slate-600 text-emerald-500 focus:ring-emerald-500 accent-emerald-500 w-3.5 h-3.5 cursor-pointer"
                   />
-                  <span>Take-Profit 🎯</span>
+                  <span>{t("takeProfit")}</span>
                 </label>
 
                 {useTakeProfit && (
@@ -2764,7 +2772,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                       />
                     </div>
 
-                    <span className="text-slate-400 dark:text-slate-500 text-[11px] font-bold">ou</span>
+                    <span className="text-slate-400 dark:text-slate-500 text-[11px] font-bold">{t("orWord")}</span>
 
                     {/* Exact $ input */}
                     <div className={`flex items-center gap-1 bg-white dark:bg-slate-900 border ${isTakeProfitInvalid ? "border-rose-500" : "border-slate-300 dark:border-slate-700"} rounded-lg px-2 py-1`}>
@@ -2793,7 +2801,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                     onChange={(e) => setUseTrailingStop(e.target.checked)}
                     className="rounded-sm border-slate-300 dark:border-slate-600 text-amber-500 focus:ring-amber-500 accent-amber-500 w-3.5 h-3.5 cursor-pointer"
                   />
-                  <span>Trailing Stop 📈</span>
+                  <span>{t("trailingStop")}</span>
                 </label>
 
                 {useTrailingStop && (
@@ -2823,8 +2831,8 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
               {position && position.shares > 0 && (
                 <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
-                  <span>Possédé:</span>
-                  <strong className="font-mono">{position.shares} action{position.shares > 1 ? 's' : ''}</strong>
+                  <span>{t("ownedShares")}</span>
+                  <strong className="font-mono">{position.shares} {position.shares > 1 ? t("sharesPlural") : t("sharesSingle")}</strong>
                 </div>
               )}
             </div>
@@ -2862,18 +2870,18 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                 className="btn-trade-buy btn-trade-action flex-1 sm:flex-initial px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-500 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed !text-white shadow-lg shadow-emerald-900/20 dark:shadow-emerald-900/40 transition-all flex items-center justify-center gap-2 cursor-pointer"
                 title={
                   !isAffordable 
-                    ? "Solde insuffisant" 
+                    ? t("tooltipInsufficientFunds") 
                     : isStopLossInvalid 
-                    ? "Le prix de Stop-Loss est invalide" 
+                    ? t("tooltipInvalidStopLoss") 
                     : isTakeProfitInvalid
-                    ? "Le prix de Take-Profit est invalide"
+                    ? t("tooltipInvalidTakeProfit") 
                     : isTrailingStopInvalid
-                    ? "L'écart du Trailing Stop est invalide"
-                    : `Acheter ${tradeShares} action(s) à ${selectedStock.price.toFixed(2)} $${useStopLoss ? ` (Stop-loss: ${stopLossValue} $)` : ''}${useTakeProfit ? ` (Take-profit: ${takeProfitValue} $)` : ''}${useTrailingStop ? ` (Trailing stop: -${trailingStopPct}%)` : ''}`
+                    ? t("tooltipInvalidTrailingStop") 
+                    : `${t("buy")} ${tradeShares} ${tradeShares > 1 ? t("sharesPlural") : t("sharesSingle")} @ ${selectedStock.price.toFixed(2)} ${useStopLoss ? ` (Stop-loss: ${stopLossValue} $)` : ''}${useTakeProfit ? ` (Take-profit: ${takeProfitValue} $)` : ''}${useTrailingStop ? ` (Trailing stop: -${trailingStopPct}%)` : ''}`
                 }
               >
                 <ArrowUpRight className="w-4 h-4 !text-white" style={{ color: '#ffffff' }} />
-                <span className="!text-white font-bold" style={{ color: '#ffffff' }}>ACHETER</span>
+                <span className="!text-white font-bold" style={{ color: '#ffffff' }}>{t("quickBuy")}</span>
                 <span className="font-mono text-[11px] font-bold !text-white opacity-90" style={{ color: '#ffffff' }}>({(selectedStock.price * tradeShares).toFixed(2)} $)</span>
               </button>
 
@@ -2885,30 +2893,27 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                 }}
                 disabled={!hasSharesToSell}
                 className="btn-trade-sell btn-trade-action flex-1 sm:flex-initial px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm bg-rose-600 hover:bg-rose-500 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed !text-white shadow-lg shadow-rose-900/20 dark:shadow-rose-900/40 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                title={!hasSharesToSell ? "Actions insuffisantes" : `Vendre ${tradeShares} action(s) à ${selectedStock.price.toFixed(2)} $`}
+                title={!hasSharesToSell ? t("tooltipInsufficientShares") : `${t("sell")} ${tradeShares} ${tradeShares > 1 ? t("sharesPlural") : t("sharesSingle")} @ ${selectedStock.price.toFixed(2)} $`}
               >
                 <ArrowDownRight className="w-4 h-4 !text-white" style={{ color: '#ffffff' }} />
-                <span className="!text-white font-bold" style={{ color: '#ffffff' }}>VENDRE</span>
+                <span className="!text-white font-bold" style={{ color: '#ffffff' }}>{t("quickSell")}</span>
                 <span className="font-mono text-[11px] font-bold !text-white opacity-90" style={{ color: '#ffffff' }}>({(selectedStock.price * tradeShares).toFixed(2)} $)</span>
               </button>
-
-
             </div>
           </div>
-
           {/* Historical detailed graph */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 pb-2 border-b border-slate-50">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
               <svg className="w-3.5 h-3.5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
-              Graphique Yahoo Finance ({timeframe === '1J' ? '1 Jour' : timeframe === '1S' ? '5 Jours' : timeframe === '1M' ? '1 Mois' : timeframe === '3M' ? '3 Mois' : timeframe === '6M' ? '6 Mois' : timeframe === '1A' ? '1 An' : 'Tout'})
+              {t("chartYahooTitle") || "Graphique Yahoo Finance"} ({timeframe === '1J' ? (t("tf1d") || '1J') : timeframe === '1S' ? (t("tf5d") || '5J') : timeframe === '1M' ? (t("tf1m") || '1M') : timeframe === '3M' ? (t("tf3m") || '3M') : timeframe === '6M' ? (t("tf6m") || '6M') : timeframe === '1A' ? (t("tf1y") || '1A') : (t("tfAll") || 'Tout')})
             </span>
             
             <div className="flex flex-wrap items-center gap-2.5">
               {/* Sélecteur de comparaison */}
               <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Comparer :</span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">{t("compareLabel") || "Comparer :"}</span>
                 <select
                   value={compareSymbol || ""}
                   onChange={(e) => {
@@ -2920,7 +2925,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                   }}
                   className="bg-transparent border-none text-xs font-bold font-sans text-slate-700 dark:text-slate-200 outline-hidden cursor-pointer focus:ring-0 max-w-[130px]"
                 >
-                  <option value="">-- Aucun --</option>
+                  <option value="">{t("compareNone") || t("none") || "-- Aucun --"}</option>
                   {stocks
                     .filter((s) => s.symbol !== selectedStock.symbol)
                     .map((s) => (
@@ -2934,7 +2939,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                     type="button"
                     onClick={() => setCompareSymbol(null)}
                     className="text-slate-400 hover:text-rose-500 transition font-bold text-xs"
-                    title="Supprimer la comparaison"
+                    title={t("removeComparison") || "Supprimer la comparaison"}
                   >
                     ×
                   </button>
@@ -2952,7 +2957,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                       : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
                   }`}
                 >
-                  Courbe
+                  {t("chartLine") || "Courbe"}
                 </button>
                 <button
                   type="button"
@@ -2963,9 +2968,9 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                       ? "bg-indigo-50 text-indigo-600 border border-indigo-200/60 dark:border-transparent dark:bg-slate-800 dark:text-white shadow-xs"
                       : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed"
                   }`}
-                  title={compareSymbol !== null ? "Chandelier n'est pas disponible en mode comparaison" : "Graphique en Chandeliers japonais"}
+                  title={compareSymbol !== null ? (t("candlestickDisabledCompare") || "Chandelier n'est pas disponible en mode comparaison") : (t("candlestickTitle") || "Graphique en Chandeliers japonais")}
                 >
-                  Chandelier
+                  {t("chartCandles") || "Chandelier"}
                 </button>
               </div>
             </div>
@@ -2974,16 +2979,16 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
           {/* SÉLECTEUR DE TIMEFRAME */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-3 pb-1 border-b border-slate-50/50 dark:border-slate-800">
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mr-1">Période :</span>
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mr-1">{t("periodLabel") || "Période :"}</span>
               <div className="flex bg-white dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200/80 dark:border-slate-700/60 shadow-xs">
                 {[
-                  { id: "1J", label: "1 jour" },
-                  { id: "1S", label: "5 jours" },
-                  { id: "1M", label: "30 j." },
-                  { id: "3M", label: "3 mois" },
-                  { id: "6M", label: "6 mois" },
-                  { id: "1A", label: "1 an" },
-                  { id: "Tout", label: "Tout" }
+                  { id: "1J", label: "1D" },
+                  { id: "1S", label: "5D" },
+                  { id: "1M", label: "1M" },
+                  { id: "3M", label: "3M" },
+                  { id: "6M", label: "6M" },
+                  { id: "1A", label: "1Y" },
+                  { id: "Tout", label: "ALL" }
                 ].map((tf) => {
                   const isActive = timeframe === tf.id;
                   return (
@@ -3015,7 +3020,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                 setPanOffsetPercent(100);
               }}
               className="p-2 rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-600 hover:text-white transition-all duration-200 border border-indigo-100/60 shadow-xs cursor-pointer flex items-center justify-center"
-              title="Gros plan & Zoom 🔍 (Agrandir le graphique)"
+              title={t("zoomTooltip") || t("zoomBtn") || "Gros plan & Zoom 🔍 (Agrandir le graphique)"}
             >
               <Maximize2 className="w-4 h-4" />
             </button>
@@ -3033,19 +3038,19 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
           {/* Quick Metrics */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl text-xs font-mono text-slate-600 dark:text-slate-300">
             <div>
-              <span className="text-slate-400 block text-[10px] uppercase font-sans font-semibold mb-0.5">Plus bas (24h)</span>
+              <span className="text-slate-400 block text-[10px] uppercase font-sans font-semibold mb-0.5">{t("low24h")}</span>
               <span className="text-slate-800 dark:text-slate-100 font-bold">{selectedStock.low24h.toFixed(2)} $</span>
             </div>
             <div>
-              <span className="text-slate-400 block text-[10px] uppercase font-sans font-semibold mb-0.5">Plus haut (24h)</span>
+              <span className="text-slate-400 block text-[10px] uppercase font-sans font-semibold mb-0.5">{t("high24h")}</span>
               <span className="text-slate-800 dark:text-slate-100 font-bold">{selectedStock.high24h.toFixed(2)} $</span>
             </div>
             <div>
-              <span className="text-slate-400 block text-[10px] uppercase font-sans font-semibold mb-0.5">Vol. d'échanges</span>
+              <span className="text-slate-400 block text-[10px] uppercase font-sans font-semibold mb-0.5">{t("tradingVolume")}</span>
               <span className="text-slate-800 dark:text-slate-100 font-bold">{selectedStock.volume}</span>
             </div>
             <div>
-              <span className="text-slate-400 block text-[10px] uppercase font-sans font-semibold mb-0.5">Cap. Boursière</span>
+              <span className="text-slate-400 block text-[10px] uppercase font-sans font-semibold mb-0.5">{t("marketCap")}</span>
               <span className="text-slate-800 dark:text-slate-100 font-bold">{selectedStock.marketCap}</span>
             </div>
           </div>
@@ -3057,10 +3062,10 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             <div>
               <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm sm:text-base flex items-center gap-1.5">
                 <Newspaper className="w-4.5 h-4.5 text-indigo-505 shadow-2xs text-indigo-500" />
-                Actualités Temps Réel : {selectedStock.symbol}
+                {t("newsTitle") || "Actualités Temps Réel :"} {selectedStock.symbol}
               </h3>
               <p className="text-slate-400 text-[11px]">
-                Décryptez l'impact pédagogique des nouvelles financières traduites en direct :
+                {t("newsSubtitle") || "Décryptez l'impact pédagogique des nouvelles financières traduites en direct :"}
               </p>
             </div>
             
@@ -3068,7 +3073,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
               {isNewsLoading ? (
                 <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/60 px-2.5 py-0.5 rounded-full font-extrabold uppercase tracking-wide self-start flex items-center gap-1.5 animate-pulse">
                   <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />
-                  Chargement des actualités...
+                  {t("newsLoading") || "Chargement des actualités..."}
                 </span>
               ) : (
                 <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full font-extrabold uppercase tracking-wide self-start flex items-center gap-1">
@@ -3103,10 +3108,10 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
               displayNews.map((item) => {
                 const isSelected = selectedNewsId === item.id;
                 const sentimentStyles = {
-                  positive: { bg: "bg-emerald-50 text-emerald-750 border-emerald-100", dot: "bg-emerald-500", text: "Haussier (Positif)" },
-                  negative: { bg: "bg-rose-50 text-rose-750 border-rose-100", dot: "bg-rose-500", text: "Baissier (Négatif)" },
-                  neutral: { bg: "bg-slate-50 text-slate-750 border-slate-100", dot: "bg-slate-400", text: "Neutre" },
-                }[item.sentiment] || { bg: "bg-slate-50 text-slate-755 border-slate-100", dot: "bg-slate-400", text: "Neutre" };
+                  positive: { bg: "bg-emerald-50 text-emerald-750 border-emerald-100", dot: "bg-emerald-500", text: t("sentimentBullishLong") || "Haussier (Positif)" },
+                  negative: { bg: "bg-rose-50 text-rose-750 border-rose-100", dot: "bg-rose-500", text: t("sentimentBearishLong") || "Baissier (Négatif)" },
+                  neutral: { bg: "bg-slate-50 text-slate-750 border-slate-100", dot: "bg-slate-400", text: t("sentimentNeutralLong") || "Neutre" },
+                }[item.sentiment] || { bg: "bg-slate-50 text-slate-755 border-slate-100", dot: "bg-slate-400", text: t("sentimentNeutralLong") || "Neutre" };
 
                 return (
                   <div
@@ -3139,7 +3144,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                         {sentimentStyles.text}
                       </span>
                       <span className="text-indigo-600 font-extrabold hover:underline select-none">
-                        {isSelected ? "Masquer ↑" : "Décrypter →"}
+                        {isSelected ? (t("hideNews") || "Masquer ↑") : (t("decipherNews") || "Décrypter →")}
                       </span>
                     </div>
                   </div>
@@ -3154,17 +3159,23 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             if (!activeNews) return null;
 
             const explanation = {
-              positive: "Ce type de nouvelle positive attire généralement les acheteurs. La loi de l'offre et de la demande veut que lorsque le nombre d'acheteurs augmente fortement face à une offre inchangée, la concurrence pousse le cours de l'action à la hausse.",
-              negative: "Les nouvelles négatives inquiètent les investisseurs qui cherchent à limiter leurs pertes en vendant leurs parts. L'afflux de vendeurs face à des acheteurs réticents engendre mécaniquement une baisse du cours de l'action.",
-              neutral: "Une nouvelle neutre apporte de l'information importante sur l'état d'activité mais sans bouleverser la valorisation immédiate. Elle se traduit souvent par une stabilisation latérale des volumes ou confirme simplement les prévisions existantes.",
-            }[activeNews.sentiment] || "Analyse équilibrée nécessaire : cet événement nécessite de surveiller les prochains résultats d'exploitation trimestriels.";
+              positive: t("positiveNewsExplanation") || "Ce type de nouvelle positive attire généralement les acheteurs. La loi de l'offre et de la demande veut que lorsque le nombre d'acheteurs augmente fortement face à une offre inchangée, la concurrence pousse le cours de l'action à la hausse.",
+              negative: t("negativeNewsExplanation") || "Les nouvelles négatives inquiètent les investisseurs qui cherchent à limiter leurs pertes en vendant leurs parts. L'afflux de vendeurs face à des acheteurs réticents engendre mécaniquement une baisse du cours de l'action.",
+              neutral: t("neutralNewsExplanation") || "Une nouvelle neutre apporte de l'information importante sur l'état d'activité mais sans bouleverser la valorisation immédiate. Elle se traduit souvent par une stabilisation latérale des volumes ou confirme simplement les prévisions existantes.",
+            }[activeNews.sentiment] || t("neutralNewsExplanation") || "Analyse équilibrée nécessaire : cet événement nécessite de surveiller les prochains résultats d'exploitation trimestriels.";
+
+            const sentimentLabelUpper = {
+              positive: t("sentimentPositiveUpper") || "HAUSSIER",
+              negative: t("sentimentNegativeUpper") || "BAISSIER",
+              neutral: t("sentimentNeutralUpper") || "NEUTRE"
+            }[activeNews.sentiment] || "NEUTRE";
 
             return (
               <div className="space-y-4 mt-2">
                 {/* Full Article Content Card */}
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-3">
                   <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                    <span>{activeNews.source} • Article Complet</span>
+                    <span>{activeNews.source} • {t("fullArticle") || "Article Complet"}</span>
                     <span>{activeNews.timestamp}</span>
                   </div>
                   <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-slate-100">{activeNews.title}</h3>
@@ -3181,7 +3192,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 font-extrabold text-[11px] text-indigo-600 dark:text-indigo-400 hover:text-indigo-850 transition underline underline-offset-2 hover:no-underline"
                         >
-                          Consulter l'article d'origine sur {activeNews.source} →
+                          {t("originalArticle") ? `${t("originalArticle")} (${activeNews.source}) →` : `Consulter l'article d'origine sur ${activeNews.source} →`}
                         </a>
                       </div>
                     );
@@ -3193,12 +3204,20 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-indigo-500" />
                     <strong className="text-indigo-950 font-sans uppercase tracking-wider text-[10px]">
-                      💡 Décryptage de Finance Bridge : Comment analyser cet événement ?
+                      {t("decipherTitle") || "💡 Décryptage de Finance Bridge : Comment analyser cet événement ?"}
                     </strong>
                   </div>
                   <div className="text-slate-700 leading-relaxed space-y-2 font-sans">
                     <p>
-                      L'article <em className="font-semibold text-slate-800">« {activeNews.title} »</em> publié par <strong className="text-indigo-900">{activeNews.source}</strong> présage un sentiment <strong className={`font-black ${activeNews.sentiment === 'positive' ? 'text-emerald-700' : activeNews.sentiment === 'negative' ? 'text-rose-700' : 'text-slate-700'}`}>{activeNews.sentiment === 'positive' ? 'HAUSSIER' : activeNews.sentiment === 'negative' ? 'BAISSIER' : 'NEUTRE'}</strong>.
+                      {t("decipherArticleIntro") ? (
+                        <>
+                          {t("decipherArticleIntro")} <em className="font-semibold text-slate-800">« {activeNews.title} »</em> ({activeNews.source}) : <strong className={`font-black ${activeNews.sentiment === 'positive' ? 'text-emerald-700' : activeNews.sentiment === 'negative' ? 'text-rose-700' : 'text-slate-700'}`}>{sentimentLabelUpper}</strong>.
+                        </>
+                      ) : (
+                        <>
+                          L'article <em className="font-semibold text-slate-800">« {activeNews.title} »</em> publié par <strong className="text-indigo-900">{activeNews.source}</strong> présage un sentiment <strong className={`font-black ${activeNews.sentiment === 'positive' ? 'text-emerald-700' : activeNews.sentiment === 'negative' ? 'text-rose-700' : 'text-slate-700'}`}>{sentimentLabelUpper}</strong>.
+                        </>
+                      )}
                     </p>
                     <p className="bg-white p-3.5 rounded-lg border border-indigo-50/50 leading-relaxed text-slate-600 shadow-2xs font-sans">
                       {explanation}
@@ -3253,7 +3272,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                   <div className="flex justify-between items-center mb-3">
                     <h4 className="font-bold text-slate-800 dark:text-white text-base flex items-center gap-1.5">
                       <Layers className="w-4.5 h-4.5 text-indigo-500" />
-                      Carnet d'ordres
+                      {t("orderBookTitle")}
                     </h4>
                     <button
                       type="button"
@@ -3267,25 +3286,25 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                           : "bg-slate-50 border-slate-200 text-slate-500 dark:bg-slate-850 dark:border-slate-800 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                       }`}
                       id="guided-learning-toggle-btn"
-                      title="Activer/Désactiver le mode d'apprentissage"
+                      title={t("learnToggleTooltip")}
                     >
                       <GraduationCap className={`w-3.5 h-3.5 ${guidedLearningActive ? "animate-pulse" : ""}`} />
-                      <span>{guidedLearningActive ? "Apprendre : Oui" : "Apprendre 🎓"}</span>
+                      <span>{guidedLearningActive ? t("learnActive") : t("learnButton")}</span>
                     </button>
                   </div>
 
                   {/* Order Book Table Column Headers */}
                   <div className="grid grid-cols-4 text-[10px] text-slate-400 font-bold uppercase pb-1.5 border-b border-slate-100 dark:border-slate-800">
-                    <span className="col-span-2">Prix ($)</span>
-                    <span className="text-right">Taille (Actions)</span>
+                    <span className="col-span-2">{t("priceCol")}</span>
+                    <span className="text-right">{t("sizeCol")}</span>
                     <span className="text-right relative flex items-center justify-end gap-1">
-                      Prof.
+                      {t("depthCol")}
                       {guidedLearningActive && (
                         <button
                           type="button"
                           onClick={() => setActiveTooltip(activeTooltip === "depth" ? null : "depth")}
                           className="w-3.5 h-3.5 bg-yellow-405 bg-yellow-400 text-yellow-950 rounded-full flex items-center justify-center font-black animate-bounce shrink-0 cursor-pointer text-[9px] hover:bg-yellow-300"
-                          title="Explication : Profondeur"
+                          title={t("learnDepthTooltipTitle")}
                         >
                           ?
                         </button>
@@ -3301,7 +3320,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                           type="button"
                           onClick={() => setActiveTooltip(activeTooltip === "asks" ? null : "asks")}
                           className="w-4 h-4 bg-rose-500 text-white font-bold rounded-full flex items-center justify-center shadow-md animate-bounce text-[10px] cursor-pointer hover:bg-rose-600"
-                          title="Explication : Carnet Vendeur"
+                          title={t("learnAsksTooltipTitle")}
                         >
                           ?
                         </button>
@@ -3348,7 +3367,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                           type="button"
                           onClick={() => setActiveTooltip(activeTooltip === "spread" ? null : "spread")}
                           className="w-4 h-4 bg-indigo-500 text-white font-bold rounded-full flex items-center justify-center shadow-md animate-bounce text-[10px] cursor-pointer hover:bg-indigo-650"
-                          title="Explication : Le Spread"
+                          title={t("learnSpreadTooltipTitle")}
                         >
                           ?
                         </button>
@@ -3369,7 +3388,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                       </div>
                       <div className="text-right flex flex-col pr-1">
                         <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 leading-none">
-                          SPREAD: {spreadAmount.toFixed(2)} $
+                          {t("spreadUpper")}: {spreadAmount.toFixed(2)} $
                         </span>
                         <span className="text-[9px] font-bold text-indigo-550 dark:text-indigo-400 leading-normal">
                           ({spreadPct.toFixed(3)}%)
@@ -3386,7 +3405,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                           type="button"
                           onClick={() => setActiveTooltip(activeTooltip === "bids" ? null : "bids")}
                           className="w-4 h-4 bg-emerald-500 text-white font-bold rounded-full flex items-center justify-center shadow-md animate-bounce text-[10px] cursor-pointer hover:bg-emerald-600"
-                          title="Explication : Carnet Acheteur"
+                          title={t("learnBidsTooltipTitle")}
                         >
                           ?
                         </button>
@@ -3443,13 +3462,13 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                             return (
                               <div className="space-y-1.5">
                                 <strong className="text-xs text-rose-750 dark:text-rose-400 block font-bold leading-tight">
-                                  🔴 Carnet Vendeur : Les Offres (Asks)
+                                  {t("learnAsksTitle")}
                                 </strong>
                                 <p className="text-[10.5px] text-slate-605 text-slate-600 dark:text-slate-300 leading-relaxed font-semibold">
-                                  Les <strong>Asks</strong> répertorient toutes les offres de vente en attente, classées par prix croissant. Le prix le plus bas est la **Meilleure Offre** (*Best Ask*).
+                                  {t("learnAsksText1")}
                                 </p>
                                 <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-normal">
-                                  C’est la liste d’attente des investisseurs qui disent : « Je ne contracterai pas de vente à moins de ce prix ». Si vous achetez au marché, vous les payez à ce prix.
+                                  {t("learnAsksText2")}
                                 </p>
                               </div>
                             );
@@ -3458,13 +3477,13 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                             return (
                               <div className="space-y-1.5">
                                 <strong className="text-xs text-emerald-750 dark:text-emerald-400 block font-bold leading-tight">
-                                  🟢 Carnet Acheteur : Les Demandes (Bids)
+                                  {t("learnBidsTitle")}
                                 </strong>
                                 <p className="text-[10.5px] text-slate-605 text-slate-600 dark:text-slate-300 leading-relaxed font-semibold">
-                                  Les <strong>Bids</strong> répertorient toutes les propositions d’achat en attente, classées par prix décroissant. Le prix le plus haut est la **Meilleure Demande** (*Best Bid*).
+                                  {t("learnBidsText1")}
                                 </p>
                                 <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-normal">
-                                  Ce sont des investisseurs qui patientent à des prix d’exécutions inférieurs pour négocier un rabais boursier. Si vous vendez au marché, vous vendez chez eux.
+                                  {t("learnBidsText2")}
                                 </p>
                               </div>
                             );
@@ -3473,13 +3492,13 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                             return (
                               <div className="space-y-1.5">
                                 <strong className="text-xs text-indigo-750 dark:text-indigo-400 block font-bold leading-tight">
-                                  ⚖️ Le Spread : Fourchette de Cours
+                                  {t("learnSpreadTitle")}
                                 </strong>
                                 <p className="text-[10.5px] text-slate-605 text-slate-600 dark:text-slate-300 leading-relaxed font-semibold">
-                                  C’est la différence numérique exacte entre l’offre de vente la plus basse (Best Ask) et l’offre d’achat la plus haute (Best Bid).
+                                  {t("learnSpreadText1")}
                                 </p>
                                 <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-normal">
-                                  Un **spread de {spreadAmount.toFixed(2)} $** indique un écart très serré, typique d’une excellente liquidité de l’action. Le cours ({basePrice.toFixed(2)} $) fluctue à l’intérieur.
+                                  {t("learnSpreadText2").replace("{spread}", spreadAmount.toFixed(2)).replace("{price}", basePrice.toFixed(2))}
                                 </p>
                               </div>
                             );
@@ -3488,13 +3507,13 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                             return (
                               <div className="space-y-1.5">
                                 <strong className="text-xs text-amber-705 dark:text-amber-400 block font-bold leading-tight">
-                                  📊 Profondeur de Marché / Volume
+                                  {t("learnDepthTitle")}
                                 </strong>
                                 <p className="text-[10.5px] text-slate-605 text-slate-600 dark:text-slate-300 leading-relaxed font-semibold">
-                                  Les barres colorées horizontales en background représentent la quantité cumulée d’actions (le volume) présente à ce palier.
+                                  {t("learnDepthText1")}
                                 </p>
                                 <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-normal">
-                                  Une barre très longue signale un **mur d’ordres** (support ou résistance fort). Il faudra un très gros volume d’échanges pour repousser ce palier de prix !
+                                  {t("learnDepthText2")}
                                 </p>
                               </div>
                             );
@@ -3504,11 +3523,11 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                               <div className="flex items-center gap-1.5">
                                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                                 <strong className="text-xs text-indigo-950 dark:text-indigo-400 block font-bold leading-tight">
-                                  🎓 Mode Apprentissage Activé !
+                                  {t("learnActiveModeTitle")}
                                 </strong>
                               </div>
                               <p className="text-[10.5px] text-slate-605 text-slate-600 dark:text-slate-350 leading-relaxed font-semibold">
-                                Touchez les badges jaunes <span className="bg-yellow-400 dark:bg-yellow-550 text-slate-900 font-extrabold px-1.5 py-0.2 rounded text-[10px]">?</span> pour explorer en direct comment s’organise la liquidité secrète de l’action <strong>{selectedStock.symbol}</strong> !
+                                {t("learnActiveModeText").replace("{symbol}", selectedStock.symbol)}
                               </p>
                             </div>
                           );
@@ -3518,7 +3537,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                       <div className="bg-white dark:bg-slate-800/25 border border-slate-200/80 dark:border-transparent p-3 rounded-xl flex items-center justify-between gap-3 text-xs text-slate-500 shadow-xs">
                         <div className="flex items-center gap-2">
                           <GraduationCap className="w-4 h-4 text-slate-400 shrink-0 animate-bounce" />
-                          <span className="text-[10px] sm:text-[11px] leading-snug">Touchez « Apprendre 🎓 » pour des explications contextuelles de ce carnet.</span>
+                          <span className="text-[10px] sm:text-[11px] leading-snug">{t("learnDisabledBanner")}</span>
                         </div>
                       </div>
                     )}
@@ -3531,29 +3550,29 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                 <div>
                   <h4 className="font-bold text-slate-800 dark:text-white text-base mb-3.5 flex items-center gap-1.5">
                     <Briefcase className="w-4.5 h-4.5 text-indigo-500" />
-                    Votre Position Fictive
+                    {t("positionTitle")}
                   </h4>
 
                   {position ? (
                     <div className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-transparent p-3 rounded-xl shadow-xs animate-fade-in">
-                          <span className="text-[10px] text-slate-400 uppercase block font-semibold mb-0.5">Actions Détenues</span>
+                          <span className="text-[10px] text-slate-400 uppercase block font-semibold mb-0.5">{t("positionSharesHeld")}</span>
                           <span className="text-xl font-bold text-slate-800 dark:text-white font-mono">{position.shares}</span>
                         </div>
                         <div className="bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-transparent p-3 rounded-xl shadow-xs animate-fade-in">
-                          <span className="text-[10px] text-slate-400 uppercase block font-semibold mb-0.5">C.U.M.P (*)</span>
+                          <span className="text-[10px] text-slate-400 uppercase block font-semibold mb-0.5">{t("positionAvgCost")}</span>
                           <span className="text-xl font-bold text-slate-800 dark:text-white font-mono">{position.avgBuyPrice.toFixed(2)} $</span>
                         </div>
                       </div>
 
                       <div className="border-t border-slate-100 dark:border-slate-805 pt-3 space-y-1.5 text-xs">
                         <div className="flex justify-between">
-                          <span className="text-slate-400">Valeur actuelle :</span>
+                          <span className="text-slate-400">{t("positionCurrentVal")}:</span>
                           <span className="font-bold text-slate-800 dark:text-white font-mono">{(position.shares * selectedStock.price).toFixed(2)} $</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-slate-400">Total investi s.a :</span>
+                          <span className="text-slate-400">{t("positionTotalInvested")}:</span>
                           <span className="text-slate-500 dark:text-slate-400 font-mono">{(position.shares * position.avgBuyPrice).toFixed(2)} $</span>
                         </div>
                         {/* Performance calculating */}
@@ -3564,7 +3583,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
 
                           return (
                             <div className="flex justify-between pt-1.5 border-t border-slate-100 dark:border-slate-805">
-                              <span className="font-bold text-slate-600 dark:text-slate-350">Plus-value générée :</span>
+                              <span className="font-bold text-slate-600 dark:text-slate-350">{t("positionPnL")}:</span>
                               <span className={`font-mono font-extrabold ${isProfit ? "text-emerald-600 animate-pulse" : "text-rose-500"}`}>
                                 {isProfit ? "+" : ""}{netProfit.toFixed(2)} $ ({isProfit ? "+" : ""}{netProfitPercent.toFixed(2)}%)
                               </span>
@@ -3577,14 +3596,14 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                       <div className="bg-white dark:bg-slate-950 p-3 rounded-xl border border-slate-200/80 dark:border-slate-805 shadow-xs flex flex-col gap-2 mt-3">
                         <div className="flex justify-between items-center text-xs">
                           <span className="text-slate-500 dark:text-slate-350 flex items-center gap-1 font-semibold">
-                            🛡️ Stop-Loss Actif
+                            {t("positionActiveSL")}
                           </span>
                           {position.stopLoss ? (
                             <span className="font-mono font-extrabold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950 px-1.5 py-0.5 rounded text-[10px]">
                               {position.stopLoss.toFixed(2)} $
                             </span>
                           ) : (
-                            <span className="text-slate-400 italic text-[11px]">Aucun</span>
+                            <span className="text-slate-400 italic text-[11px]">{t("positionNone")}</span>
                           )}
                         </div>
 
@@ -3597,7 +3616,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                                 value={editStopLossValue}
                                 onChange={(e) => setEditStopLossValue(e.target.value)}
                                 className="w-full text-xs font-mono font-bold border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1 rounded outline-hidden focus:border-indigo-500 text-slate-900 dark:text-white"
-                                placeholder="Prix protectif ($)"
+                                placeholder={t("positionProtectivePrice")}
                               />
                             </div>
                             <button
@@ -3613,14 +3632,14 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                               }}
                               className="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] px-2 py-1 rounded font-bold cursor-pointer transition whitespace-nowrap"
                             >
-                              Sauver
+                              {t("saveButton")}
                             </button>
                             <button
                               type="button"
                               onClick={() => setEditStopLossActive(false)}
                               className="text-[10px] text-slate-405 dark:text-slate-400 hover:text-slate-600 px-1 hover:underline cursor-pointer"
                             >
-                              Annuler
+                              {t("cancelButton")}
                             </button>
                           </div>
                         ) : (
@@ -3633,10 +3652,10 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                                 }}
                                 className="text-[10px] text-slate-400 hover:text-rose-550 dark:hover:text-rose-400 hover:underline cursor-pointer transition font-semibold"
                               >
-                                Désactiver le seuil
+                                {t("positionDisableThreshold")}
                               </button>
                             ) : (
-                              <span className="text-[10px] text-slate-400 leading-normal">Configurez un Stop-Loss protecteur.</span>
+                              <span className="text-[10px] text-slate-400 leading-normal">{t("positionConfigureSL")}</span>
                             )}
                             <button
                               type="button"
@@ -3646,7 +3665,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                               }}
                               className="text-[10px] text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 font-extrabold hover:underline cursor-pointer transition"
                             >
-                              {position.stopLoss ? "Modifier" : "Définir"}
+                              {position.stopLoss ? t("positionEdit") : t("positionDefine")}
                             </button>
                           </div>
                         )}
@@ -3655,15 +3674,15 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                   ) : (
                     <div className="flex flex-col items-center justify-center py-6 text-center space-y-2">
                       <Briefcase className="w-8 h-8 text-slate-300 dark:text-slate-700" />
-                      <p className="text-xs text-slate-500">Aucun titre détenu sur <strong>{selectedStock.symbol}</strong>.</p>
-                      <p className="text-[10px] text-slate-400 max-w-[200px]">Passez votre premier ordre d'achat fictif ci-contre pour débuter !</p>
+                      <p className="text-xs text-slate-500">{t("positionNoShares").replace("{symbol}", selectedStock.symbol)}</p>
+                      <p className="text-[10px] text-slate-400 max-w-[200px]">{t("positionPlaceFirstOrder")}</p>
                     </div>
                   )}
                 </div>
 
                 <div className="pt-4 text-[10px] text-slate-400 flex items-start gap-1 pb-1">
                   <Info className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                  <span>(*) C.U.M.P : Coût Unitaire Moyen Pondéré. Prix moyen constaté lors de vos multiples ordres d'achats.</span>
+                  <span>{t("positionCUMPFootnote")}</span>
                 </div>
               </div>
             </div>
@@ -3684,10 +3703,10 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                 </span>
                 <div>
                   <h3 className="text-base sm:text-lg font-extrabold text-slate-800">
-                    Graphique Gros Plan Interactif : {selectedStock.name}
+                    {t("modalZoomTitle")}: {selectedStock.name}
                   </h3>
                   <p className="text-xs text-slate-400">
-                    Déplacez-vous sur l'axe du temps, zoomez à la molette ou cliquez/glissez pour naviguer.
+                    {t("modalZoomSubtitle")}
                   </p>
                 </div>
               </div>
@@ -3703,7 +3722,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                     className="btn-trade-buy btn-trade-action px-4 py-2 rounded-xl font-black text-xs bg-emerald-600 hover:bg-emerald-500 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed !text-white shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
                   >
                     <ArrowUpRight className="w-3.5 h-3.5 !text-white" style={{ color: '#ffffff' }} />
-                    <span className="!text-white font-bold" style={{ color: '#ffffff' }}>ACHETER</span>
+                    <span className="!text-white font-bold" style={{ color: '#ffffff' }}>{t("buyBtn").toUpperCase()}</span>
                     <span className="font-mono text-[10px] !text-white" style={{ color: '#ffffff' }}>({selectedStock.price.toFixed(2)} $)</span>
                   </button>
 
@@ -3717,7 +3736,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                     className="btn-trade-sell btn-trade-action px-4 py-2 rounded-xl font-black text-xs bg-rose-600 hover:bg-rose-500 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed !text-white shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
                   >
                     <ArrowDownRight className="w-3.5 h-3.5 !text-white" style={{ color: '#ffffff' }} />
-                    <span className="!text-white font-bold" style={{ color: '#ffffff' }}>VENDRE</span>
+                    <span className="!text-white font-bold" style={{ color: '#ffffff' }}>{t("sellBtn").toUpperCase()}</span>
                     <span className="font-mono text-[10px] !text-white" style={{ color: '#ffffff' }}>({selectedStock.price.toFixed(2)} $)</span>
                   </button>
                 </div>
@@ -3729,7 +3748,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                     setHoveredZoomPrice(null);
                   }}
                   className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer ml-1"
-                  title="Fermer le plein écran"
+                  title={t("modalCloseTooltip")}
                 >
                   <Minimize2 className="w-5 h-5" />
                 </button>
@@ -3739,16 +3758,16 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             {/* Bande de sélection de Période / Timeframe & Options du graphe dans le mode Zoom */}
             <div className="flex flex-wrap items-center justify-between gap-3 p-2 bg-white dark:bg-slate-900/90 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mr-1">Période :</span>
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mr-1">{t("periodLabel")}</span>
                 <div className="flex bg-white dark:bg-black p-0.5 rounded-lg border border-slate-200/80 dark:border-black shadow-xs">
                   {[
-                    { id: "1J", label: "1 jour" },
-                    { id: "1S", label: "5 jours" },
-                    { id: "1M", label: "30 j." },
-                    { id: "3M", label: "3 mois" },
-                    { id: "6M", label: "6 mois" },
-                    { id: "1A", label: "1 an" },
-                    { id: "Tout", label: "Tout" }
+                    { id: "1J", label: t("tf1Day") },
+                    { id: "1S", label: t("tf5Days") },
+                    { id: "1M", label: t("tf1Month") },
+                    { id: "3M", label: t("tf3Months") },
+                    { id: "6M", label: t("tf6Months") },
+                    { id: "1A", label: t("tf1Year") },
+                    { id: "Tout", label: t("tfAll") }
                   ].map((tf) => {
                     const isActive = timeframe === tf.id;
                     return (
@@ -3785,7 +3804,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                         : "text-slate-500 hover:text-slate-800 dark:text-slate-300 dark:hover:text-white"
                     }`}
                   >
-                    Courbe
+                    {t("chartLine")}
                   </button>
                   <button
                     type="button"
@@ -3796,15 +3815,15 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                         ? "bg-indigo-50 text-indigo-600 border border-indigo-200/60 dark:border-transparent dark:bg-slate-700 dark:text-indigo-300 shadow-xs"
                         : "text-slate-500 hover:text-slate-800 dark:text-slate-300 dark:hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
                     }`}
-                    title={compareSymbol !== null ? "Chandelier n'est pas disponible en mode comparaison" : "Graphique en Chandeliers japonais"}
+                    title={compareSymbol !== null ? t("candlestickDisabledCompare") : t("candlestickTitle")}
                   >
-                    Chandelier
+                    {t("chartCandles")}
                   </button>
                 </div>
 
                 {/* Sélecteur de comparaison */}
                 <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800">
-                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Comparer :</span>
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{t("compareLabel")}</span>
                   <select
                     value={compareSymbol || ""}
                     onChange={(e) => {
@@ -3816,7 +3835,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                     }}
                     className="bg-transparent border-none text-xs font-bold text-slate-700 outline-hidden cursor-pointer focus:ring-0 max-w-[120px]"
                   >
-                    <option value="">-- Aucun --</option>
+                    <option value="">{t("compareNone")}</option>
                     {stocks
                       .filter((s) => s.symbol !== selectedStock.symbol)
                       .map((s) => (
@@ -3830,7 +3849,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                       type="button"
                       onClick={() => setCompareSymbol(null)}
                       className="text-slate-400 hover:text-rose-500 transition font-bold text-xs"
-                      title="Supprimer la comparaison"
+                      title={t("removeComparison")}
                     >
                       ×
                     </button>
@@ -3851,9 +3870,9 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                 <div className="flex items-center justify-between text-xs font-bold text-slate-600">
                   <span className="flex items-center gap-1">
                     <ZoomIn className="w-3.5 h-3.5 text-indigo-500" />
-                    Niveau du Zoom : {zoomLevel.toFixed(1)}x
+                    {t("modalZoomLevel")}: {zoomLevel.toFixed(1)}x
                   </span>
-                  <span className="text-[10px] text-slate-400">Molette de défilement active sur le graphe</span>
+                  <span className="text-[10px] text-slate-400">{t("modalScrollActive")}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <button
@@ -3861,7 +3880,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                     disabled={zoomLevel <= 1}
                     onClick={() => setZoomLevel(prev => Math.max(1, prev - 0.5))}
                     className="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                    title="Zoom arrière"
+                    title={t("zoomOutTooltip")}
                   >
                     <ZoomOut className="w-4 h-4 text-slate-605 text-slate-600" />
                   </button>
@@ -3879,7 +3898,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                     disabled={zoomLevel >= 20}
                     onClick={() => setZoomLevel(prev => Math.min(20, prev + 0.5))}
                     className="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition cursor-pointer disabled:opacity-40"
-                    title="Zoom avant"
+                    title={t("zoomInTooltip")}
                   >
                     <ZoomIn className="w-4 h-4 text-slate-600" />
                   </button>
@@ -3891,12 +3910,12 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                 <div className="flex items-center justify-between text-xs font-bold text-slate-600">
                   <span className="flex items-center gap-1">
                     <RotateCcw className="w-3.5 h-3.5 text-indigo-500" />
-                    Position Temporelle (Navigation) : {panOffsetPercent.toFixed(0)}%
+                    {t("modalTimePosition")}: {panOffsetPercent.toFixed(0)}%
                   </span>
-                  <span className="text-[10px] text-slate-400">Glisser-déposer sur le graphe actif</span>
+                  <span className="text-[10px] text-slate-400">{t("modalDragActive")}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-[11px] font-bold text-slate-400">Ancien</span>
+                  <span className="text-[11px] font-bold text-slate-400">{t("modalOldest")}</span>
                   <input
                     type="range"
                     min="0"
@@ -3906,7 +3925,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                     onChange={(e) => setPanOffsetPercent(parseFloat(e.target.value))}
                     className="flex-1 w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                   />
-                  <span className="text-[11px] font-bold text-indigo-600">Récent</span>
+                  <span className="text-[11px] font-bold text-indigo-600">{t("modalRecent")}</span>
                 </div>
               </div>
             </div>
@@ -3921,10 +3940,10 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
                   setHoveredZoomPrice(null);
                 }}
                 className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 hover:border-slate-300 text-slate-600 hover:bg-slate-50 text-xs font-bold rounded-lg transition-colors cursor-pointer"
-                title="Rétablir les vues initiales"
+                title={t("modalResetViewsTooltip")}
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                <span>Réinitialiser Vues</span>
+                <span>{t("modalResetViews")}</span>
               </button>
             </div>
           </div>

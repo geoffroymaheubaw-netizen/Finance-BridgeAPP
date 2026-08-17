@@ -446,7 +446,7 @@ export default function PortfolioTab({ stocks, profile, onTrade, onUpdateStopLos
         <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between">
           <div>
             <p className="text-slate-400 dark:text-slate-500 text-[11px] font-bold uppercase tracking-wider">
-              {lang === "fr" ? "Valeur Portefeuille" : "Net Asset Value"}
+              {t("portfolioNetAssetValue")}
             </p>
             <h3 className="text-2xl sm:text-3xl font-black text-slate-850 dark:text-slate-100 tracking-tight mt-1 font-mono">
               {netAsset.toLocaleString(lang === "zh" ? "zh-CN" : "fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $
@@ -468,7 +468,7 @@ export default function PortfolioTab({ stocks, profile, onTrade, onUpdateStopLos
         <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between">
           <div>
             <p className="text-slate-400 dark:text-slate-500 text-[11px] font-bold uppercase tracking-wider">
-              {lang === "fr" ? "Actions Possédées" : "Stocks Value"}
+              {t("portfolioStocksValue")}
             </p>
             <h3 className="text-2xl sm:text-3xl font-black text-indigo-600 dark:text-indigo-400 tracking-tight mt-1 font-mono">
               {totalStockValue.toLocaleString(lang === "zh" ? "zh-CN" : "fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $
@@ -483,7 +483,7 @@ export default function PortfolioTab({ stocks, profile, onTrade, onUpdateStopLos
         <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between">
           <div>
             <p className="text-slate-400 dark:text-slate-500 text-[11px] font-bold uppercase tracking-wider">
-              {lang === "fr" ? "Liquidités Disponibles" : "Available Cash"}
+              {t("availableCash")}
             </p>
             <h3 className="text-2xl sm:text-3xl font-black text-emerald-605 text-emerald-600 dark:text-emerald-400 tracking-tight mt-1 font-mono">
               {profile.cash.toLocaleString(lang === "zh" ? "zh-CN" : "fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $
@@ -497,11 +497,9 @@ export default function PortfolioTab({ stocks, profile, onTrade, onUpdateStopLos
         {/* Standard reference banner */}
         <div className="bg-white dark:bg-gradient-to-br dark:from-slate-900 dark:to-indigo-950 border border-slate-100 dark:border-slate-800 text-slate-800 dark:text-white rounded-2xl p-5 shadow-xs flex flex-col justify-between relative overflow-hidden">
           <div className="relative z-10">
-            <h4 className="text-xs font-extrabold uppercase tracking-widest text-indigo-600 dark:text-indigo-300">Portefeuille Éducatif</h4>
+            <h4 className="text-xs font-extrabold uppercase tracking-widest text-indigo-600 dark:text-indigo-300">{t("portfolioCardEducationalTitle")}</h4>
             <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed mt-1.5">
-              {lang === "fr" 
-                ? "Simulez vos arbitrages en temps réel avec un suivi précis de vos performances."
-                : "Manage and liquidate positions instantly with advanced risk control tracking."}
+              {t("portfolioCardEducationalDesc")}
             </p>
           </div>
           <div className="absolute right-0 bottom-0 translate-y-3 translate-x-3 opacity-10 dark:opacity-15">

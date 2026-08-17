@@ -4,6 +4,7 @@ import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
 import dotenv from "dotenv";
 import { INITIAL_STOCKS } from "./src/data";
+import { getLocalizedFallbackNews, parseYahooRSSLocalized, LANG_PROMPT_NAMES, SupportedLang } from "./server/newsData";
 
 dotenv.config();
 
@@ -766,7 +767,7 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
     }
   });
 
-  // API Route: Real-time News via Yahoo Finance RSS & Gemini Dynamic French Interpretation
+  // API Route: Real-time News via Yahoo Finance RSS & Gemini Dynamic Multilingual Interpretation
   app.get(["/api/news/:symbol", "/news/:symbol"], async (req, res) => {
     const { symbol } = req.params;
     if (!symbol) {
@@ -775,12 +776,17 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
     }
 
     const uppercaseSymbol = symbol.toUpperCase();
+    const targetLang = (['fr', 'en', 'pt', 'es', 'de', 'zh'].includes((req.query.lang as string || '').toLowerCase())
+      ? (req.query.lang as string).toLowerCase()
+      : 'fr') as SupportedLang;
+
+    const cacheKey = `${uppercaseSymbol}_${targetLang}`;
     const now = Date.now();
 
-    // 1. Check if we have a fresh cached copy of real-time news
-    const cachedEntry = newsCache[uppercaseSymbol];
+    // 1. Check if we have a fresh cached copy of real-time news for this symbol + language
+    const cachedEntry = newsCache[cacheKey];
     if (cachedEntry && (now - cachedEntry.timestamp < CACHE_DURATION_MS)) {
-      console.log(`[News API - CACHE HIT] Serving fresh cached news for ${uppercaseSymbol} (${Math.round((now - cachedEntry.timestamp)/1000)}s old)`);
+      console.log(`[News API - CACHE HIT] Serving fresh cached news for ${cacheKey} (${Math.round((now - cachedEntry.timestamp)/1000)}s old)`);
       res.json(cachedEntry.data);
       return;
     }
@@ -789,7 +795,7 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
     try {
       // 2. Fetch RSS Feed from Yahoo Finance server-side with User-Agent and timeout
       const feedUrl = `https://finance.yahoo.com/rss/headline?s=${uppercaseSymbol}`;
-      console.log(`[News API] Loading Yahoo Finance RSS feed for ${uppercaseSymbol}: ${feedUrl}`);
+      console.log(`[News API] Loading Yahoo Finance RSS feed for ${uppercaseSymbol} (lang: ${targetLang}): ${feedUrl}`);
       
       const feedRes = await fetch(feedUrl, {
         headers: {
@@ -809,42 +815,45 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
       const apiKey = process.env.GEMINI_API_KEY;
 
       if (!apiKey || isInCooldown || isGeminiDisabledPermanently) {
-        console.log(`[News API] Gemini is in cooldown, key is missing, or permanently disabled. Attempting localized XML RSS parsing for ${uppercaseSymbol}...`);
-        const parsedItems = parseYahooRSS(xmlText, uppercaseSymbol);
+        console.log(`[News API] Gemini is in cooldown, key is missing, or permanently disabled. Attempting localized XML RSS parsing for ${uppercaseSymbol} (${targetLang})...`);
+        const parsedItems = parseYahooRSSLocalized(xmlText, uppercaseSymbol, targetLang);
         if (parsedItems.length > 0) {
-          console.log(`[News API] Successfully parsed ${parsedItems.length} live RSS news without Gemini.`);
-          newsCache[uppercaseSymbol] = {
+          console.log(`[News API] Successfully parsed ${parsedItems.length} live RSS news without Gemini in ${targetLang}.`);
+          newsCache[cacheKey] = {
             data: parsedItems,
             timestamp: Date.now()
           };
           res.json(parsedItems);
           return;
         } else {
-          console.log(`[News API] Local RSS parsing failed/returned empty. Giving fallback static predefined data.`);
-          res.json(FALLBACK_NEWS[uppercaseSymbol] || FALLBACK_NEWS["AAPL"]);
+          console.log(`[News API] Local RSS parsing failed/returned empty. Giving fallback localized static predefined data for ${targetLang}.`);
+          const fallbackData = getLocalizedFallbackNews(uppercaseSymbol, targetLang);
+          res.json(fallbackData);
           return;
         }
       }
 
-      console.log(`[News API] Processing ${uppercaseSymbol} RSS news XML via Gemini 3.5 Flash...`);
+      console.log(`[News API] Processing ${uppercaseSymbol} RSS news XML via Gemini 3.5 Flash for language: ${targetLang}...`);
       const client = getAIClient();
+      const langName = LANG_PROMPT_NAMES[targetLang] || "français";
 
-      const systemInstruction = `Tu es un analyste financier expert francophone. Ton travail est d'extraire de l'XML du flux RSS Yahoo Finance les 3 actualités les plus pertinentes et récentes pour l'action demandée.
-Missions :
-1. Traduis le titre original en français professionnel boursier, court, impactant et clair.
-2. Rédige un résumé très court en français (1 ou 2 phrases simples et pédagogiques) résumant parfaitement l'essentiel de l'annonce.
-3. Extrais l'URL ou lien d'origine absolu depuis la balise <link> ou <guid> de l'article XML et place-le dans le champ "link". S'il n'est pas présent, mets "https://finance.yahoo.com/quote/" suivi du symbole boursier.
-4. Rédige un article complet pédagogique appelé "fullText" en français, composé de 3 à 4 paragraphes structurés (environ 200 à 250 mots). Cet article doit expliquer l'évènement en profondeur, citer des statistiques ou chiffres réels/estimés, expliquer ce que cela signifie pour l'avenir de l'action, et inclure une leçon de gestion des risques pour un investisseur particulier.
-5. Attribue un sentiment boursier d'impact à court terme : "positive" (hausse probable de confiance), "negative" (baisse probable ou méfiance) ou "neutral" (neutre ou information de routine stable).
-6. S'assurer que le tableau JSON contient exactement 3 objets bien séparés.
-7. Si l'XML ne contient aucune info valide, renvoie d'excellentes nouvelles simulées d'impact créées d'après l'actualité récente mondiale de ce ticker.`;
+      const systemInstruction = `You are an expert multilingual financial market analyst. Your task is to extract the 3 most relevant and recent news from the Yahoo Finance RSS feed XML for the requested stock ticker (${uppercaseSymbol}) and formulate them in ${langName}.
 
-      const prompt = `Voici le code XML du flux d'actualités boursières pour l'action ${uppercaseSymbol} :
+Missions:
+1. Translate or write the original title in clear, professional financial ${langName}.
+2. Write a concise 1-2 sentence educational summary in ${langName} summarizing the core essence of the news.
+3. Extract the origin URL link from <link> or <guid> and place it in the "link" field. If missing, use "https://finance.yahoo.com/quote/${uppercaseSymbol}".
+4. Write a comprehensive educational article ("fullText") in ${langName}, consisting of 3 to 4 structured paragraphs (about 200 to 250 words) explaining the event in depth, citing numbers/metrics, explaining what it means for the stock's future, and providing an investor risk management lesson.
+5. Assign a short-term market sentiment: "positive", "negative", or "neutral".
+6. Ensure the output is a valid JSON array containing exactly 3 distinct news objects.
+7. All output text fields (title, summary, fullText) must strictly be written in ${langName}.`;
+
+      const prompt = `Here is the XML news feed for ${uppercaseSymbol}:
 
 ${xmlText.slice(0, 7000)}
 
-Analyse ce flux, choisis les 3 articles les plus importants/récents et retourne-les exclusivement sous forme d'un tableau JSON d'actualités d'impact traduit en français.
-Veuillez respecter le schéma JSON requis.`;
+Analyze this feed, extract the 3 most important news items and return them strictly as a JSON array translated/written in ${langName}.
+Follow the required JSON schema.`;
 
       const response = await generateContentWithRetry(client, {
         model: "gemini-3.5-flash",
@@ -879,10 +888,10 @@ Veuillez respecter le schéma JSON requis.`;
       const reply = response.text;
       if (reply) {
         const newsArray = JSON.parse(reply.trim());
-        console.log(`[News API] Successfully generated ${newsArray.length} real-time translated news for ${uppercaseSymbol}`);
+        console.log(`[News API] Successfully generated ${newsArray.length} real-time translated news for ${uppercaseSymbol} in ${targetLang}`);
         
         // Save to cache
-        newsCache[uppercaseSymbol] = {
+        newsCache[cacheKey] = {
           data: newsArray,
           timestamp: Date.now()
         };
@@ -902,21 +911,22 @@ Veuillez respecter le schéma JSON requis.`;
         last429Time = Date.now();
       }
 
-      console.log(`[News API] Quiet fallback processed for ${uppercaseSymbol}. Reason: ${isQuotaExceeded ? "rate-limited" : "unavailable"}`);
+      console.log(`[News API] Quiet fallback processed for ${uppercaseSymbol} (${targetLang}). Reason: ${isQuotaExceeded ? "rate-limited" : "unavailable"}`);
       
-      const parsedItems = parseYahooRSS(xmlText || "", uppercaseSymbol);
+      const parsedItems = parseYahooRSSLocalized(xmlText || "", uppercaseSymbol, targetLang);
       if (parsedItems.length > 0) {
-        newsCache[uppercaseSymbol] = {
+        newsCache[cacheKey] = {
           data: parsedItems,
           timestamp: Date.now()
         };
         res.json(parsedItems);
       } else if (cachedEntry) {
-        console.log(`[News API] Serving older in-memory cache for ${uppercaseSymbol}`);
+        console.log(`[News API] Serving older in-memory cache for ${cacheKey}`);
         res.json(cachedEntry.data);
       } else {
-        console.log(`[News API] No cache found. Serving fallback predefined static data for ${uppercaseSymbol}`);
-        res.json(FALLBACK_NEWS[uppercaseSymbol] || FALLBACK_NEWS["AAPL"]);
+        console.log(`[News API] No cache found. Serving fallback predefined static data for ${uppercaseSymbol} in ${targetLang}`);
+        const fallbackData = getLocalizedFallbackNews(uppercaseSymbol, targetLang);
+        res.json(fallbackData);
       }
     }
   });

@@ -9,7 +9,8 @@ import LearningTab from "./components/LearningTab";
 import AiAdvisorTab from "./components/AiAdvisorTab";
 import NewsTab from "./components/NewsTab";
 import NotesTab from "./components/NotesTab";
-import { Landmark, TrendingUp, BookOpen, Bot, Newspaper, Award, Clock, Settings, Sun, Moon, Flame, Briefcase, GraduationCap, LogOut, RotateCcw, Trash2 } from "lucide-react";
+import SubscriptionsTab from "./components/SubscriptionsTab";
+import { Landmark, TrendingUp, BookOpen, Bot, Newspaper, Award, Clock, Settings, Sun, Moon, Flame, Briefcase, GraduationCap, LogOut, RotateCcw, Trash2, Crown, Sparkles, Zap, ArrowRight } from "lucide-react";
 import { Language, LANGUAGES, TRANSLATIONS } from "./translations";
 import { motion, AnimatePresence } from "motion/react";
 import AuthScreen from "./components/AuthScreen";
@@ -355,11 +356,11 @@ export default function App() {
         return stored as Language;
       }
     } catch {}
-    return "fr";
+    return "en";
   });
 
   const t = (key: string) => {
-    return TRANSLATIONS[lang]?.[key] || TRANSLATIONS['fr']?.[key] || key;
+    return TRANSLATIONS[lang]?.[key] || TRANSLATIONS['en']?.[key] || TRANSLATIONS['fr']?.[key] || key;
   };
 
   // Load profile from localStorage or fallback to customized default
@@ -387,10 +388,16 @@ export default function App() {
         if (parsed.finnhubApiKey === undefined) {
           parsed.finnhubApiKey = "";
         }
+        if (parsed.subscriptionTier === undefined) {
+          parsed.subscriptionTier = "free";
+        }
+        if (parsed.subscriptionPeriod === undefined) {
+          parsed.subscriptionPeriod = "yearly";
+        }
         if (!parsed.lastHeartsResetDate) {
           parsed.lastHeartsResetDate = today;
         } else if (parsed.lastHeartsResetDate !== today) {
-          parsed.learningHearts = 4;
+          parsed.learningHearts = parsed.subscriptionTier && parsed.subscriptionTier !== "free" ? 999 : 4;
           parsed.lastHeartsResetDate = today;
         }
         return parsed;
@@ -414,7 +421,9 @@ export default function App() {
       lastHeartsResetDate: today,
       geminiApiKey: "",
       twelveDataApiKey: "",
-      finnhubApiKey: ""
+      finnhubApiKey: "",
+      subscriptionTier: "free",
+      subscriptionPeriod: "yearly"
     };
   });
 
@@ -2128,6 +2137,13 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
     if (!showAuthForm) {
       return (
         <LandingPage
+          lang={lang}
+          onLanguageChange={(newLang) => {
+            setLang(newLang);
+            try {
+              localStorage.setItem("finance_bridge_language", newLang);
+            } catch {}
+          }}
           onOpenAuth={(mode) => {
             setDefaultSignUp(mode === "signup");
             setShowAuthForm(true);
@@ -2147,6 +2163,13 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
     return (
       <AuthScreen
         t={t}
+        lang={lang}
+        onLanguageChange={(newLang) => {
+          setLang(newLang);
+          try {
+            localStorage.setItem("finance_bridge_language", newLang);
+          } catch {}
+        }}
         onSuccess={handleAuthSuccess}
         onBackToLanding={() => setShowAuthForm(false)}
         defaultSignUp={defaultSignUp}
@@ -2244,6 +2267,38 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
             {/* User credentials */}
             <div className="flex items-center gap-2.5 bg-slate-800 px-3.5 py-1.5 rounded-xl border border-slate-700/50">
               <span className="font-extrabold text-slate-200">{profile.username}</span>
+              
+              {/* Plan badge */}
+              <button
+                type="button"
+                onClick={() => setActiveTab("subscriptions")}
+                title={lang === "fr" ? "Gérer mon abonnement" : "Manage subscription"}
+                className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-black uppercase tracking-wider flex items-center gap-1 transition cursor-pointer ${
+                  profile.subscriptionTier === "elite"
+                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30"
+                    : profile.subscriptionTier === "pro"
+                    ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 hover:bg-indigo-500/30"
+                    : "bg-slate-700/60 text-slate-300 hover:bg-slate-700 hover:text-white"
+                }`}
+              >
+                {profile.subscriptionTier === "elite" ? (
+                  <>
+                    <Crown className="w-3 h-3 text-amber-400" />
+                    <span>ELITE</span>
+                  </>
+                ) : profile.subscriptionTier === "pro" ? (
+                  <>
+                    <Zap className="w-3 h-3 text-indigo-400" />
+                    <span>PRO</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3 h-3 text-amber-400" />
+                    <span>PRO</span>
+                  </>
+                )}
+              </button>
+
               <span className="w-px h-3.5 bg-slate-700" />
               <div className="flex items-center gap-1" title={`${profile.streak} ${t("streakSuffix")}`}>
                 <Flame className="w-4 h-4 text-amber-500 fill-amber-500 animate-pulse" />
@@ -2368,24 +2423,7 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
 
 
 
-                  {/* Market Simulation Mode Selector */}
-                  <div className="space-y-1.5 pb-2 border-b border-slate-100 dark:border-slate-800">
-                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                      {t("marketModeLabel")}
-                    </label>
-                    <select
-                      value={profile.marketMode || "real"}
-                      onChange={(e) => {
-                        const val = e.target.value as "real" | "continuous" | "exact";
-                        setProfile((prev) => ({ ...prev, marketMode: val }));
-                      }}
-                      className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs text-slate-800 dark:text-white font-bold focus:outline-hidden focus:ring-1 focus:ring-indigo-500 cursor-pointer"
-                    >
-                      <option value="real">⏱️ {t("marketModeReal")}</option>
-                      <option value="exact">🎯 {t("marketModeExact")}</option>
-                      <option value="continuous">⚡ {t("marketModeContinuous")}</option>
-                    </select>
-                  </div>
+
 
 
 
@@ -2549,7 +2587,7 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
         )}
         
         {/* Navigation Selector Tabs */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-2 shadow-xs flex flex-wrap gap-1.5 sm:gap-2">
+        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-2 shadow-xs flex flex-wrap items-start gap-1.5 sm:gap-2">
           <button
             onClick={() => setActiveTab("dashboard")}
             className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm tracking-tight transition flex items-center justify-center gap-2 cursor-pointer duration-100 ${
@@ -2561,6 +2599,7 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
             <Landmark className="w-4 h-4 shrink-0" />
             <span>{t("tabDashboard")}</span>
           </button>
+
           <button
             onClick={() => setActiveTab("simulator")}
             className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm tracking-tight transition flex items-center justify-center gap-2 cursor-pointer duration-100 ${
@@ -2572,6 +2611,7 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
             <TrendingUp className="w-4 h-4 shrink-0" />
             <span>{t("tabSimulator")}</span>
           </button>
+
           <button
             onClick={() => setActiveTab("portfolio")}
             className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm tracking-tight transition flex items-center justify-center gap-2 cursor-pointer duration-100 ${
@@ -2583,28 +2623,36 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
             <Briefcase className="w-4 h-4 shrink-0" />
             <span>{t("tabPortfolio")}</span>
           </button>
-          <button
-            onClick={() => setActiveTab("learning")}
-            className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm tracking-tight transition flex items-center justify-center gap-2 cursor-pointer duration-100 ${
-              activeTab === "learning"
-                ? "bg-slate-900 dark:bg-indigo-600 text-white shadow-xs"
-                : "text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
-            }`}
-          >
-            <BookOpen className="w-4 h-4 shrink-0" />
-            <span>{t("tabLearning")}</span>
-          </button>
-          <button
-            onClick={() => setActiveTab("notes")}
-            className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm tracking-tight transition flex items-center justify-center gap-2 cursor-pointer duration-100 ${
-              activeTab === "notes"
-                ? "bg-slate-900 dark:bg-indigo-600 text-white shadow-xs"
-                : "text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
-            }`}
-          >
-            <GraduationCap className="w-4 h-4 shrink-0" />
-            <span>{t("tabNotes")}</span>
-          </button>
+
+          {/* Learning Tab Button + Sub-section Button to Course Notes */}
+          <div className="flex-1 sm:flex-none flex flex-col gap-1.5">
+            <button
+              onClick={() => setActiveTab("learning")}
+              className={`w-full px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm tracking-tight transition flex items-center justify-center gap-2 cursor-pointer duration-100 ${
+                activeTab === "learning"
+                  ? "bg-slate-900 dark:bg-indigo-600 text-white shadow-xs"
+                  : "text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
+              }`}
+            >
+              <BookOpen className="w-4 h-4 shrink-0" />
+              <span>{t("tabLearning")}</span>
+            </button>
+            {(activeTab === "learning" || activeTab === "notes") && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("notes")}
+                className={`w-full px-3 py-1.5 rounded-xl font-extrabold text-[11px] transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs group select-none animate-in fade-in slide-in-from-top-1 ${
+                  activeTab === "notes"
+                    ? "bg-indigo-600 text-white dark:bg-indigo-500"
+                    : "bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800/80 text-indigo-650 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900"
+                }`}
+                title={t("tabNotes")}
+              >
+                <GraduationCap className="w-3.5 h-3.5 shrink-0 transition-transform group-hover:scale-110" />
+                <span className="truncate">{t("tabNotes")}</span>
+              </button>
+            )}
+          </div>
           <button
             onClick={() => setActiveTab("advisor")}
             className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm tracking-tight transition flex items-center justify-center gap-2 cursor-pointer duration-100 ${
@@ -2626,6 +2674,20 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
           >
             <Newspaper className="w-4 h-4 shrink-0" />
             <span>{t("tabNews")}</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("subscriptions")}
+            className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm tracking-tight transition flex items-center justify-center gap-2 cursor-pointer duration-100 ${
+              activeTab === "subscriptions"
+                ? "bg-gradient-to-r from-indigo-600 via-indigo-500 to-amber-500 text-white shadow-md shadow-indigo-600/20"
+                : "text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
+            }`}
+          >
+            <Crown className={`w-4 h-4 shrink-0 ${activeTab === "subscriptions" ? "text-amber-300" : "text-amber-500"}`} />
+            <span>{t("tabSubscriptions")}</span>
+            <span className="hidden sm:inline px-1.5 py-0.5 rounded-full text-[9px] font-mono font-black uppercase tracking-wider bg-amber-500/20 text-amber-500 dark:text-amber-300 border border-amber-500/30">
+              PRO
+            </span>
           </button>
         </div>
 
@@ -2704,16 +2766,25 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
               t={t}
             />
           )}
+
+          {activeTab === "subscriptions" && (
+            <SubscriptionsTab
+              profile={profile}
+              onUpdateProfile={(updated) => setProfile(prev => ({ ...prev, ...updated }))}
+              lang={lang}
+              t={t}
+            />
+          )}
         </div>
       </main>
 
       {/* Footer Disclaimer and Credits */}
       <footer className="bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 py-6 mt-12 text-center text-xs text-slate-400 dark:text-slate-500 space-y-2">
         <p className="font-semibold text-slate-500 dark:text-slate-400 font-sans text-[11px] uppercase tracking-wider">
-          Finance Bridge — La clé de l'éducation boursière
+          {t("footerTagline")}
         </p>
         <p className="max-w-xl mx-auto px-4 leading-relaxed">
-          Simulations de bourse avec valeurs actualisées sous fortes variations. L'IA de l'application utilise l'intelligence artificielle pour simplifier la pédagogie financière sans conseil direct.
+          {t("footerDisclaimer")}
         </p>
       </footer>
 

@@ -93,6 +93,8 @@ export interface UserProfile {
   twelveDataApiKey?: string;
   finnhubApiKey?: string;
   aiMode?: 'backend' | 'client';
+  subscriptionTier?: 'free' | 'pro' | 'elite';
+  subscriptionPeriod?: 'monthly' | 'yearly';
 }
 
 export interface ChatMessage {

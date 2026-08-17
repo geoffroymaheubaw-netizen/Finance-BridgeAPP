@@ -1,17 +1,352 @@
 import React, { useState } from "react";
 import { getSupabaseClient } from "../lib/supabase";
 import { motion, AnimatePresence } from "motion/react";
-import { Mail, Lock, User as UserIcon, AlertCircle, ArrowRight, ArrowDown, Eye, EyeOff, TrendingUp, Sparkles, ShieldCheck, BarChart3, Bot, CheckCircle2, ArrowLeft } from "lucide-react";
+import { Mail, Lock, User as UserIcon, AlertCircle, ArrowRight, ArrowDown, Eye, EyeOff, TrendingUp, Sparkles, ShieldCheck, BarChart3, Bot, CheckCircle2, ArrowLeft, Globe } from "lucide-react";
 import FinanceBridgeLogo from "./FinanceBridgeLogo";
+import { Language } from "../translations";
 
 interface AuthScreenProps {
-  t: (key: string) => string;
+  t?: (key: string) => string;
+  lang?: Language;
+  onLanguageChange?: (lang: Language) => void;
   onSuccess: (user: any, isNewUser: boolean, chosenUsername?: string) => void;
   onBackToLanding?: () => void;
   defaultSignUp?: boolean;
 }
 
-export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignUp = false }: AuthScreenProps) {
+const LANGUAGE_DATA: Record<Language, { flag: string; name: string; short: string }> = {
+  fr: { flag: "🇫🇷", name: "Français", short: "FR" },
+  en: { flag: "🇬🇧", name: "English", short: "EN" },
+  es: { flag: "🇪🇸", name: "Español", short: "ES" },
+  pt: { flag: "🇵🇹", name: "Português", short: "PT" },
+  de: { flag: "🇩🇪", name: "Deutsch", short: "DE" },
+  zh: { flag: "🇨🇳", name: "中文", short: "ZH" },
+};
+
+const AUTH_TEXTS: Record<Language, {
+  brandTagline: string;
+  backHome: string;
+  liveMarkets: string;
+  heroBadge: string;
+  heroTitle: string;
+  heroSubtitle: string;
+  cardPortfolio: string;
+  cardProfit: string;
+  cardAiTitle: string;
+  cardAiQuote: string;
+  pillRisk: string;
+  pillAi: string;
+  pillCloud: string;
+  mobileAccessLogin: string;
+  copyright: string;
+  tabLogin: string;
+  tabSignUp: string;
+  titleLogin: string;
+  titleSignUp: string;
+  subtitleLogin: string;
+  subtitleSignUp: string;
+  labelLanguage: string;
+  languageHelp: string;
+  labelUsername: string;
+  placeholderUsername: string;
+  labelEmail: string;
+  placeholderEmail: string;
+  labelPassword: string;
+  placeholderPassword: string;
+  showPass: string;
+  hidePass: string;
+  btnLogin: string;
+  btnSignUp: string;
+  promptHaveAccount: string;
+  promptNoAccount: string;
+  linkLogin: string;
+  linkSignUp: string;
+  securityNote: string;
+  errorAllFields: string;
+  errorPassLength: string;
+  errorInvalidCreds: string;
+  errorGenericSignUp: string;
+  errorGenericSignIn: string;
+}> = {
+  fr: {
+    brandTagline: "PLATEFORME ÉDUCATIVE TRADING & IA",
+    backHome: "Accueil",
+    liveMarkets: "Marchés en Direct (Simulé)",
+    heroBadge: "Simulateur Boursier V4.8 • Propulsé par Gemini AI",
+    heroTitle: "Maîtrisez les marchés financiers sans aucun risque.",
+    heroSubtitle: "Entraînez-vous à l'investissement boursier avec 10 000 $ virtuels, analysez des cours temps réel et soyez guidé par un mentor IA interactif.",
+    cardPortfolio: "Portefeuille Virtuel",
+    cardProfit: "+14,2% (+$1 420,00)",
+    cardAiTitle: "Mentor IA Gemini :",
+    cardAiQuote: "« Stratégie équilibrée. Opportunité identifiée sur le secteur technologie. »",
+    pillRisk: "0% de Risque Réel",
+    pillAi: "Conseils IA Temps Réel",
+    pillCloud: "Synchronisation Cloud",
+    mobileAccessLogin: "Accéder à la connexion",
+    copyright: "© 2026 Finance Bridge Inc. Tous droits réservés.",
+    tabLogin: "Connexion",
+    tabSignUp: "Créer un compte",
+    titleLogin: "Bon retour parmi nous",
+    titleSignUp: "Créer un compte",
+    subtitleLogin: "Entrez vos identifiants pour accéder à votre terminal de trading éducatif.",
+    subtitleSignUp: "Inscrivez-vous gratuitement pour commencer à simuler vos investissements et débloquer vos formations.",
+    labelLanguage: "Langue de la plateforme",
+    languageHelp: "Choisissez la langue de votre terminal, des formations et du mentor IA",
+    labelUsername: "Nom d'utilisateur",
+    placeholderUsername: "ex: TraderPro99",
+    labelEmail: "Adresse e-mail",
+    placeholderEmail: "votre.email@exemple.com",
+    labelPassword: "Mot de passe",
+    placeholderPassword: "••••••••••••",
+    showPass: "Afficher le mot de passe",
+    hidePass: "Masquer le mot de passe",
+    btnLogin: "Se connecter au terminal",
+    btnSignUp: "Créer mon compte gratuit",
+    promptHaveAccount: "Vous disposez déjà d'un compte ?",
+    promptNoAccount: "Vous n'avez pas encore de compte ?",
+    linkLogin: "Se connecter",
+    linkSignUp: "S'inscrire gratuitement",
+    securityNote: "Authentification Sécurisée & Données Chiffrées",
+    errorAllFields: "Veuillez remplir tous les champs requis.",
+    errorPassLength: "Le mot de passe doit comporter au moins 6 caractères.",
+    errorInvalidCreds: "Identifiants invalides ou mot de passe incorrect.",
+    errorGenericSignUp: "Une erreur s'est produite lors de l'inscription.",
+    errorGenericSignIn: "Une erreur s'est produite lors de la connexion.",
+  },
+  en: {
+    brandTagline: "EDUCATIONAL TRADING & AI PLATFORM",
+    backHome: "Home",
+    liveMarkets: "Live Markets (Simulated)",
+    heroBadge: "Stock Simulator V4.8 • Powered by Gemini AI",
+    heroTitle: "Master financial markets with zero financial risk.",
+    heroSubtitle: "Practice stock market investing with $10,000 in virtual funds, analyze live quotes, and get guided by an interactive AI mentor.",
+    cardPortfolio: "Virtual Portfolio",
+    cardProfit: "+14.2% (+$1,420.00)",
+    cardAiTitle: "Gemini AI Mentor:",
+    cardAiQuote: "“Balanced strategy. Opportunity identified in the technology sector.”",
+    pillRisk: "0% Real Risk",
+    pillAi: "Real-Time AI Guidance",
+    pillCloud: "Cloud Synchronization",
+    mobileAccessLogin: "Go to Sign In",
+    copyright: "© 2026 Finance Bridge Inc. All rights reserved.",
+    tabLogin: "Sign In",
+    tabSignUp: "Create Account",
+    titleLogin: "Welcome back",
+    titleSignUp: "Create an Account",
+    subtitleLogin: "Enter your credentials to access your educational trading terminal.",
+    subtitleSignUp: "Sign up for free to start simulated trading and unlock your learning curriculum.",
+    labelLanguage: "Platform Language",
+    languageHelp: "Choose the language for your terminal, lessons, and AI mentor",
+    labelUsername: "Username",
+    placeholderUsername: "e.g. TraderPro99",
+    labelEmail: "Email address",
+    placeholderEmail: "your.email@example.com",
+    labelPassword: "Password",
+    placeholderPassword: "••••••••••••",
+    showPass: "Show password",
+    hidePass: "Hide password",
+    btnLogin: "Sign in to Terminal",
+    btnSignUp: "Create My Free Account",
+    promptHaveAccount: "Already have an account?",
+    promptNoAccount: "Don't have an account yet?",
+    linkLogin: "Sign in",
+    linkSignUp: "Sign up for free",
+    securityNote: "Secure Authentication & Encrypted Data",
+    errorAllFields: "Please fill in all required fields.",
+    errorPassLength: "Password must be at least 6 characters.",
+    errorInvalidCreds: "Invalid credentials or incorrect password.",
+    errorGenericSignUp: "An error occurred during registration.",
+    errorGenericSignIn: "An error occurred during sign in.",
+  },
+  es: {
+    brandTagline: "PLATAFORMA EDUCATIVA DE TRADING E IA",
+    backHome: "Inicio",
+    liveMarkets: "Mercados en Directo (Simulado)",
+    heroBadge: "Simulador Bursátil V4.8 • Impulsado por Gemini AI",
+    heroTitle: "Domine los mercados financieros sin ningún riesgo.",
+    heroSubtitle: "Practique la inversión bursátil con $10,000 virtuales, analice cotizaciones en tiempo real y sea guiado por un mentor IA interactivo.",
+    cardPortfolio: "Cartera Virtual",
+    cardProfit: "+14,2% (+$1 420,00)",
+    cardAiTitle: "Mentor IA Gemini:",
+    cardAiQuote: "« Estrategia equilibrada. Oportunidad identificada en el sector tecnológico. »",
+    pillRisk: "0% de Riesgo Real",
+    pillAi: "Consejos IA en Tiempo Real",
+    pillCloud: "Sincronización en la Nube",
+    mobileAccessLogin: "Ir a Iniciar Sesión",
+    copyright: "© 2026 Finance Bridge Inc. Todos los derechos reservados.",
+    tabLogin: "Iniciar sesión",
+    tabSignUp: "Crear cuenta",
+    titleLogin: "Bienvenido de nuevo",
+    titleSignUp: "Crear una cuenta",
+    subtitleLogin: "Introduzca sus credenciales para acceder a su terminal de trading educativo.",
+    subtitleSignUp: "Regístrese gratis para comenzar a simular inversiones y desbloquear sus cursos.",
+    labelLanguage: "Idioma de la plataforma",
+    languageHelp: "Elija el idioma de su terminal, cursos y tutor IA",
+    labelUsername: "Nombre de usuario",
+    placeholderUsername: "ej: TraderPro99",
+    labelEmail: "Correo electrónico",
+    placeholderEmail: "su.correo@ejemplo.com",
+    labelPassword: "Contraseña",
+    placeholderPassword: "••••••••••••",
+    showPass: "Mostrar contraseña",
+    hidePass: "Ocultar contraseña",
+    btnLogin: "Entrar al terminal",
+    btnSignUp: "Crear mi cuenta gratis",
+    promptHaveAccount: "¿Ya tienes una cuenta?",
+    promptNoAccount: "¿Aún no tienes una cuenta?",
+    linkLogin: "Iniciar sesión",
+    linkSignUp: "Registrarse gratis",
+    securityNote: "Autenticación Segura y Datos Cifrados",
+    errorAllFields: "Por favor, complete todos los campos requeridos.",
+    errorPassLength: "La contraseña debe tener al menos 6 caracteres.",
+    errorInvalidCreds: "Credenciales no válidas o contraseña incorrecta.",
+    errorGenericSignUp: "Se produjo un error durante el registro.",
+    errorGenericSignIn: "Se produjo un error al iniciar sesión.",
+  },
+  pt: {
+    brandTagline: "PLATAFORMA EDUCATIVA DE TRADING E IA",
+    backHome: "Início",
+    liveMarkets: "Mercados em Tempo Real (Simulado)",
+    heroBadge: "Simulador Financeiro V4.8 • Movido a Gemini AI",
+    heroTitle: "Domine o mercado financeiro sem risco algum.",
+    heroSubtitle: "Pratique investimentos com $10.000 virtuais, analise cotações em tempo real e seja guiado por um mentor de IA interativo.",
+    cardPortfolio: "Portfólio Virtual",
+    cardProfit: "+14,2% (+$1.420,00)",
+    cardAiTitle: "Mentor IA Gemini:",
+    cardAiQuote: "“Estratégia equilibrada. Oportunidade identificada no setor de tecnologia.”",
+    pillRisk: "0% de Risco Real",
+    pillAi: "Conselhos de IA em Tempo Real",
+    pillCloud: "Sincronização na Nuvem",
+    mobileAccessLogin: "Acessar Login",
+    copyright: "© 2026 Finance Bridge Inc. Todos os direitos reservados.",
+    tabLogin: "Entrar",
+    tabSignUp: "Criar conta",
+    titleLogin: "Bem-vindo de volta",
+    titleSignUp: "Criar uma conta",
+    subtitleLogin: "Insira suas credenciais para acessar seu terminal de trading educativo.",
+    subtitleSignUp: "Cadastre-se gratuitamente para começar a simular e liberar seus cursos.",
+    labelLanguage: "Idioma da plataforma",
+    languageHelp: "Escolha o idioma do terminal, das aulas e do mentor de IA",
+    labelUsername: "Nome de usuário",
+    placeholderUsername: "ex: TraderPro99",
+    labelEmail: "Endereço de e-mail",
+    placeholderEmail: "seu.email@exemplo.com",
+    labelPassword: "Senha",
+    placeholderPassword: "••••••••••••",
+    showPass: "Mostrar senha",
+    hidePass: "Ocultar senha",
+    btnLogin: "Entrar no terminal",
+    btnSignUp: "Criar minha conta grátis",
+    promptHaveAccount: "Já possui uma conta?",
+    promptNoAccount: "Ainda não tem uma conta?",
+    linkLogin: "Entrar",
+    linkSignUp: "Cadastre-se grátis",
+    securityNote: "Autenticação Segura e Dados Criptografados",
+    errorAllFields: "Por favor, preencha todos os campos obrigatórios.",
+    errorPassLength: "A senha deve ter pelo menos 6 caracteres.",
+    errorInvalidCreds: "Credenciais inválidas ou senha incorreta.",
+    errorGenericSignUp: "Ocorreu um erro ao criar a conta.",
+    errorGenericSignIn: "Ocorreu um erro ao entrar.",
+  },
+  de: {
+    brandTagline: "BÖRSENBILDUNG & KI-PLATTFORM",
+    backHome: "Startseite",
+    liveMarkets: "Live-Märkte (Simuliert)",
+    heroBadge: "Börsensimulator V4.8 • Angetrieben von Gemini KI",
+    heroTitle: "Meistern Sie die Finanzmärkte ohne finanzielles Risiko.",
+    heroSubtitle: "Üben Sie Aktieninvestitionen mit 10.000 $ virtuellem Startkapital, analysieren Sie Echtzeit-Kurse und lernen Sie mit einem KI-Mentor.",
+    cardPortfolio: "Virtuelles Portfolio",
+    cardProfit: "+14,2% (+1.420,00 $)",
+    cardAiTitle: "Gemini KI-Mentor:",
+    cardAiQuote: "„Ausgewogene Strategie. Chance im Technologiesektor identifiziert.“",
+    pillRisk: "0% Reales Risiko",
+    pillAi: "Echtzeit-KI-Beratung",
+    pillCloud: "Cloud-Synchronisation",
+    mobileAccessLogin: "Zur Anmeldung",
+    copyright: "© 2026 Finance Bridge Inc. Alle Rechte vorbehalten.",
+    tabLogin: "Anmelden",
+    tabSignUp: "Konto erstellen",
+    titleLogin: "Willkommen zurück",
+    titleSignUp: "Konto erstellen",
+    subtitleLogin: "Geben Sie Ihre Anmeldedaten ein, um auf Ihr Trading-Terminal zuzugreifen.",
+    subtitleSignUp: "Registrieren Sie sich kostenlos, um mit der Simulation zu beginnen und Kurse freizuschalten.",
+    labelLanguage: "Plattform-Sprache",
+    languageHelp: "Wählen Sie die Sprache für Ihr Terminal, Lektionen und den KI-Mentor",
+    labelUsername: "Benutzername",
+    placeholderUsername: "z.B. TraderPro99",
+    labelEmail: "E-Mail-Adresse",
+    placeholderEmail: "ihre.email@beispiel.de",
+    labelPassword: "Passwort",
+    placeholderPassword: "••••••••••••",
+    showPass: "Passwort anzeigen",
+    hidePass: "Passwort verbergen",
+    btnLogin: "Im Terminal anmelden",
+    btnSignUp: "Kostenloses Konto erstellen",
+    promptHaveAccount: "Haben Sie bereits ein Konto?",
+    promptNoAccount: "Noch kein Konto?",
+    linkLogin: "Anmelden",
+    linkSignUp: "Kostenlos registrieren",
+    securityNote: "Sichere Authentifizierung & Verschlüsselte Daten",
+    errorAllFields: "Bitte füllen Sie alle erforderlichen Felder aus.",
+    errorPassLength: "Das Passwort muss mindestens 6 Zeichen lang sein.",
+    errorInvalidCreds: "Ungültige Anmeldedaten oder falsches Passwort.",
+    errorGenericSignUp: "Bei der Registrierung ist ein Fehler aufgetreten.",
+    errorGenericSignIn: "Bei der Anmeldung ist ein Fehler aufgetreten.",
+  },
+  zh: {
+    brandTagline: "金融教育与 AI 模拟平台",
+    backHome: "首页",
+    liveMarkets: "实时行情（拟真）",
+    heroBadge: "股市模拟器 V4.8 • 由 Gemini AI 强力驱动",
+    heroTitle: "零资金风险，全面掌握金融投资交易。",
+    heroSubtitle: "利用 10,000 美元虚拟资金练习投资交易，分析实时行情，并在交互式 AI 导师指导下稳步进阶。",
+    cardPortfolio: "虚拟投资组合",
+    cardProfit: "+14.2% (+1,420.00 美元)",
+    cardAiTitle: "Gemini AI 导师：",
+    cardAiQuote: "“均衡投资策略。已识别科技板块中的优质投资机会。”",
+    pillRisk: "0 真实资金风险",
+    pillAi: "实时 AI 智能辅导",
+    pillCloud: "云端数据实时同步",
+    mobileAccessLogin: "前往登录",
+    copyright: "© 2026 Finance Bridge Inc. 保留所有权利。",
+    tabLogin: "登录",
+    tabSignUp: "注册账号",
+    titleLogin: "欢迎回来",
+    titleSignUp: "创建您的账号",
+    subtitleLogin: "输入您的登录凭据，进入您的专属金融教育交易终端。",
+    subtitleSignUp: "免费注册开启模拟投资交易，并解锁全套金融互动学习课程。",
+    labelLanguage: "平台首选语言",
+    languageHelp: "选择您的交易终端、课程内容和 AI 导师的首选语言",
+    labelUsername: "用户名",
+    placeholderUsername: "例如：TraderPro99",
+    labelEmail: "电子邮箱",
+    placeholderEmail: "your.email@example.com",
+    labelPassword: "登录密码",
+    placeholderPassword: "••••••••••••",
+    showPass: "显示密码",
+    hidePass: "隐藏密码",
+    btnLogin: "登录交易终端",
+    btnSignUp: "创建我的免费账号",
+    promptHaveAccount: "已有账号？",
+    promptNoAccount: "还没有账号？",
+    linkLogin: "登录",
+    linkSignUp: "免费注册",
+    securityNote: "安全加密认证与隐私保护",
+    errorAllFields: "请填写所有必填字段。",
+    errorPassLength: "密码长度必须至少为 6 个字符。",
+    errorInvalidCreds: "账号或密码错误，请检查后重试。",
+    errorGenericSignUp: "注册过程中发生错误，请重试。",
+    errorGenericSignIn: "登录过程中发生错误，请重试。",
+  },
+};
+
+export default function AuthScreen({
+  lang = "en",
+  onLanguageChange,
+  onSuccess,
+  onBackToLanding,
+  defaultSignUp = false,
+}: AuthScreenProps) {
   const [isSignUp, setIsSignUp] = useState<boolean>(defaultSignUp);
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
@@ -19,6 +354,19 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
   const [username, setUsername] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+
+  const currentLang = lang in AUTH_TEXTS ? lang : "en";
+  const texts = AUTH_TEXTS[currentLang];
+  const activeLangInfo = LANGUAGE_DATA[currentLang] || LANGUAGE_DATA.en;
+
+  const handleLanguageSelect = (newLang: Language) => {
+    if (onLanguageChange) {
+      onLanguageChange(newLang);
+    }
+    try {
+      localStorage.setItem("finance_bridge_language", newLang);
+    } catch {}
+  };
 
   // Validate and submit Email auth
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,11 +380,11 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
     }
 
     if (!email || !password || (isSignUp && !username)) {
-      setErrorMsg("Veuillez remplir tous les champs requis.");
+      setErrorMsg(texts.errorAllFields);
       return;
     }
     if (password.length < 6) {
-      setErrorMsg("Le mot de passe doit comporter au moins 6 caractères.");
+      setErrorMsg(texts.errorPassLength);
       return;
     }
 
@@ -48,7 +396,8 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
           password,
           options: {
             data: {
-              username: username
+              username: username,
+              language: currentLang
             }
           }
         });
@@ -64,7 +413,7 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
             isSupabase: true
           }, true, username);
         } else {
-          throw new Error("Une erreur s'est produite lors de l'inscription.");
+          throw new Error(texts.errorGenericSignUp);
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -85,14 +434,14 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
             isSupabase: true
           }, false, finalUsername);
         } else {
-          throw new Error("Une erreur s'est produite lors de la connexion.");
+          throw new Error(texts.errorGenericSignIn);
         }
       }
     } catch (err: any) {
       console.error(err);
       let errMsg = err.message || "Erreur d'authentification Supabase.";
       if (err.status === 400 || err.status === 422) {
-        errMsg = "Identifiants invalides ou mot de passe incorrect.";
+        errMsg = texts.errorInvalidCreds;
       }
       setErrorMsg(errMsg);
     } finally {
@@ -112,7 +461,7 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
         <div className="absolute -bottom-24 left-1/3 w-80 h-80 rounded-full bg-blue-600/10 blur-[110px] pointer-events-none" />
 
         {/* Top Header & Brand */}
-        <div className="flex items-center justify-between relative z-10">
+        <div className="flex items-center justify-between relative z-10 flex-wrap gap-4">
           <div className="flex items-center gap-3.5">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-indigo-400 p-0.5 shadow-xl shadow-indigo-500/25">
               <div className="w-full h-full bg-[#0b1021] rounded-[14px] flex items-center justify-center">
@@ -124,11 +473,11 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
                 <h1 className="text-xl font-extrabold text-white tracking-tight">Finance Bridge</h1>
                 <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold tracking-widest uppercase bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">PRO TERMINAL</span>
               </div>
-              <p className="text-[11px] text-white/80 font-mono tracking-wider">PLATEFORME ÉDUCATIVE TRADING & IA</p>
+              <p className="text-[11px] text-white/80 font-mono tracking-wider">{texts.brandTagline}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             {onBackToLanding && (
               <button
                 type="button"
@@ -137,7 +486,7 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
                 style={{ color: "#ffffff" }}
               >
                 <ArrowLeft className="w-3.5 h-3.5 text-slate-300" />
-                <span>Accueil</span>
+                <span>{texts.backHome}</span>
               </button>
             )}
 
@@ -148,13 +497,13 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
               }}
               className="lg:hidden text-xs font-mono font-bold text-indigo-200 hover:text-white bg-indigo-600/30 border border-indigo-500/40 px-3 py-1.5 rounded-full flex items-center gap-1.5 transition cursor-pointer shadow-sm active:scale-95"
             >
-              <span>Se connecter</span>
+              <span>{texts.tabLogin}</span>
               <ArrowDown className="w-3.5 h-3.5 text-indigo-300" />
             </button>
 
             <div className="hidden sm:flex items-center gap-2 text-xs font-mono text-emerald-400 bg-emerald-950/40 border border-emerald-800/50 px-3 py-1.5 rounded-full">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Marchés en Direct (Simulé)</span>
+              <span>{texts.liveMarkets}</span>
             </div>
           </div>
         </div>
@@ -163,15 +512,15 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
         <div className="my-10 lg:my-12 relative z-10 max-w-2xl">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-mono font-semibold text-indigo-200 bg-indigo-500/15 border border-indigo-400/25 mb-6">
             <Sparkles className="w-3.5 h-3.5 text-indigo-300" />
-            <span>Simulateur Boursier V4.8 • Propulsé par Gemini AI</span>
+            <span>{texts.heroBadge}</span>
           </div>
 
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-[1.15]">
-            Maîtrisez les marchés financiers sans aucun risque.
+            {texts.heroTitle}
           </h2>
           
           <p className="mt-4 text-slate-300 text-sm sm:text-base leading-relaxed max-w-xl">
-            Entraînez-vous à l'investissement boursier avec 10 000 $ virtuels, analysez des cours temps réel et soyez guidé par un mentor IA interactif.
+            {texts.heroSubtitle}
           </p>
 
           {/* Simulated Trading Terminal Preview Card */}
@@ -182,14 +531,14 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
                   <BarChart3 className="w-4 h-4" />
                 </div>
                 <div>
-                  <div className="text-[10px] uppercase font-mono font-bold text-slate-400">Portefeuille Virtuel</div>
+                  <div className="text-[10px] uppercase font-mono font-bold text-slate-400">{texts.cardPortfolio}</div>
                   <div className="text-lg font-black text-white font-mono">$10 000,00 USD</div>
                 </div>
               </div>
               <div className="text-right">
                 <span className="inline-flex items-center gap-1 text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
                   <TrendingUp className="w-3.5 h-3.5" />
-                  +14,2% (+$1 420,00)
+                  {texts.cardProfit}
                 </span>
               </div>
             </div>
@@ -233,7 +582,7 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
             <div className="p-2.5 rounded-xl bg-indigo-950/50 border border-indigo-800/40 flex items-center gap-2.5 text-xs">
               <Bot className="w-4 h-4 text-indigo-400 shrink-0" />
               <span className="text-indigo-200">
-                <strong className="text-white">Mentor IA Gemini :</strong> "Stratégie équilibrée. Opportunité identifiée sur le secteur technologie."
+                <strong className="text-white">{texts.cardAiTitle} </strong> {texts.cardAiQuote}
               </span>
             </div>
           </div>
@@ -242,15 +591,15 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
             <div className="p-3 rounded-xl bg-slate-900/50 border border-slate-800/80 flex items-center gap-2.5">
               <ShieldCheck className="w-4 h-4 text-indigo-400 shrink-0" />
-              <span className="text-xs font-semibold text-slate-200">0% de Risque Réel</span>
+              <span className="text-xs font-semibold text-slate-200">{texts.pillRisk}</span>
             </div>
             <div className="p-3 rounded-xl bg-slate-900/50 border border-slate-800/80 flex items-center gap-2.5">
               <Bot className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span className="text-xs font-semibold text-slate-200">Conseils IA Temps Réel</span>
+              <span className="text-xs font-semibold text-slate-200">{texts.pillAi}</span>
             </div>
             <div className="p-3 rounded-xl bg-slate-900/50 border border-slate-800/80 flex items-center gap-2.5">
               <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" />
-              <span className="text-xs font-semibold text-slate-200">Synchronisation Cloud</span>
+              <span className="text-xs font-semibold text-slate-200">{texts.pillCloud}</span>
             </div>
           </div>
 
@@ -262,7 +611,7 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
             }}
             className="lg:hidden mt-6 w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-indigo-600 hover:from-indigo-500 hover:to-indigo-500 text-white font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 border border-indigo-400/30 shadow-xl shadow-indigo-600/25 transition cursor-pointer active:scale-[0.98]"
           >
-            <span>Accéder à la connexion</span>
+            <span>{texts.mobileAccessLogin}</span>
             <ArrowDown className="w-4 h-4 animate-bounce text-indigo-200" />
           </button>
         </div>
@@ -270,7 +619,7 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
         {/* Footer info */}
         <div className="text-xs font-mono text-slate-400 relative z-10 flex flex-wrap justify-between items-center gap-2 pt-6 border-t border-slate-800/60">
           <span>Finance Bridge Terminal v4.8.0</span>
-          <span>© 2026 Finance Bridge Inc. Tous droits réservés.</span>
+          <span>{texts.copyright}</span>
         </div>
       </div>
 
@@ -290,7 +639,7 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
               }`}
               style={{ color: "#ffffff" }}
             >
-              Connexion
+              {texts.tabLogin}
             </button>
             <button
               type="button"
@@ -302,19 +651,19 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
               }`}
               style={{ color: "#ffffff" }}
             >
-              Créer un compte
+              {texts.tabSignUp}
             </button>
           </div>
 
           {/* Form Header */}
           <div className="mb-6">
             <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight" style={{ color: "#ffffff" }}>
-              {isSignUp ? "Créer un compte" : "Bon retour parmi nous"}
+              {isSignUp ? texts.titleSignUp : texts.titleLogin}
             </h3>
             <p className="text-white text-xs sm:text-sm mt-1.5 leading-relaxed" style={{ color: "#ffffff" }}>
               {isSignUp 
-                ? "Inscrivez-vous gratuitement pour commencer à simuler vos investissements et débloquer vos formations."
-                : "Entrez vos identifiants pour accéder à votre terminal de trading éducatif."}
+                ? texts.subtitleSignUp
+                : texts.subtitleLogin}
             </p>
           </div>
 
@@ -336,11 +685,52 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
           {/* Form Controls */}
           <form onSubmit={handleSubmit} className="space-y-4">
             
+            {/* Language Selector in Sign Up Mode */}
+            {isSignUp && (
+              <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-indigo-500/30 shadow-inner">
+                <label className="block text-xs font-bold text-white mb-2 uppercase tracking-wider font-mono flex items-center justify-between" style={{ color: "#ffffff" }}>
+                  <span className="flex items-center gap-1.5 text-indigo-300">
+                    <Globe className="w-3.5 h-3.5 text-indigo-400" />
+                    {texts.labelLanguage}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-normal font-sans">
+                    {activeLangInfo.name}
+                  </span>
+                </label>
+                
+                <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                  {(Object.keys(LANGUAGE_DATA) as Language[]).map((code) => {
+                    const item = LANGUAGE_DATA[code];
+                    const isSelected = currentLang === code;
+                    return (
+                      <button
+                        key={code}
+                        type="button"
+                        onClick={() => handleLanguageSelect(code)}
+                        className={`py-2 px-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-indigo-600 border-indigo-400 text-white shadow-md shadow-indigo-600/30 ring-2 ring-indigo-500/40 font-bold"
+                            : "bg-slate-950/70 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 hover:border-slate-700"
+                        }`}
+                        style={{ color: "#ffffff" }}
+                      >
+                        <span className="truncate text-xs">{item.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">
+                  {texts.languageHelp}
+                </p>
+              </div>
+            )}
+
             {/* Username Input (Sign Up mode) */}
             {isSignUp && (
               <div>
                 <label className="block text-xs font-bold text-white mb-1.5 uppercase tracking-wider font-mono" style={{ color: "#ffffff" }}>
-                  Nom d'utilisateur <span className="text-rose-400" style={{ color: "#f43f5e" }}>*</span>
+                  {texts.labelUsername} <span className="text-rose-400" style={{ color: "#f43f5e" }}>*</span>
                 </label>
                 <div className="relative">
                   <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
@@ -349,7 +739,7 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
                     required
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="ex: TraderPro99"
+                    placeholder={texts.placeholderUsername}
                     className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-800 bg-slate-900/90 text-white placeholder-slate-500 text-xs font-medium focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
                   />
                 </div>
@@ -359,7 +749,7 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
             {/* Email Input */}
             <div>
               <label className="block text-xs font-bold text-white mb-1.5 uppercase tracking-wider font-mono" style={{ color: "#ffffff" }}>
-                Adresse e-mail <span className="text-rose-400" style={{ color: "#f43f5e" }}>*</span>
+                {texts.labelEmail} <span className="text-rose-400" style={{ color: "#f43f5e" }}>*</span>
               </label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
@@ -368,7 +758,7 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="votre.email@exemple.com"
+                  placeholder={texts.placeholderEmail}
                   className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-800 bg-slate-900/90 text-white placeholder-slate-500 text-xs font-medium focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
                 />
               </div>
@@ -377,7 +767,7 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
             {/* Password Input */}
             <div>
               <label className="block text-xs font-bold text-white mb-1.5 uppercase tracking-wider font-mono" style={{ color: "#ffffff" }}>
-                Mot de passe <span className="text-rose-400" style={{ color: "#f43f5e" }}>*</span>
+                {texts.labelPassword} <span className="text-rose-400" style={{ color: "#f43f5e" }}>*</span>
               </label>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
@@ -386,14 +776,14 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••"
+                  placeholder={texts.placeholderPassword}
                   className="w-full pl-10 pr-10 py-3 rounded-xl border border-slate-800 bg-slate-900/90 text-white placeholder-slate-500 text-xs font-medium focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition cursor-pointer"
-                  title={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                  title={showPassword ? texts.hidePass : texts.showPass}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -410,7 +800,7 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  <span>{isSignUp ? "Créer mon compte gratuit" : "Se connecter au terminal"}</span>
+                  <span>{isSignUp ? texts.btnSignUp : texts.btnLogin}</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
@@ -420,7 +810,7 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
           {/* Toggle Switch Prompt */}
           <div className="mt-8 text-center text-xs">
             <span className="text-white" style={{ color: "#ffffff" }}>
-              {isSignUp ? "Vous disposez déjà d'un compte ?" : "Vous n'avez pas encore de compte ?"}
+              {isSignUp ? texts.promptHaveAccount : texts.promptNoAccount}
             </span>{" "}
             <button
               onClick={() => {
@@ -429,14 +819,14 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
               }}
               className="text-indigo-400 hover:text-indigo-300 font-bold transition underline underline-offset-4 cursor-pointer"
             >
-              {isSignUp ? "Se connecter" : "S'inscrire gratuitement"}
+              {isSignUp ? texts.linkLogin : texts.linkSignUp}
             </button>
           </div>
 
           {/* Security Badge */}
           <div className="mt-10 pt-6 border-t border-slate-800/80 flex items-center justify-center gap-2 text-[11px] text-slate-500 font-mono">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Authentification Sécurisée & Données Chiffrées</span>
+            <span>{texts.securityNote}</span>
           </div>
 
         </div>
@@ -445,4 +835,5 @@ export default function AuthScreen({ t, onSuccess, onBackToLanding, defaultSignU
     </div>
   );
 }
+
 
