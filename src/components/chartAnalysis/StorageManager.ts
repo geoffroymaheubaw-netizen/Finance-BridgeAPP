@@ -27,6 +27,13 @@ export class StorageManager {
     try {
       const key = StorageManager.getStorageKey(symbol, timeframe, userId);
       localStorage.setItem(key, JSON.stringify(shapes));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('chart-drawings-changed', {
+            detail: { symbol, timeframe, shapes, userId },
+          })
+        );
+      }
     } catch (err) {
       console.warn('Failed to save chart drawings to localStorage', err);
     }
@@ -36,6 +43,13 @@ export class StorageManager {
     try {
       const key = StorageManager.getStorageKey(symbol, timeframe, userId);
       localStorage.removeItem(key);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('chart-drawings-changed', {
+            detail: { symbol, timeframe, shapes: [], userId },
+          })
+        );
+      }
     } catch (err) {
       console.warn('Failed to clear drawings', err);
     }

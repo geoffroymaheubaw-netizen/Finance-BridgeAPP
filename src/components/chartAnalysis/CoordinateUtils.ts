@@ -3,7 +3,20 @@ import { ChartPoint, PixelPoint, ChartViewportBounds } from './types';
 export class CoordinateUtils {
   public static chartToPixel(point: ChartPoint, bounds: ChartViewportBounds): PixelPoint {
     const range = bounds.maxPrice - bounds.minPrice || 1;
-    const x = bounds.padLeft + point.timeRatio * bounds.chartWidth;
+
+    let viewportXRatio = point.timeRatio;
+    const totalMinusOne = (bounds.totalCount || 1) - 1;
+    const visibleMinusOne = (bounds.visibleCount || 1) - 1;
+
+    if (totalMinusOne > 0 && visibleMinusOne > 0) {
+      const startRatio = (bounds.startIndex || 0) / totalMinusOne;
+      const spanRatio = visibleMinusOne / totalMinusOne;
+      if (spanRatio > 0) {
+        viewportXRatio = (point.timeRatio - startRatio) / spanRatio;
+      }
+    }
+
+    const x = bounds.padLeft + viewportXRatio * bounds.chartWidth;
     const yRatio = (point.price - bounds.minPrice) / range;
     const y = bounds.padTop + bounds.chartHeight * (1 - yRatio);
     return { x, y };
@@ -11,7 +24,18 @@ export class CoordinateUtils {
 
   public static pixelToChart(pixel: PixelPoint, bounds: ChartViewportBounds): ChartPoint {
     const range = bounds.maxPrice - bounds.minPrice || 1;
-    const timeRatio = bounds.chartWidth > 0 ? (pixel.x - bounds.padLeft) / bounds.chartWidth : 0;
+    const viewportXRatio = bounds.chartWidth > 0 ? (pixel.x - bounds.padLeft) / bounds.chartWidth : 0;
+
+    let timeRatio = viewportXRatio;
+    const totalMinusOne = (bounds.totalCount || 1) - 1;
+    const visibleMinusOne = (bounds.visibleCount || 1) - 1;
+
+    if (totalMinusOne > 0 && visibleMinusOne > 0) {
+      const startRatio = (bounds.startIndex || 0) / totalMinusOne;
+      const spanRatio = visibleMinusOne / totalMinusOne;
+      timeRatio = startRatio + viewportXRatio * spanRatio;
+    }
+
     const yRatio = bounds.chartHeight > 0 ? 1 - (pixel.y - bounds.padTop) / bounds.chartHeight : 0;
     const price = bounds.minPrice + yRatio * range;
     return { timeRatio, price };

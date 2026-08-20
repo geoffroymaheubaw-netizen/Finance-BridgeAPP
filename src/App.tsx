@@ -1790,10 +1790,12 @@ export default function App() {
   };
 
   // Gemini AI Chat integration
-  const handleSendMessage = async (text: string) => {
+  const handleSendMessage = async (text: string, image?: string) => {
+    const displayText = text.trim() || (image ? (lang === "fr" ? "Analyse de cette image / graphique financier 📷" : "Analysis of this image / financial chart 📷") : "");
     const userMsg: ChatMessage = {
       sender: 'user',
-      text,
+      text: displayText,
+      image,
       timestamp: new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
     };
 
@@ -1812,7 +1814,8 @@ export default function App() {
         if (c.id === (currentConv ? currentConv.id : activeConversationId)) {
           let updatedTitle = c.title;
           if (isFirstUserMsg) {
-            updatedTitle = text.length > 25 ? text.substring(0, 25).trim() + "..." : text;
+            const titleSource = displayText || (image ? (lang === "fr" ? "Image boursière" : "Chart image") : "Discussion");
+            updatedTitle = titleSource.length > 25 ? titleSource.substring(0, 25).trim() + "..." : titleSource;
           }
           return {
             ...c,
@@ -1844,30 +1847,76 @@ export default function App() {
           throw new Error("CLIENT_KEY_MISSING");
         }
 
-        const systemInstruction = `Vous êtes "Finance Bridge AI", un assistant financier virtuel de haute performance et hautement pédagogue. Vos rôles :
-1. Aider et guider les utilisateurs dans l'apprentissage de l'investissement en bourse.
-2. Expliquer de manière simple, claire et accessible les concepts financiers (valeur refuge, dividende, PE Ratio, volatilité, ETF, obligations, ordres au marché/limite).
-3. Rendre la bourse engageante, amusante et décomplexée pour les débutants.
-4. Ajouter un court rappel à la fin si des conseils d'achat d'actions spécifiques sont demandés ("Avertissement : Les informations éducatives fournies ne constituent pas des conseils financiers officiels.").
+        const systemInstruction = `You are "Finance Bridge AI", an elite, friendly, pedagogical, and strictly neutral virtual financial educator and market analyst.
 
-Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant, comme l'oiseau de Duolingo de la finance. Rédigez des réponses bien espacées en Markdown avec de jolies listes à puces.`;
+CRITICAL DIRECTIVES:
+1. STRICT BAN ON INDIVIDUAL STOCK RECOMMENDATIONS: You are STRICTLY PROHIBITED from recommending, advising, or telling users to buy, sell, or hold specific individual stocks, cryptocurrencies, or securities (e.g. never say "You should buy Apple / Nvidia" or "I recommend investing in X"). 
+   - If the user asks for stock tips, which stock to buy, or asks "Should I buy [Stock]?", you MUST clearly state that you cannot provide personalized investment advice or recommend specific stocks.
+   - Instead, guide them by explaining objective analysis methods, fundamental metrics (P/E ratio, Free Cash Flow, revenue growth, debt levels, competitive advantage/moat), technical indicators, diversification principles, and risk management so they can make their own informed decisions.
+
+2. ADAPTIVE DEPTH & THOROUGH EXPLANATIONS (HIGH PRIORITY):
+   - SIMPLE / GREETING QUERIES: For basic greetings (e.g. "Bonjour", "Hello") or quick single-number lookups, provide a concise, direct, and warm response.
+   - IN-DEPTH / COMPLEX QUESTIONS: Whenever the user asks to explain a financial concept, an economic indicator, a market mechanism, a trading strategy, a valuation model, technical/fundamental analysis, risk management, an asset class (ETFs, options, bonds, crypto, commodities), or asks a question requiring deep understanding (or specifically asks for a detailed answer):
+     * **PROVIDE A RICH, COMPREHENSIVE, AND DETAILED EXPLANATION.** Do not artificially condense or truncate important nuances.
+     * Organize the explanation with clear markdown structure:
+       - 📌 **Définition & Contexte** : Clear overview and conceptual framing.
+       - ⚙️ **Mécanisme & Fonctionnement détaillé** : Step-by-step mechanics, formulas (with clear notation), or workflows.
+       - 📊 **Exemple concret & Chiffré** : Realistic scenarios with numbers and calculations (e.g. investing $1,000, calculations of returns, P/E multiples, compounding over time).
+       - ⚖️ **Avantages & Risques / Limites** : Comprehensive breakdown of benefits, drawbacks, and market traps.
+       - 🛡️ **Bonnes pratiques & Méthodologie** : Actionable, prudent guidance for retail investors.
+
+3. LANGUAGE MATCHING (TOP PRIORITY):
+   - You MUST ALWAYS detect and respond in the EXACT SAME LANGUAGE as the user's question (e.g. French if asked in French, English if asked in English, Spanish if asked in Spanish, German if asked in German, Portuguese if asked in Portuguese, Chinese if asked in Chinese, etc.). Never switch languages unexpectedly.
+
+4. FORMATTING & READABILITY:
+   - Use clean Markdown with headers (###), bullet points, numbered lists, bold key terms, blockquotes, and relevant emojis to make long text pleasant and easy to scan.
+
+5. DISCLAIMER:
+   - Always conclude responses discussing market strategies with a short educational disclaimer in the user's language (e.g. "_Avertissement : Les informations éducatives fournies ne constituent en aucun cas des conseils financiers ou des recommandations d'investissement._" in French, or "_Disclaimer: Educational information only; does not constitute financial advice or investment recommendations._" in English).`;
 
         const contents: any[] = [];
         if (updatedUserMessages.length > 1) {
           // Add context up to 10 previous messages
           updatedUserMessages.slice(-11, -1).forEach((msg) => {
+            const parts: any[] = [];
+            if (msg.image) {
+              const match = msg.image.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+              if (match) {
+                parts.push({
+                  inlineData: {
+                    mimeType: match[1],
+                    data: match[2]
+                  }
+                });
+              }
+            }
+            parts.push({ text: msg.text });
             contents.push({
               role: msg.sender === "user" ? "user" : "model",
-              parts: [{ text: msg.text }]
+              parts
             });
           });
         }
+
+        const currentParts: any[] = [];
+        if (image) {
+          const match = image.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+          if (match) {
+            currentParts.push({
+              inlineData: {
+                mimeType: match[1],
+                data: match[2]
+              }
+            });
+          }
+        }
+        currentParts.push({ text: displayText });
         contents.push({
           role: "user",
-          parts: [{ text: text }]
+          parts: currentParts
         });
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:streamGenerateContent?key=${apiKey}&alt=sse`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:streamGenerateContent?key=${apiKey}&alt=sse`;
         response = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1877,7 +1926,8 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
               parts: [{ text: systemInstruction }]
             },
             generationConfig: {
-              temperature: 0.7
+              temperature: 0.7,
+              maxOutputTokens: 4096
             }
           })
         });
@@ -1886,8 +1936,10 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            message: text,
-            history: updatedUserMessages.slice(-10) // provide context of past 10 exchanges
+            message: displayText,
+            image: image || undefined,
+            history: updatedUserMessages.slice(-10), // provide context of past 10 exchanges
+            lang: profile.language || "fr"
           })
         });
       }

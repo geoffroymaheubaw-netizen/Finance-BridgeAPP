@@ -129,6 +129,15 @@ export class DrawingManager {
     }
   }
 
+  public recordUpdateHistory(shapesBefore: DrawingShape[], description: string = 'Déplacement élément'): void {
+    this.historyManager.pushAction({
+      type: 'UPDATE',
+      shapesBefore,
+      shapesAfter: [...this.shapes],
+      description,
+    });
+  }
+
   public deleteShape(id: string): void {
     const idx = this.shapes.findIndex((s) => s.id === id);
     if (idx === -1) return;

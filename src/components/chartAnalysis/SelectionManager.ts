@@ -1,4 +1,4 @@
-import { DrawingShape, PixelPoint, ChartViewportBounds } from './types';
+import { DrawingShape, PixelPoint, ChartViewportBounds, ChartPoint } from './types';
 import { CoordinateUtils } from './CoordinateUtils';
 
 export class SelectionManager {
@@ -7,7 +7,9 @@ export class SelectionManager {
   private activeHandleIndex: number | null = null;
   private isDraggingShape: boolean = false;
   private dragStartPixel: PixelPoint | null = null;
+  private dragStartChartPoint: ChartPoint | null = null;
   private dragStartPoints: { price: number; timeRatio: number }[] = [];
+  private dragStartFreehand: { price: number; timeRatio: number }[] = [];
 
   public getSelectedId(): string | null {
     return this.selectedId;
@@ -41,17 +43,51 @@ export class SelectionManager {
     return this.isDraggingShape;
   }
 
-  public startDraggingShape(pixel: PixelPoint, shape: DrawingShape): void {
+  public getDragStartChartPoint(): ChartPoint | null {
+    return this.dragStartChartPoint;
+  }
+
+  public getDragStartPoints(): { price: number; timeRatio: number }[] {
+    return this.dragStartPoints;
+  }
+
+  public getDragStartFreehand(): { price: number; timeRatio: number }[] {
+    return this.dragStartFreehand;
+  }
+
+  public startDraggingShape(pixel: PixelPoint, chartPoint: ChartPoint, shape: DrawingShape): void {
     this.isDraggingShape = true;
     this.dragStartPixel = { ...pixel };
+    this.dragStartChartPoint = { ...chartPoint };
     this.dragStartPoints = shape.points.map((p) => ({ ...p }));
+    this.dragStartFreehand = shape.freehandPath ? shape.freehandPath.map((p) => ({ ...p })) : [];
   }
 
   public stopDragging(): void {
     this.isDraggingShape = false;
     this.activeHandleIndex = null;
     this.dragStartPixel = null;
+    this.dragStartChartPoint = null;
     this.dragStartPoints = [];
+    this.dragStartFreehand = [];
+  }
+
+  /**
+   * Find if pointer is near any control handle of the specified shape
+   */
+  public findHandleAtPixel(
+    pixel: PixelPoint,
+    shape: DrawingShape,
+    bounds: ChartViewportBounds,
+    threshold: number = 14
+  ): number | null {
+    const pixels = shape.points.map((pt) => CoordinateUtils.chartToPixel(pt, bounds));
+    for (let i = 0; i < pixels.length; i++) {
+      if (CoordinateUtils.distanceBetweenPixels(pixel, pixels[i]) <= threshold) {
+        return i;
+      }
+    }
+    return null;
   }
 
   /**
@@ -61,7 +97,7 @@ export class SelectionManager {
     pixel: PixelPoint,
     shapes: DrawingShape[],
     bounds: ChartViewportBounds,
-    hitThreshold: number = 10
+    hitThreshold: number = 14
   ): DrawingShape | null {
     // Reverse loop to check top z-index shapes first
     const visibleShapes = shapes.filter((s) => !s.isHidden);

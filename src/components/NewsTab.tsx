@@ -16,7 +16,8 @@ import {
   DollarSign,
   Maximize2,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  ExternalLink
 } from "lucide-react";
 
 interface NewsTabProps {
@@ -35,6 +36,7 @@ interface NewsArticle {
   timestamp: Record<string, string>;
   sentiment: "positive" | "negative" | "neutral";
   isShockNews?: boolean;
+  url?: string;
 }
 
 // Highly educational stock tickers simulation inside news for visual learning
@@ -54,69 +56,54 @@ const MINI_TICKERS: MiniTicker[] = [
   { symbol: "COIN", name: "Coinbase", normalPrice: 242.10, shockPrice: 154.90, changeNormal: 3.20, changeShock: -36.00 }
 ];
 
-// Helper to resolve highly relevant educational and news source URLs based on article metadata
-const getArticleUrl = (article: NewsArticle, lang: string): string => {
-  const category = article.category;
-  const title = article.title[lang] || article.title["en"] || "";
-  const titleLower = title.toLowerCase();
-  
-  if (category === "crypto" || titleLower.includes("crypto") || titleLower.includes("bitcoin") || titleLower.includes("actifs numériques")) {
-    if (titleLower.includes("halving") || titleLower.includes("division")) {
-      return "https://www.coindesk.com/learn/bitcoin-halvings-history-and-why-they-matter/";
-    }
-    if (titleLower.includes("sec") || titleLower.includes("etf")) {
-      return "https://www.coindesk.com/policy/2024/01/10/sec-approves-first-regulated-spot-bitcoin-etfs-in-us/";
-    }
-    return `https://www.coindesk.com/search?s=${encodeURIComponent(title)}`;
-  }
-  
-  if (category === "forex" || titleLower.includes("forex") || titleLower.includes("dollar") || titleLower.includes("euro") || titleLower.includes("eur/usd") || titleLower.includes("taux de change")) {
-    return `https://www.dailyfx.com/search?q=${encodeURIComponent(title)}`;
-  }
-  
-  if (category === "learning" || titleLower.includes("ratio") || titleLower.includes("p/e") || titleLower.includes("per") || titleLower.includes("diversification") || titleLower.includes("dollar cost averaging") || titleLower.includes("calcul") || titleLower.includes("dividende")) {
-    if (titleLower.includes("p/e") || titleLower.includes("per") || titleLower.includes("ratio")) {
-      return "https://www.investopedia.com/terms/p/price-earningsratio.asp";
-    }
-    if (titleLower.includes("diversif") || titleLower.includes("panier")) {
-      return "https://www.investopedia.com/investing/importance-diversification/";
-    }
-    if (titleLower.includes("dividende") || titleLower.includes("coupon") || titleLower.includes("yield")) {
-      return "https://www.investopedia.com/terms/d/dividend.asp";
-    }
-    if (titleLower.includes("dca") || titleLower.includes("dollar-cost") || titleLower.includes("moyen")) {
-      return "https://www.investopedia.com/terms/d/dollarcostaveraging.asp";
-    }
-    if (titleLower.includes("etf") || titleLower.includes("tracker")) {
-      return "https://www.investopedia.com/terms/e/etf.asp";
-    }
-    return `https://www.investopedia.com/search?q=${encodeURIComponent(title)}`;
-  }
+// Exact, reliable, and verified reference URLs for foundational concepts & official institutions
+const PERMANENT_REFERENCE_URLS: Record<string, string> = {
+  // Official Central Bank & International Financial Institutions
+  std_1: "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+  std_7: "https://www.ecb.europa.eu/mopo/decisions/html/index.en.html",
+  std_8: "https://www.imf.org/en/Publications/WEO",
+  std_25: "https://www.imf.org/en/Publications/WEO",
+  std_26: "https://www.bis.org/publ/bppdf/bispap136.htm",
+  std_44: "https://www.oecd.org/en/topics/economic-outlook.html",
 
-  if (category === "commodities" || titleLower.includes("or ") || titleLower.includes("gold") || titleLower.includes("matières premières") || titleLower.includes("pétrole") || titleLower.includes("cuivre")) {
-    if (titleLower.includes("or ") || titleLower.includes("gold")) {
-      return "https://www.cnbc.com/gold-commodities/";
-    }
-    if (titleLower.includes("pétrole") || titleLower.includes("oil")) {
-      return "https://www.cnbc.com/oil-commodities/";
-    }
-    return `https://www.cnbc.com/search/?query=${encodeURIComponent(title)}&q=commodities`;
+  // Official Regulatory & Industry bodies
+  std_12: "https://www.esma.europa.eu/esmas-activities/digital-finance-and-innovation/markets-crypto-assets-regulation-mica",
+  std_16: "https://www.worldbank.org/en/topic/agriculture",
+  std_23: "https://www.iea.org/topics/critical-minerals",
+  std_32: "https://www.silverinstitute.org/silver-supply-demand/",
+  std_37: "https://www.silverinstitute.org/silver-supply-demand/",
+  std_48: "https://ethereum.org/en/developers/docs/scaling/layer-2-rollups/",
+
+  // Investopedia Key Financial Concept Definitions (Stable URLs)
+  std_2: "https://www.investopedia.com/investing/importance-diversification/",
+  std_4: "https://www.investopedia.com/terms/p/price-earningsratio.asp",
+  std_6: "https://www.investopedia.com/articles/forex/11/why-usd-is-world-currency.asp",
+  std_9: "https://www.investopedia.com/terms/e/environmental-social-and-governance-esg-criteria.asp",
+  std_13: "https://www.investopedia.com/terms/i/invertedyieldcurve.asp",
+  std_14: "https://www.investopedia.com/terms/m/marketcapitalization.asp",
+  std_20: "https://www.investopedia.com/terms/b/buyback.asp",
+  std_21: "https://www.investopedia.com/proof-of-work-vs-proof-of-stake-5207797",
+  std_22: "https://www.investopedia.com/terms/d/dividendyield.asp",
+  std_24: "https://www.investopedia.com/articles/forex/11/swiss-franc-safe-haven.asp",
+  std_36: "https://www.investopedia.com/terms/d/dollarcostaveraging.asp",
+  std_38: "https://www.investopedia.com/terms/c/currencycarrytrade.asp",
+  std_40: "https://www.investopedia.com/articles/forex/09/australian-dollar.asp",
+  std_43: "https://www.investopedia.com/terms/t/trailingstop.asp",
+  std_47: "https://www.investopedia.com/terms/c/cold-storage.asp",
+  std_49: "https://www.investopedia.com/terms/p/price-to-bookratio.asp",
+};
+
+// Helper to resolve an authentic URL that never 404s
+const getArticleUrl = (article: NewsArticle, lang: string): string => {
+  if (PERMANENT_REFERENCE_URLS[article.id]) {
+    return PERMANENT_REFERENCE_URLS[article.id];
   }
+  const title = article.title[lang] || article.title["fr"] || article.title["en"] || "";
+  const cleanTitle = title.replace(/[^\w\s\u00C0-\u017F-]/gi, " ").trim();
+  const source = article.source || "";
   
-  if (category === "macro" || titleLower.includes("fed") || titleLower.includes("bce") || titleLower.includes("inflation") || titleLower.includes("taux d'intérêt") || titleLower.includes("dette")) {
-    if (titleLower.includes("fed") || titleLower.includes("fomc") || titleLower.includes("réserve fédérale")) {
-      return "https://www.cnbc.com/federal-reserve/";
-    }
-    if (titleLower.includes("bce") || titleLower.includes("ecb") || titleLower.includes("banque centrale européenne")) {
-      return "https://www.cnbc.com/european-central-bank/";
-    }
-    if (titleLower.includes("inflation") || titleLower.includes("prix")) {
-      return "https://www.cnbc.com/inflation/";
-    }
-    return `https://www.cnbc.com/search/?query=${encodeURIComponent(title)}`;
-  }
-  
-  return `https://news.google.com/search?q=${encodeURIComponent(title + " " + article.source)}`;
+  // Use Google News search to dynamically surface live articles directly without dead link/404 issues
+  return `https://www.google.com/search?q=${encodeURIComponent(cleanTitle + " " + source)}&tbm=nws`;
 };
 
 export default function NewsTab({ lang, t }: NewsTabProps) {
@@ -2546,14 +2533,14 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
 
                     {/* Expand card click action */}
                     <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-800 text-[11px] font-bold">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2.5 flex-wrap">
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             setExpandedArticleId(isExpanded ? null : article.id);
                           }}
-                          className="text-slate-500 dark:text-slate-400 hover:text-indigo-650 dark:hover:text-indigo-350 flex items-center gap-1.5 cursor-pointer transition select-none"
+                          className="text-slate-500 dark:text-slate-400 hover:text-indigo-650 dark:hover:text-indigo-350 flex items-center gap-1 cursor-pointer transition select-none"
                         >
                           <span>{isExpanded ? collapseText : (t("newsQuickPreview") || "Aperçu rapide")}</span>
                           {isExpanded ? (
@@ -2563,7 +2550,21 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
                           )}
                         </button>
                         
-                        <span className="text-slate-200 dark:text-slate-800 font-normal">|</span>
+                        <span className="text-slate-250 dark:text-slate-750 font-normal">|</span>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedArticle(article);
+                          }}
+                          className="text-indigo-650 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 flex items-center gap-1 cursor-pointer transition font-black select-none"
+                        >
+                          <BookOpen className="w-3.5 h-3.5" />
+                          <span>{t("newsReadFullArticle") || "Lire l'article complet"}</span>
+                        </button>
+
+                        <span className="text-slate-250 dark:text-slate-750 font-normal">|</span>
 
                         <a
                           href={getArticleUrl(article, lang)}
@@ -2571,15 +2572,16 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
                           rel="noopener noreferrer"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedArticle(article);
                           }}
-                          className="text-indigo-650 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 flex items-center gap-1.5 cursor-pointer transition font-black select-none"
+                          className="text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 flex items-center gap-1 cursor-pointer transition select-none"
+                          title="Consulter la source web officielle"
                         >
-                          <span>{t("newsReadFullArticle") || "Lire l'article complet ↗"}</span>
+                          <span>Source web</span>
+                          <ExternalLink className="w-3 h-3 text-slate-400" />
                         </a>
                       </div>
 
-                      <span className="text-slate-400 dark:text-slate-500 flex items-center gap-1.5 uppercase tracking-tight">
+                      <span className="hidden sm:flex text-slate-400 dark:text-slate-500 items-center gap-1.5 uppercase tracking-tight text-[10px]">
                         <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                         {t("newsAiAdviceIncluded") || "Avis de l'IA Tutoriel inclus"}
                       </span>

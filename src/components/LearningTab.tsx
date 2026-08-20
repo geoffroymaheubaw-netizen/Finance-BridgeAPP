@@ -1,7 +1,8 @@
-import React, { useState } from "react";
-import { Lesson, LessonModule, UserProfile } from "../types";
-import { BookOpen, Award, CheckCircle, Lock, Play, RotateCcw, AlertCircle, Sparkles, Heart } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Lesson, LessonModule, UserProfile, LessonQuestion } from "../types";
+import { BookOpen, Award, CheckCircle, Lock, Play, RotateCcw, AlertCircle, Sparkles, Heart, Clock, Timer, Image as ImageIcon } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { ChartAnalysisLessonDiagram } from "./ChartAnalysisLessonDiagram";
 
 interface LearningTabProps {
   modules: LessonModule[];
@@ -26,7 +27,8 @@ const getLocalizedModules = (lang: string, originalModules: LessonModule[]): Les
         mod2: { title: "Level 2: Portfolio & Diversification", description: "Learn to build a highly resilient portfolio robust facing market storms." },
         mod3: { title: "Level 3: Trading Tools & Psychology", description: "Master placing strategic orders and avoiding emotional reactions." },
         mod4: { title: "Level 4: Fundamental Analysis & Ratios", description: "Learn to decipher the actual financial health of a company beyond simple stock price variations." },
-        mod5: { title: "Level 5: Risk Management & Advanced Strategies", description: "Protect your capital and employ professional techniques to thrive long-term." }
+        mod5: { title: "Level 5: Risk Management & Advanced Strategies", description: "Protect your capital and employ professional techniques to thrive long-term." },
+        mod6: { title: "Level 6: Chart Analysis Toolbar & Strategies", description: "Master the technical drawing toolbar on interactive charts, Fibonacci tools, breakout patterns, and risk-reward setups." }
       },
       lessons: {
         l1_1: { title: "What is a Stock?", description: "Understand how you acquire ownership of a fraction of a business." },
@@ -40,10 +42,25 @@ const getLocalizedModules = (lang: string, originalModules: LessonModule[]): Les
         l5_1: { title: "Leverage and Stop-Loss", description: "Understand the powerful and risky mechanisms of active trading." },
         l5_2: { title: "Market Cycles and Bull/Bear", description: "Learn to adapt your sails to the global climate of world economics." },
         l1_3: { title: "National and Global Indices", description: "Discover the giant thermometers measuring the global economy." },
+        l1_4: { title: "Stock Exchanges, Brokers & Accounts (PEA / Taxable)", description: "Understand global exchange hours, broker selection, and account tax wrappers." },
         l2_3: { title: "Diversification by Asset Classes", description: "Go beyond stocks: learn about bonds, gold, and commodities." },
+        l2_4: { title: "The Core-Satellite Strategy & Portfolio Architecture", description: "Build a resilient portfolio with an unshakable index core and dynamic satellites." },
         l3_3: { title: "Investment Horizon", description: "Distinguish the long-term investor mindset from the short-term trader." },
+        l3_4: { title: "Trading Journal & Emotional Discipline", description: "Document decisions, analyze cognitive biases, and eliminate revenge trading." },
         l4_3: { title: "Dividend Yield", description: "Learn to calculate and assess the efficiency of cash flow distributions." },
-        l5_3: { title: "Strategic Asset Allocation", description: "Design a consolidated flight plan tailored to your risk tolerance." }
+        l4_4: { title: "Operating Margins, ROE & Business Quality", description: "Measure intrinsic profitability and capital efficiency using margins, ROE, and ROIC." },
+        l5_3: { title: "Strategic Asset Allocation", description: "Design a consolidated flight plan tailored to your risk tolerance." },
+        l5_4: { title: "Portfolio Hedging & Crisis Management", description: "Protect your capital during market turbulence: inverse instruments, dry powder, and crisis checklists." },
+        l6_1: { title: "Exploring the Analysis Toolbar: Tools & UI", description: "Locate the chart toolbar, toggle compact/expanded view, and map support/resistance levels." },
+        l6_2: { title: "Geometric Shapes, Channels & Breakout Strategies", description: "Use consolidation rectangles, parallel channels, and triangles to trade breakouts and pullbacks." },
+        l6_3: { title: "Mastering Fibonacci Tools (Retracement & Extension)", description: "Apply golden ratio levels (38.2%, 50%, 61.8%) to identify institutional reversal zones." },
+        l6_4: { title: "Building a Full Trading Plan with Annotations", description: "Add price tags, notes, Stop-Loss / Take-Profit markers, and master the Risk/Reward ratio." },
+        l1_exam: { title: "🎓 Final Exam: Foundations Mastery", description: "Level 1 synthesis exam: test your knowledge on stocks, supply & demand, indices, and brokers." },
+        l2_exam: { title: "🎓 Final Exam: Portfolio & Diversification", description: "Level 2 synthesis exam: validate your skills on ETFs, multi-asset allocation, and Core-Satellite architecture." },
+        l3_exam: { title: "🎓 Final Exam: Trading & Psychology", description: "Level 3 synthesis exam: market vs limit orders, mental discipline, FOMO, and trading journals." },
+        l4_exam: { title: "🎓 Final Exam: Fundamental Analysis & Ratios", description: "Level 4 synthesis exam: P/E ratio, balance sheet health, Free Cash Flow, dividends, and ROIC." },
+        l5_exam: { title: "🎓 Grand Final Exam: Risk Management & Pro Strategies", description: "Ultimate capstone exam: Stop-Loss, controlled leverage, DCA, rebalancing, hedging, and crash resilience." },
+        l6_exam: { title: "🎓 Final Exam: Chart Toolbar & Pro Technical Strategies", description: "Level 6 capstone exam: all 7 tool categories, chart patterns, Fibonacci confluence, and trade setups." }
       },
       questions: {
         q_1_1: {
@@ -850,6 +867,7 @@ const getLocalizedModules = (lang: string, originalModules: LessonModule[]): Les
 
 export default function LearningTab({ modules, profile, onCompleteLesson, onUpdateHearts, lang, t }: LearningTabProps) {
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
+  const [quizQuestions, setQuizQuestions] = useState<LessonQuestion[]>([]);
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState<number>(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isAnswered, setIsAnswered] = useState<boolean>(false);
@@ -857,8 +875,24 @@ export default function LearningTab({ modules, profile, onCompleteLesson, onUpda
   const [showResultScreen, setShowResultScreen] = useState<boolean>(false);
   const [learningPhase, setLearningPhase] = useState<'study' | 'quiz'>('study');
   const [currentSlideIdx, setCurrentSlideIdx] = useState<number>(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
 
   const currentHearts = profile.learningHearts ?? 4;
+
+  // Session timer for active lesson (~5 minutes pacing)
+  useEffect(() => {
+    if (!activeLesson || showResultScreen) return;
+    const interval = setInterval(() => {
+      setElapsedSeconds(prev => prev + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [activeLesson, showResultScreen]);
+
+  const formatTimer = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
 
   // Translate/localize the lessons structure dynamically depending on lang
   const localizedModules = getLocalizedModules(lang, modules);
@@ -882,8 +916,76 @@ export default function LearningTab({ modules, profile, onCompleteLesson, onUpda
     // Prevent starting if no hearts left
     if (currentHearts <= 0) return;
     setActiveLesson(lesson);
+    setQuizQuestions(lesson.questions);
+    setElapsedSeconds(0);
     setCurrentSlideIdx(0);
     setLearningPhase(lesson.slides && lesson.slides.length > 0 ? 'study' : 'quiz');
+    setCurrentQuestionIdx(0);
+    setSelectedOption(null);
+    setIsAnswered(false);
+    setScore(0);
+    setShowResultScreen(false);
+  };
+
+  const handleStartRevision = () => {
+    if (currentHearts <= 0) return;
+
+    // Retrieve all lessons completed by the user
+    const completedLessons = localizedModules
+      .flatMap((m) => m.lessons)
+      .filter((l) => profile.completedLessons.includes(l.id));
+
+    // Gather questions from completed lessons (or fallback to Level 1 lessons if user hasn't completed any yet)
+    let poolQuestions: LessonQuestion[] = [];
+    if (completedLessons.length > 0) {
+      poolQuestions = completedLessons.flatMap((l) => l.questions);
+    } else {
+      const firstMod = localizedModules[0];
+      if (firstMod) {
+        poolQuestions = firstMod.lessons.flatMap((l) => l.questions);
+      }
+    }
+
+    if (poolQuestions.length === 0) return;
+
+    // Filter unique questions by id
+    const uniquePool: LessonQuestion[] = [];
+    const seenIds = new Set<string>();
+    for (const q of poolQuestions) {
+      if (!seenIds.has(q.id)) {
+        seenIds.add(q.id);
+        uniquePool.push(q);
+      }
+    }
+
+    // Random shuffle using Fisher-Yates
+    const shuffled = [...uniquePool];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    // Pick 5 random questions
+    const selectedQuestions = shuffled.slice(0, 5).map((q) => ({
+      ...q,
+      isRetry: false,
+    }));
+
+    const revisionLesson: Lesson = {
+      id: `revision_${Date.now()}`,
+      title: "🔄 Révision de tout le parcours",
+      description: "5 questions aléatoires tirées de vos cours terminés pour tester vos réflexes.",
+      xpReward: 250,
+      durationMinutes: 4,
+      isRevision: true,
+      questions: selectedQuestions,
+    };
+
+    setActiveLesson(revisionLesson);
+    setQuizQuestions(selectedQuestions);
+    setElapsedSeconds(0);
+    setCurrentSlideIdx(0);
+    setLearningPhase('quiz');
     setCurrentQuestionIdx(0);
     setSelectedOption(null);
     setIsAnswered(false);
@@ -897,14 +999,16 @@ export default function LearningTab({ modules, profile, onCompleteLesson, onUpda
   };
 
   const handleAnswerSubmit = () => {
-    if (selectedOption === null || isAnswered || !activeLesson) return;
+    if (selectedOption === null || isAnswered || !activeLesson || !quizQuestions[currentQuestionIdx]) return;
     setIsAnswered(true);
 
-    const question = activeLesson.questions[currentQuestionIdx];
+    const question = quizQuestions[currentQuestionIdx];
     if (selectedOption === question.correctAnswerIndex) {
       setScore(prev => prev + 1);
     } else {
       onUpdateHearts(Math.max(0, currentHearts - 1));
+      // Re-queue the missed question at the end of the quiz so the learner gets to answer it again and master the concept
+      setQuizQuestions(prev => [...prev, { ...question, isRetry: true }]);
     }
   };
 
@@ -913,7 +1017,7 @@ export default function LearningTab({ modules, profile, onCompleteLesson, onUpda
     setSelectedOption(null);
     setIsAnswered(false);
 
-    if (currentHearts <= 0 || currentQuestionIdx + 1 >= activeLesson.questions.length) {
+    if (currentHearts <= 0 || currentQuestionIdx + 1 >= quizQuestions.length) {
       setShowResultScreen(true);
       if (currentHearts > 0) {
         onCompleteLesson(activeLesson.id, activeLesson.xpReward);
@@ -969,6 +1073,59 @@ export default function LearningTab({ modules, profile, onCompleteLesson, onUpda
               </div>
             </div>
 
+            {/* Révision de tout le parcours Banner */}
+            {(() => {
+              const allCompletedLessons = localizedModules
+                .flatMap((m) => m.lessons)
+                .filter((l) => profile.completedLessons.includes(l.id));
+              const completedCount = allCompletedLessons.length;
+              const totalPoolQuestionsCount = allCompletedLessons.flatMap((l) => l.questions).length;
+
+              return (
+                <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-white rounded-3xl p-6 sm:p-7 border border-indigo-500/30 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
+                  <div className="space-y-2 z-10">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="bg-indigo-500/30 text-indigo-300 border border-indigo-400/40 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1.5 shadow-xs">
+                        <Sparkles className="w-3 h-3 text-indigo-300 animate-pulse" />
+                        Révision Générale
+                      </span>
+                      <span className="text-[11px] text-slate-300 font-medium bg-slate-800/80 px-2.5 py-0.5 rounded-full border border-slate-700/60">
+                        {completedCount > 0
+                          ? `${completedCount} cours terminés • ${totalPoolQuestionsCount} questions au total`
+                          : "Mode Découverte"}
+                      </span>
+                      <span className="text-[11px] font-bold text-amber-400 bg-amber-950/50 px-2.5 py-0.5 rounded-full border border-amber-700/50">
+                        +250 XP
+                      </span>
+                    </div>
+                    <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2.5">
+                      <RotateCcw className="w-6 h-6 text-indigo-400" />
+                      Révision de tout le parcours
+                    </h3>
+                    <p className="text-slate-300 text-xs sm:text-sm max-w-xl leading-relaxed">
+                      Entraînez-vous sur <strong>5 questions aléatoires</strong> tirées de vos cours terminés. À chaque session, un nouveau tirage de questions vous est proposé pour tester vos réflexes sans monotonie !
+                    </p>
+                  </div>
+
+                  <div className="z-10 shrink-0">
+                    <button
+                      type="button"
+                      onClick={handleStartRevision}
+                      disabled={currentHearts <= 0}
+                      className={`w-full sm:w-auto px-6 py-4 rounded-2xl font-extrabold text-sm transition-all duration-200 flex items-center justify-center gap-2.5 shadow-lg cursor-pointer ${
+                        currentHearts <= 0
+                          ? "bg-slate-800 text-slate-500 cursor-not-allowed opacity-50 border border-slate-700"
+                          : "bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white hover:scale-102 active:scale-98 shadow-indigo-500/25"
+                      }`}
+                    >
+                      <Play className="w-4 h-4 fill-white" />
+                      <span>Réviser tout le parcours</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
             {currentHearts === 0 && (
               <div className="bg-rose-550/10 border border-rose-500/20 rounded-2xl p-4 flex items-start gap-3 shadow-xs bg-rose-50 dark:bg-rose-955/10">
                 <AlertCircle className="w-5 h-5 text-rose-550 dark:text-rose-400 shrink-0 mt-0.5" />
@@ -986,16 +1143,68 @@ export default function LearningTab({ modules, profile, onCompleteLesson, onUpda
             {/* Modules duolingo-styled tree timeline path */}
             <div className="space-y-12 relative pl-12 sm:pl-16 before:absolute before:left-[16px] sm:before:left-[24px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100 dark:before:bg-slate-800">
               {localizedModules.map((mod, modIdx) => {
+                const totalLessons = mod.lessons.length;
+                const completedCount = mod.lessons.filter((l) => profile.completedLessons.includes(l.id)).length;
+                const completionPercentage = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0;
+                const isFullyCompleted = completionPercentage === 100;
+                const isStarted = completedCount > 0;
+
                 return (
-                  <div key={mod.id} className="relative space-y-6">
+                  <div key={mod.id} className="relative space-y-5">
                     {/* Node marker decoration title */}
-                    <div className="absolute -left-[52px] sm:-left-[60px] w-10 h-10 rounded-full bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 flex items-center justify-center font-bold text-xs shadow-xs text-slate-400">
-                      M{modIdx + 1}
+                    <div
+                      className={`absolute -left-[52px] sm:-left-[60px] w-10 h-10 rounded-full border-2 flex items-center justify-center font-bold text-xs shadow-xs transition-colors duration-300 ${
+                        isFullyCompleted
+                          ? "bg-emerald-500 text-white border-emerald-400 dark:border-emerald-600"
+                          : isStarted
+                          ? "bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border-indigo-400 dark:border-indigo-600"
+                          : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-400"
+                      }`}
+                    >
+                      {isFullyCompleted ? <CheckCircle className="w-5 h-5" /> : `M${modIdx + 1}`}
                     </div>
 
-                    <div className="space-y-1.5 pl-4">
-                      <h3 className="text-lg font-extrabold text-slate-850 dark:text-slate-100">{mod.title}</h3>
-                      <p className="text-slate-400 dark:text-slate-400 text-xs max-w-xl">{mod.description}</p>
+                    <div className="space-y-3 pl-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-lg font-extrabold text-slate-850 dark:text-slate-100">{mod.title}</h3>
+                            {isFullyCompleted ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                <CheckCircle className="w-3 h-3" />
+                                Niveau terminé • 100%
+                              </span>
+                            ) : isStarted ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                                En cours • {completionPercentage}%
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                                Non commencé • 0%
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-slate-500 dark:text-slate-400 text-xs max-w-xl">{mod.description}</p>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300 shrink-0 self-start sm:self-center bg-slate-50 dark:bg-slate-800/60 px-3 py-1.5 rounded-xl border border-slate-200/60 dark:border-slate-700/50">
+                          <span className="text-slate-400 dark:text-slate-400">{completedCount}/{totalLessons} cours</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-100">{completionPercentage}%</span>
+                        </div>
+                      </div>
+
+                      {/* Animated Progress Bar */}
+                      <div className="w-full bg-slate-100 dark:bg-slate-800/80 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-200/50 dark:border-slate-700/50">
+                        <motion.div
+                          className={`h-full rounded-full ${
+                            isFullyCompleted
+                              ? "bg-gradient-to-r from-emerald-500 to-teal-400"
+                              : "bg-gradient-to-r from-indigo-500 to-indigo-600"
+                          }`}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${completionPercentage}%` }}
+                          transition={{ duration: 0.8, ease: "easeOut" }}
+                        />
+                      </div>
                     </div>
 
                     {/* Lessons nested circles row list layout */}
@@ -1003,26 +1212,53 @@ export default function LearningTab({ modules, profile, onCompleteLesson, onUpda
                       {mod.lessons.map((lesson) => {
                         const unlocked = isLessonUnlocked(lesson.id);
                         const completed = profile.completedLessons.includes(lesson.id);
+                        const isExamLesson = !!lesson.isExam || lesson.id.includes("exam");
 
                         return (
                           <div
                             key={lesson.id}
                             className={`p-4 rounded-2xl border transition-all duration-300 relative flex items-start gap-4 ${
+                              isExamLesson ? "col-span-1 md:col-span-2 shadow-xs" : ""
+                            } ${
                               completed
-                                ? "bg-emerald-50/20 hover:bg-emerald-50/40 border-emerald-100 dark:bg-emerald-950/5 dark:border-emerald-900/40"
+                                ? isExamLesson
+                                  ? "bg-amber-50/30 hover:bg-amber-50/50 border-amber-300/70 dark:bg-amber-950/20 dark:border-amber-700/50"
+                                  : "bg-emerald-50/20 hover:bg-emerald-50/40 border-emerald-100 dark:bg-emerald-950/5 dark:border-emerald-900/40"
                                 : unlocked
-                                ? "bg-white hover:bg-slate-50/50 border-slate-205 dark:bg-slate-900 dark:hover:bg-slate-950 dark:border-slate-800 border-slate-200"
+                                ? isExamLesson
+                                  ? "bg-gradient-to-r from-amber-50/60 to-orange-50/40 hover:from-amber-50 hover:to-orange-50/70 border-amber-300 dark:from-amber-950/30 dark:to-orange-950/20 dark:border-amber-600/50"
+                                  : "bg-white hover:bg-slate-50/50 border-slate-205 dark:bg-slate-900 dark:hover:bg-slate-950 dark:border-slate-800 border-slate-200"
+                                : isExamLesson
+                                ? "bg-amber-50/10 dark:bg-amber-950/10 border-amber-100 dark:border-amber-900/30 opacity-60"
                                 : "bg-slate-50 dark:bg-slate-950/40 border-slate-100 dark:border-slate-900 opacity-65"
                             }`}
                           >
                             <div className="space-y-1.5 flex-1 pr-10">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold px-2 py-0.5 rounded uppercase">
-                                  {lesson.xpReward} XP
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {isExamLesson && (
+                                  <span className="text-[10px] bg-gradient-to-r from-amber-500 to-orange-500 text-white font-extrabold px-2.5 py-0.5 rounded-full shadow-xs flex items-center gap-1">
+                                    <Award className="w-3 h-3" />
+                                    EXAMEN DE SYNTHÈSE
+                                  </span>
+                                )}
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
+                                  isExamLesson 
+                                    ? "bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-700/50"
+                                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+                                }`}>
+                                  +{lesson.xpReward} XP
+                                </span>
+                                <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-bold px-2 py-0.5 rounded flex items-center gap-1 border border-indigo-100/50 dark:border-indigo-900/30">
+                                  <Clock className="w-2.5 h-2.5" />
+                                  ~{lesson.durationMinutes || 5} min
                                 </span>
                                 {completed && (
-                                  <span className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold px-2 py-0.5 rounded uppercase">
-                                    {t("completedQuiz")}
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
+                                    isExamLesson
+                                      ? "bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-300/40"
+                                      : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                  }`}>
+                                    {isExamLesson ? "Examen Réussi 🎓" : t("completedQuiz")}
                                   </span>
                                 )}
                               </div>
@@ -1039,6 +1275,8 @@ export default function LearningTab({ modules, profile, onCompleteLesson, onUpda
                                   className={`w-10 h-10 rounded-full flex items-center justify-center transition shadow-xs cursor-pointer ${
                                     currentHearts <= 0
                                       ? "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed opacity-50 border border-slate-200/40 dark:border-slate-700/40"
+                                      : isExamLesson
+                                      ? "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-200 dark:shadow-none"
                                       : "bg-emerald-500 hover:bg-emerald-600 text-white"
                                   }`}
                                   title="Recommencer"
@@ -1053,9 +1291,11 @@ export default function LearningTab({ modules, profile, onCompleteLesson, onUpda
                                   className={`w-10 h-10 rounded-full flex items-center justify-center transition shadow-md cursor-pointer ${
                                     currentHearts <= 0
                                       ? "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed opacity-50 border border-slate-200/40 dark:border-slate-700/40"
+                                      : isExamLesson
+                                      ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 hover:scale-105 text-white shadow-amber-500/25"
                                       : "bg-indigo-600 hover:bg-indigo-700 hover:scale-105 text-white"
                                   }`}
-                                  title={t("startQuiz")}
+                                  title={isExamLesson ? "Passer l'Examen" : t("startQuiz")}
                                 >
                                   <Play className="w-4 h-4 fill-white ml-0.5" />
                                 </button>
@@ -1084,17 +1324,32 @@ export default function LearningTab({ modules, profile, onCompleteLesson, onUpda
             className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-5 sm:p-8 max-w-2xl mx-auto shadow-md"
           >
             {/* Header top line toolbar */}
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-6">
-              <div className="space-y-0.5">
-                <span className="text-[10px] text-indigo-500 font-extrabold uppercase tracking-wider">{activeLesson.title}</span>
-                <h3 className="font-extrabold text-slate-850 dark:text-slate-100 text-sm">
-                  {learningPhase === 'study' ? "Cours théorique" : t("quizTitle")}
-                </h3>
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 mb-6 gap-4">
+              <div className="space-y-1 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] text-indigo-500 font-extrabold uppercase tracking-wider">{activeLesson.title}</span>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400 border border-indigo-100/50 dark:border-indigo-900/30">
+                    <Clock className="w-2.5 h-2.5" /> ~{activeLesson.durationMinutes || 5} min
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h3 className="font-extrabold text-slate-850 dark:text-slate-100 text-sm">
+                    {activeLesson.isRevision
+                      ? "🔄 Révision Aléatoire (5 Questions)"
+                      : learningPhase === 'study'
+                      ? (activeLesson.isExam ? "Fiches de Révision de l'Examen" : "Cours théorique approfondi")
+                      : (activeLesson.isExam ? "🎓 Grand Examen de Validation" : t("quizTitle"))}
+                  </h3>
+                  <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md flex items-center gap-1">
+                    <Timer className="w-3 h-3 text-slate-400" />
+                    {formatTimer(elapsedSeconds)}
+                  </span>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={handleQuit}
-                className="text-slate-400 hover:text-rose-500 transition font-bold text-xs border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                className="text-slate-400 hover:text-rose-500 transition font-bold text-xs border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-rose-50 dark:hover:bg-rose-950/20 shrink-0"
               >
                 Fermer
               </button>
@@ -1105,16 +1360,26 @@ export default function LearningTab({ modules, profile, onCompleteLesson, onUpda
               <div className="flex items-center justify-between gap-6 mb-6">
                 <div className="flex-1 bg-slate-100 dark:bg-slate-950 h-2.5 rounded-full overflow-hidden">
                   <div
-                    className={`${learningPhase === 'study' ? 'bg-emerald-500' : 'bg-indigo-600'} h-full transition-all duration-300`}
+                    className={`${
+                      activeLesson.isRevision
+                        ? 'bg-gradient-to-r from-indigo-500 to-violet-500'
+                        : learningPhase === 'study'
+                        ? (activeLesson.isExam ? 'bg-amber-500' : 'bg-emerald-500')
+                        : (activeLesson.isExam ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-indigo-600')
+                    } h-full transition-all duration-300`}
                     style={{
                       width: learningPhase === 'study'
                         ? `${((currentSlideIdx + 1) / (activeLesson.slides?.length || 1)) * 100}%`
-                        : `${((currentQuestionIdx) / activeLesson.questions.length) * 100}%`
+                        : `${((currentQuestionIdx) / (quizQuestions.length || 1)) * 100}%`
                     }}
                   />
                 </div>
                 {learningPhase === 'study' ? (
-                  <span className="text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-xl border border-emerald-100/50 dark:border-emerald-900/40 shrink-0">
+                  <span className={`text-xs font-bold px-2.5 py-1 rounded-xl border shrink-0 ${
+                    activeLesson.isExam 
+                      ? "text-amber-700 bg-amber-50 dark:bg-amber-950/40 border-amber-200/60 dark:border-amber-900/40"
+                      : "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-100/50 dark:border-emerald-900/40"
+                  }`}>
                     Fiche {currentSlideIdx + 1} / {activeLesson.slides?.length || 1}
                   </span>
                 ) : (
@@ -1141,23 +1406,52 @@ export default function LearningTab({ modules, profile, onCompleteLesson, onUpda
                   
                   <div className="space-y-2">
                     <h4 className="text-xl font-extrabold text-slate-800 dark:text-white">
-                      {currentHearts > 0 ? "Félicitations ! 🎉" : "Fin de partie 😢"}
+                      {currentHearts > 0 
+                        ? (activeLesson.isRevision
+                            ? "Révision Réussie avec Succès ! 🎯🎉"
+                            : activeLesson.isExam 
+                            ? "Examen Réussi avec Succès ! 🎓🎉" 
+                            : "Félicitations ! 🎉") 
+                        : "Fin de partie 😢"}
                     </h4>
                     <p className="text-slate-400 dark:text-slate-400 text-xs sm:text-sm max-w-sm mx-auto">
                       {currentHearts > 0
-                        ? `Vous avez complété la leçon avec brio en répondant correctement aux questions !`
+                        ? (activeLesson.isRevision
+                            ? "Vous avez validé cette session de révision de 5 questions sur l'ensemble de votre parcours !"
+                            : activeLesson.isExam
+                            ? `Vous avez validé l'examen de synthèse et prouvé votre maîtrise complète des notions de ce niveau !`
+                            : `Vous avez complété la leçon avec brio en répondant correctement aux questions !`)
                         : "Vous avez perdu toutes vos vies. Pas d'inquiétude, lisez bien les explications et recommencez !"}
                     </p>
                   </div>
 
                   {currentHearts > 0 && (
-                    <div className="bg-indigo-50/50 dark:bg-indigo-955/20 border border-indigo-100 dark:border-indigo-900/40 p-4 rounded-2xl inline-block">
-                      <span className="text-[10px] text-slate-400 dark:text-indigo-400 block font-bold leading-none uppercase mb-1.5">{t("xpRewardMsg")}</span>
-                      <span className="text-2xl font-black text-indigo-700 dark:text-indigo-300 font-mono">+{activeLesson.xpReward} XP</span>
+                    <div className="flex items-center justify-center gap-4 flex-wrap">
+                      <div className="bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 p-4 rounded-2xl inline-block min-w-[140px]">
+                        <span className="text-[10px] text-slate-400 dark:text-indigo-400 block font-bold leading-none uppercase mb-1.5">{t("xpRewardMsg")}</span>
+                        <span className="text-2xl font-black text-indigo-700 dark:text-indigo-300 font-mono">+{activeLesson.xpReward} XP</span>
+                      </div>
+                      <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl inline-block min-w-[140px]">
+                        <span className="text-[10px] text-slate-400 block font-bold leading-none uppercase mb-1.5">Temps de cours</span>
+                        <span className="text-2xl font-black text-slate-800 dark:text-slate-200 font-mono flex items-center justify-center gap-1.5">
+                          <Timer className="w-5 h-5 text-indigo-500" />
+                          {formatTimer(elapsedSeconds)}
+                        </span>
+                      </div>
                     </div>
                   )}
 
-                  <div className="pt-2">
+                  <div className="pt-2 flex items-center justify-center gap-3 flex-wrap">
+                    {activeLesson.isRevision && currentHearts > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleStartRevision}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold text-xs sm:text-sm transition shadow-md cursor-pointer flex items-center gap-2"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                        <span>Nouvelle Révision Aléatoire</span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={handleQuit}
@@ -1211,6 +1505,36 @@ export default function LearningTab({ modules, profile, onCompleteLesson, onUpda
                       {activeLesson.slides[currentSlideIdx].text}
                     </p>
                   </div>
+
+                  {/* Optional High-Resolution Generated Visual Image */}
+                  {activeLesson.slides[currentSlideIdx].imageUrl && (
+                    <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-900/60 shadow-md">
+                      <div className="relative aspect-video w-full overflow-hidden bg-slate-950">
+                        <img
+                          src={activeLesson.slides[currentSlideIdx].imageUrl}
+                          alt={activeLesson.slides[currentSlideIdx].imageCaption || "Illustration du cours"}
+                          className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="absolute top-2.5 left-2.5 bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-lg border border-slate-700/60 flex items-center gap-1.5 text-[11px] font-medium text-slate-200 shadow-sm">
+                          <ImageIcon className="w-3.5 h-3.5 text-indigo-400" />
+                          <span>Repère Visuel & Stratégie</span>
+                        </div>
+                      </div>
+                      {activeLesson.slides[currentSlideIdx].imageCaption && (
+                        <div className="p-2.5 bg-slate-900/90 border-t border-slate-800 text-xs text-slate-400 text-center font-medium">
+                          📸 {activeLesson.slides[currentSlideIdx].imageCaption}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Optional Interactive/Annotated Technical Diagram */}
+                  {activeLesson.slides[currentSlideIdx].diagramType && (
+                    <div className="pt-1">
+                      <ChartAnalysisLessonDiagram type={activeLesson.slides[currentSlideIdx].diagramType!} />
+                    </div>
+                  )}
 
                   {/* Bullet Cards */}
                   {activeLesson.slides[currentSlideIdx].bullets && activeLesson.slides[currentSlideIdx].bullets.length > 0 && (
@@ -1275,105 +1599,125 @@ export default function LearningTab({ modules, profile, onCompleteLesson, onUpda
                 </motion.div>
               ) : (
                 /* ACTIVE MULTIPLE CHOICE QUESTION BLOCK */
-                <motion.div
-                  key={currentQuestionIdx}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="space-y-6"
-                >
-                  <div className="space-y-3">
-                    <span className="text-[10px] text-indigo-650 bg-indigo-50 dark:bg-indigo-950 font-extrabold px-2.5 py-0.5 rounded-md">
-                      QUESTION {currentQuestionIdx + 1} SUR {activeLesson.questions.length}
-                    </span>
-                    <h4 className="text-base sm:text-lg font-extrabold text-slate-800 dark:text-slate-100 leading-snug">
-                      {activeLesson.questions[currentQuestionIdx].text}
-                    </h4>
-                  </div>
+                (() => {
+                  const currentQuestion = quizQuestions[currentQuestionIdx];
+                  if (!currentQuestion) return null;
 
-                  {/* Options items */}
-                  <div className="space-y-2.5 pt-2">
-                    {activeLesson.questions[currentQuestionIdx].options.map((opt, oIdx) => {
-                      const isSelected = selectedOption === oIdx;
-                      const isCorrectAnswer = oIdx === activeLesson.questions[currentQuestionIdx].correctAnswerIndex;
-                      
-                      let bgClass = "bg-white hover:bg-slate-50 border-slate-200 dark:bg-slate-900 dark:hover:bg-slate-950 dark:border-slate-800 text-slate-700 dark:text-slate-350";
-                      if (isSelected) {
-                        bgClass = "bg-indigo-50 border-indigo-600 dark:bg-indigo-950 dark:border-indigo-500 font-bold text-slate-900 dark:text-white";
-                      }
-                      if (isAnswered) {
-                        if (isCorrectAnswer) {
-                          bgClass = "bg-emerald-50 border-emerald-500 dark:bg-emerald-950/40 dark:border-emerald-500 font-bold text-emerald-990 dark:text-emerald-400";
-                        } else if (isSelected) {
-                          bgClass = "bg-rose-50 border-rose-500 dark:bg-rose-955/20 dark:border-rose-500 font-bold text-rose-990 dark:text-rose-400";
-                        } else {
-                          bgClass = "bg-slate-50/50 border-slate-100 dark:bg-slate-950/40 dark:border-slate-900 text-slate-400 dark:text-slate-600 cursor-not-allowed";
-                        }
-                      }
-
-                      return (
-                        <div
-                          key={oIdx}
-                          onClick={() => handleSelectOption(oIdx)}
-                          className={`p-4 border rounded-xl transition-all cursor-pointer text-xs sm:text-sm relative flex items-center ${bgClass}`}
-                        >
-                          <span className={`w-6 h-6 rounded-lg mr-3 flex items-center justify-center font-bold text-xs border ${
-                            isSelected 
-                              ? "bg-indigo-600 text-white border-indigo-600" 
-                              : "bg-slate-100 dark:bg-slate-850 text-slate-550 border-slate-200 dark:border-slate-800"
-                          }`}>
-                            {String.fromCharCode(65 + oIdx)}
-                          </span>
-                          <span className="flex-1">{opt}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Reply explanation alert banner panel */}
-                  {isAnswered && (
+                  return (
                     <motion.div
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className={`p-4 rounded-xl space-y-1 bg-slate-50 border border-slate-150 text-xs sm:text-sm border ${
-                        selectedOption === activeLesson.questions[currentQuestionIdx].correctAnswerIndex
-                          ? "bg-emerald-50/20 border-emerald-100 dark:bg-emerald-955/10 dark:border-emerald-900/40 text-emerald-800 dark:text-emerald-300"
-                          : "bg-rose-50/20 border-rose-100 dark:bg-rose-955/10 dark:border-rose-900/40 text-rose-800 dark:text-rose-300"
-                      }`}
+                      key={currentQuestionIdx}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      className="space-y-6"
                     >
-                      <div className="flex items-center gap-1.5 font-extrabold uppercase text-[10px] tracking-wider">
-                        <AlertCircle className="w-3.5 h-3.5" />
-                        <span>{selectedOption === activeLesson.questions[currentQuestionIdx].correctAnswerIndex ? t("correctMsg") : t("wrongMsg")}</span>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] text-indigo-650 bg-indigo-50 dark:bg-indigo-950 font-extrabold px-2.5 py-0.5 rounded-md">
+                            QUESTION {currentQuestionIdx + 1} SUR {quizQuestions.length}
+                          </span>
+                          {currentQuestion.isRetry && (
+                            <span className="inline-flex items-center gap-1 text-[10px] bg-amber-100/80 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 font-bold px-2 py-0.5 rounded-md border border-amber-300/60 dark:border-amber-900/40 animate-pulse">
+                              <RotateCcw className="w-2.5 h-2.5" /> Rattrapage (2ème chance)
+                            </span>
+                          )}
+                        </div>
+                        <h4 className="text-base sm:text-lg font-extrabold text-slate-800 dark:text-slate-100 leading-snug">
+                          {currentQuestion.text}
+                        </h4>
                       </div>
-                      <p className="font-bold text-slate-700 dark:text-slate-300 mt-1">{t("explanationTitle")}</p>
-                      <p className="text-slate-500 dark:text-slate-400 font-sans leading-relaxed text-xs">
-                        {activeLesson.questions[currentQuestionIdx].explanation}
-                      </p>
-                    </motion.div>
-                  )}
 
-                  {/* Submission triggers desk footer */}
-                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
-                    {!isAnswered ? (
-                      <button
-                        type="button"
-                        onClick={handleAnswerSubmit}
-                        disabled={selectedOption === null}
-                        className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 hover:scale-101 dark:disabled:bg-slate-950 text-white px-5 py-3 rounded-xl font-bold text-xs sm:text-sm transition duration-150 cursor-pointer disabled:cursor-not-allowed"
-                      >
-                        {t("submitAnswer")}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={handleNext}
-                        className="bg-slate-900 hover:bg-slate-850 dark:bg-indigo-650 dark:hover:bg-indigo-700 text-white px-5 py-3 rounded-xl font-bold text-xs sm:text-sm transition shadow-sm cursor-pointer"
-                      >
-                        {t("nextQuestion")}
-                      </button>
-                    )}
-                  </div>
-                </motion.div>
+                      {/* Options items */}
+                      <div className="space-y-2.5 pt-2">
+                        {currentQuestion.options.map((opt, oIdx) => {
+                          const isSelected = selectedOption === oIdx;
+                          const isCorrectAnswer = oIdx === currentQuestion.correctAnswerIndex;
+                          
+                          let bgClass = "bg-white hover:bg-slate-50 border-slate-200 dark:bg-slate-900 dark:hover:bg-slate-950 dark:border-slate-800 text-slate-700 dark:text-slate-350";
+                          if (isSelected) {
+                            bgClass = "bg-indigo-50 border-indigo-600 dark:bg-indigo-950 dark:border-indigo-500 font-bold text-slate-900 dark:text-white";
+                          }
+                          if (isAnswered) {
+                            if (isCorrectAnswer) {
+                              bgClass = "bg-emerald-50 border-emerald-500 dark:bg-emerald-950/40 dark:border-emerald-500 font-bold text-emerald-990 dark:text-emerald-400";
+                            } else if (isSelected) {
+                              bgClass = "bg-rose-50 border-rose-500 dark:bg-rose-955/20 dark:border-rose-500 font-bold text-rose-990 dark:text-rose-400";
+                            } else {
+                              bgClass = "bg-slate-50/50 border-slate-100 dark:bg-slate-950/40 dark:border-slate-900 text-slate-400 dark:text-slate-600 cursor-not-allowed";
+                            }
+                          }
+
+                          return (
+                            <div
+                              key={oIdx}
+                              onClick={() => handleSelectOption(oIdx)}
+                              className={`p-4 border rounded-xl transition-all cursor-pointer text-xs sm:text-sm relative flex items-center ${bgClass}`}
+                            >
+                              <span className={`w-6 h-6 rounded-lg mr-3 flex items-center justify-center font-bold text-xs border ${
+                                isSelected 
+                                ? "bg-indigo-600 text-white border-indigo-600" 
+                                : "bg-slate-100 dark:bg-slate-850 text-slate-550 border-slate-200 dark:border-slate-800"
+                              }`}>
+                                {String.fromCharCode(65 + oIdx)}
+                              </span>
+                              <span className="flex-1">{opt}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Reply explanation alert banner panel */}
+                      {isAnswered && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className={`p-4 rounded-xl space-y-2 border text-xs sm:text-sm ${
+                            selectedOption === currentQuestion.correctAnswerIndex
+                              ? "bg-emerald-50/20 border-emerald-100 dark:bg-emerald-955/10 dark:border-emerald-900/40 text-emerald-800 dark:text-emerald-300"
+                              : "bg-rose-50/20 border-rose-100 dark:bg-rose-955/10 dark:border-rose-900/40 text-rose-800 dark:text-rose-300"
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 font-extrabold uppercase text-[10px] tracking-wider">
+                            <AlertCircle className="w-3.5 h-3.5" />
+                            <span>{selectedOption === currentQuestion.correctAnswerIndex ? t("correctMsg") : t("wrongMsg")}</span>
+                          </div>
+                          <p className="font-bold text-slate-700 dark:text-slate-300 mt-1">{t("explanationTitle")}</p>
+                          <p className="text-slate-500 dark:text-slate-400 font-sans leading-relaxed text-xs">
+                            {currentQuestion.explanation}
+                          </p>
+                          {selectedOption !== currentQuestion.correctAnswerIndex && (
+                            <div className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-50/90 dark:bg-amber-950/50 p-2.5 rounded-xl border border-amber-200/60 dark:border-amber-900/50 flex items-center gap-2">
+                              <RotateCcw className="w-4 h-4 shrink-0 text-amber-500" />
+                              <span>Cette question sera redemandée à la fin du quiz pour vous aider à valider la notion !</span>
+                            </div>
+                          )}
+                        </motion.div>
+                      )}
+
+                      {/* Submission triggers desk footer */}
+                      <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                        {!isAnswered ? (
+                          <button
+                            type="button"
+                            onClick={handleAnswerSubmit}
+                            disabled={selectedOption === null}
+                            className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 hover:scale-101 dark:disabled:bg-slate-950 text-white px-5 py-3 rounded-xl font-bold text-xs sm:text-sm transition duration-150 cursor-pointer disabled:cursor-not-allowed"
+                          >
+                            {t("submitAnswer")}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleNext}
+                            className="bg-slate-900 hover:bg-slate-850 dark:bg-indigo-650 dark:hover:bg-indigo-700 text-white px-5 py-3 rounded-xl font-bold text-xs sm:text-sm transition shadow-sm cursor-pointer"
+                          >
+                            {t("nextQuestion")}
+                          </button>
+                        )}
+                      </div>
+                    </motion.div>
+                  );
+                })()
               )}
             </AnimatePresence>
           </motion.div>

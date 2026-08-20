@@ -49,6 +49,7 @@ export interface LessonQuestion {
   options: string[];
   correctAnswerIndex: number;
   explanation: string;
+  isRetry?: boolean;
 }
 
 export interface LessonSlide {
@@ -56,6 +57,9 @@ export interface LessonSlide {
   text: string;
   bullets?: string[];
   illustration?: string;
+  imageUrl?: string;
+  imageCaption?: string;
+  diagramType?: 'toolbar_overview' | 'support_resistance' | 'channels_range' | 'fibonacci_levels' | 'trading_plan';
 }
 
 export interface Lesson {
@@ -63,6 +67,9 @@ export interface Lesson {
   title: string;
   description: string;
   xpReward: number;
+  durationMinutes?: number;
+  isExam?: boolean;
+  isRevision?: boolean;
   slides?: LessonSlide[];
   questions: LessonQuestion[];
   completed?: boolean;
@@ -100,6 +107,7 @@ export interface UserProfile {
 export interface ChatMessage {
   sender: 'user' | 'ai';
   text: string;
+  image?: string; // base64 data URL
   timestamp: string;
 }
 

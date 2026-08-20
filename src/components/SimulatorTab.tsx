@@ -1097,6 +1097,13 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
       ? visibleCandles[hoveredPrice.index]
       : visibleCandles[visibleCandles.length - 1];
 
+    const effectiveStartIndex = (chartType === 'CANDLESTICK' && candleZoom !== 'ALL')
+      ? (startIndex || 0)
+      : 0;
+    const effectiveVisibleCount = (chartType === 'CANDLESTICK' && candleZoom !== 'ALL')
+      ? visibleCandles.length
+      : cleanHistory.length;
+
     const chartViewportBounds: ChartViewportBounds = {
       minPrice: min,
       maxPrice: max,
@@ -1106,9 +1113,9 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
       padRight: padRight,
       padTop: padTop,
       padBottom: padBottom,
-      visibleCount: visibleCount,
+      visibleCount: effectiveVisibleCount,
       totalCount: cleanHistory.length,
-      startIndex: startIndex || 0,
+      startIndex: effectiveStartIndex,
     };
 
     return (
@@ -1149,7 +1156,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             symbol={selectedStock.symbol}
             timeframe={timeframe}
             bounds={chartViewportBounds}
-          />
+          >
           <svg className="w-full h-52 overflow-visible" viewBox={`0 0 ${width} ${height}`}>
           <defs>
             <linearGradient id="chartGlow" x1="0" y1="0" x2="0" y2="1">
@@ -1550,6 +1557,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             {chartLabels[2]}
           </text>
         </svg>
+        </ChartAnalysisOverlay>
         </div>
 
         {/* Dynamic OHLV Tooltip HUD */}
@@ -2048,7 +2056,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
       padRight: padRight,
       padTop: padTop,
       padBottom: padBottom,
-      visibleCount: visibleCount,
+      visibleCount: prices.length,
       totalCount: N,
       startIndex: startIndex,
     };
@@ -2095,7 +2103,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             bounds={chartViewportBounds}
             isZoomedModal={true}
             containerWheelRef={bindNonPassiveZoomWheel}
-          />
+          >
           <svg 
             className="w-full h-[360px] sm:h-[420px] lg:h-[480px] bg-slate-50 border border-slate-200 rounded-2xl overflow-visible cursor-grab active:cursor-grabbing shadow-xs" 
             viewBox={`0 0 ${width} ${height}`}
@@ -2329,6 +2337,7 @@ export default function SimulatorTab({ stocks, profile, onTrade, onUpdateStopLos
             {rawLabels[2]}
           </text>
         </svg>
+        </ChartAnalysisOverlay>
         </div>
 
         {/* Dynamic OHLV Tooltip HUD */}

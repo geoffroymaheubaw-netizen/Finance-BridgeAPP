@@ -529,17 +529,10 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
     }
 
     return (
-      <g
-        key={shape.id}
-        onClick={(e) => {
-          e.stopPropagation();
-          onSelectShape(shape.id);
-        }}
-        className="cursor-pointer pointer-events-auto"
-      >
+      <g key={shape.id} className="pointer-events-none">
         {/* Selection/Hover Highlight glow */}
         {(isSelected || isHovered) && (
-          <g className="pointer-events-none">
+          <g>
             {pixels.map((p, idx) => (
               <circle
                 key={idx}
@@ -565,15 +558,11 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
                 key={`handle_${handleIdx}`}
                 cx={p.x}
                 cy={p.y}
-                r={5}
+                r={5.5}
                 fill="#3b82f6"
                 stroke="#ffffff"
                 strokeWidth={2}
-                className="cursor-grab hover:scale-125 transition-transform"
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  onStartHandleDrag(handleIdx);
-                }}
+                className="transition-transform"
               />
             ))}
           </g>
@@ -582,8 +571,14 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
     );
   };
 
+  const viewBoxWidth = (bounds.padLeft || 0) + (bounds.chartWidth || 800) + (bounds.padRight || 0);
+  const viewBoxHeight = (bounds.padTop || 0) + (bounds.chartHeight || 400) + (bounds.padBottom || 0);
+
   return (
-    <svg className="absolute inset-0 w-full h-full pointer-events-none select-none overflow-visible">
+    <svg
+      viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
+      className="absolute inset-0 w-full h-full pointer-events-none select-none overflow-visible"
+    >
       {allShapesToRender.map((shape) => renderSingleShape(shape))}
     </svg>
   );

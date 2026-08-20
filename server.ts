@@ -514,128 +514,371 @@ function parseYahooRSS(xmlText: string, symbol: string): any[] {
   return items;
 }
 
-// Smart Local Fallback Response Engine in French for maximum resilience during model 503/overload spikes
-function getOfflineFinancialResponse(message: string): string {
+// Smart Local Fallback Response Engine with multi-language support for resilience
+function getOfflineFinancialResponse(message: string, lang?: string): string {
   const query = message.toLowerCase();
+  const isEn = lang === "en" || query.includes("what is") || query.includes("how to") || query.includes("explain") || query.includes("hello") || query.includes("hi ");
+  const isEs = lang === "es" || query.includes("que es") || query.includes("qué es") || query.includes("como") || query.includes("cómo") || query.includes("hola");
+  const isDe = lang === "de" || query.includes("was ist") || query.includes("wie");
+  const isPt = lang === "pt" || query.includes("o que é") || query.includes("olá");
+  const isZh = lang === "zh";
 
-  if (query.includes("etf") || query.includes("tracker") || query.includes("diversifier") || query.includes("panier")) {
-    return `🎒 **Mode Assistant Hors-ligne** (Le serveur IA de pointe subit temporairement une charge de trafic intense. Je poursuis notre échange grâce à mes connaissances embarquées ! 🧠)
+  if (query.includes("etf") || query.includes("tracker") || query.includes("diversif") || query.includes("basket") || query.includes("panier") || query.includes("fond")) {
+    if (isEn) {
+      return `### 📌 What is an ETF (Exchange-Traded Fund)?
+An **ETF (Exchange-Traded Fund)** or *tracker* is an investment fund traded on a stock exchange like an individual stock. Its primary goal is to replicate the performance of a specific financial index, commodity, bond basket, or economic sector.
 
-Les **ETF (Exchange-Traded Funds)**, ou **Trackers** en français, sont des instruments financiers d'exception qui reproduisent fidèlement la performance d'un indice de référence entier, comme le **S&P 500** ou le **CAC 40**.
+---
 
-Pourquoi sont-ils incontournables pour débuter ?
-* 🌐 **Diversification instantanée** : Au lieu d'acheter une seule action individuelle, une part d'ETF vous expose immédiatement à des dizaines ou centaines d'entreprises mondiales de premier rang (Apple, Nvidia, Microsoft, etc.), limitant considérablement votre risque boursier.
-* 💸 **Frais de gestion minimes** : Ils affichent en moyenne des frais annuels inférieurs à 0,25%, là où les fonds mutuels traditionnels gérés par des banques ponctionnent 1,5% à 2% par an.
-* 🕊️ **Simplicité radicale** : Nul besoin de scruter chaque bilan comptable quotidiennement. Vous profitez simplement de la croissance globale de l'économie mondiale sur le long terme.
+### ⚙️ How ETFs Work
+When you buy a single share of an ETF (such as an S&P 500 ETF), your capital is instantly spread across hundreds or thousands of underlying assets:
+1. **Creation/Redemption Mechanism**: Authorized participants create or redeem ETF shares in large blocks to ensure the market price stays aligned with the Net Asset Value (NAV).
+2. **Real-Time Liquidity**: Unlike traditional mutual funds (which are priced once a day after market close), ETFs can be bought and sold continuously throughout market hours.
+3. **Passive Index Replication**: Most ETFs track an existing index with minimal management turnover, keeping ongoing costs extremely low.
 
-N'hésitez pas à vous intéresser à l'**ETF S&P 500** dans notre liste d'actions en direct pour placer un ordre virtuel avec votre budget fictif !
+---
 
-_Avertissement : Les informations éducatives fournies ne constituent pas des conseils financiers officiels._`;
+### 📊 Concrete Example
+Suppose you invest **$1,000** into an S&P 500 ETF:
+* Your $1,000 is automatically divided across the top 500 US companies (approx. $70 in Apple, $65 in Microsoft, $60 in Nvidia, and smaller fractions in the remaining 497 firms).
+* If a single company encounters difficulties, the overall impact on your $1,000 portfolio is cushioned by the performance of the rest of the market.
+* **Annual Fees (TER)**: Typically **0.03% to 0.20% per year** (costing only $0.30 to $2.00/year on a $1,000 investment, compared to $15–$25 for traditional active funds).
+
+---
+
+### ⚖️ Key Advantages & Considerations
+* 🌐 **Instant Broad Diversification**: Global exposure in a single transaction.
+* 💸 **Ultra-Low Expense Ratios**: Preserves compounding returns over 10, 20, or 30 years.
+* 🔄 **Reinvestment Options**: Available in **Accumulating (Acc)** (dividends automatically reinvested) or **Distributing (Dist)** (dividends paid as cash).
+* ⚠️ **Market Risk**: An ETF reduces company-specific risk, but still fluctuates with overall market downturns.
+
+---
+
+### 🛡️ Investor Best Practice
+For long-term investors, Dollar-Cost Averaging (DCA) into broad-market ETFs (e.g., MSCI World or S&P 500) remains one of the most statistically robust wealth-building strategies.
+
+_Disclaimer: Educational information only; does not constitute personalized financial advice or investment recommendations._`;
+    }
+    return `### 📌 Qu'est-ce qu'un ETF (Exchange-Traded Fund) ou Tracker ?
+Un **ETF (Exchange-Traded Fund)**, aussi appelé **Tracker** ou fonds indiciel coté, est un instrument financier qui réplique fidèlement les variations d'un indice boursier de référence (comme le **S&P 500**, le **CAC 40** ou le **MSCI World**). 
+
+Il combine la simplicité de négociation d'une action ordinaire avec la sécurité de diversification d'un portefeuille complet.
+
+---
+
+### ⚙️ Comment fonctionne un ETF en pratique ?
+1. **La réplication d'indice** : Le gestionnaire du fonds (BlackRock iShares, Amundi, Vanguard, etc.) achète l'ensemble des actions composant l'indice dans les proportions exactes pour que la valeur de l'ETF suive parfaitement l'indice.
+2. **Cotation en continu** : Contrairement aux OPCVM ou fonds mutuels traditionnels (qui ne sont valorisés qu'une seule fois par jour à la clôture), un ETF s'achète et se vend en temps réel tout au long de la séance boursière.
+3. **Distribution vs Capitalisation** :
+   * **ETF Capitalisant (Acc)** : Les dividendes perçus sont automatiquement réinvestis dans le fonds, démultipliant l'effet des intérêts composés sans frottement fiscal immédiat.
+   * **ETF Distribuant (Dist)** : Les dividendes sont versés périodiquement sur le compte espèces de l'investisseur sous forme de rente.
+
+---
+
+### 📊 Exemple concret et chiffré
+Imaginons un investissement de **1 000 €** dans un ETF répliquant le S&P 500 :
+* Votre capital de 1 000 € est instantanément ventilé entre 500 multinationales (environ 70 € chez Apple, 65 € chez Microsoft, 60 € chez Nvidia, etc.).
+* Si une entreprise fait faillite, l'impact sur votre épargne totale reste marginal (moins de 0,5 %), alors que la faillite d'une action détenue en direct aurait causé une perte majeure.
+* **Frais de gestion (TER)** : Entre **0,05 % et 0,25 % par an** (soit seulement 0,50 € à 2,50 € par an pour 1 000 € investis, contre 15 € à 25 € pour un fonds bancaire classique à 1,5–2,5 %).
+
+---
+
+### ⚖️ Avantages majeurs & Points de vigilance
+* 🌐 **Diversification maximale instantanée** : Réduit le risque spécifique lié à une entreprise isolée.
+* 💸 **Frais historiquement bas** : Permet de maximiser le rendement net sur le long terme (horizon 5 à 15 ans).
+* 📈 **Surperformance historique** : Sur 10 ans, plus de 85 % des fonds gérés activement sous-performent leur indice de référence après déduction des frais.
+* ⚠️ **Risque de marché systémique** : L'ETF protège contre le risque d'une faillite individuelle, mais baisse si l'ensemble de l'économie ou du marché traverse une récession.
+
+---
+
+### 🛡️ Bonne pratique pour l'investisseur
+Une méthode très populaire est le **DCA (Dollar-Cost Averaging)** : investir un montant fixe (ex. 100 € ou 200 €) chaque mois sur un ETF mondial, ce qui lisse le prix d'achat moyen et élimine le stress lié au timing du marché.
+
+_Avertissement : Les informations éducatives fournies ne constituent en aucun cas des conseils financiers ou des recommandations d'investissement._`;
   }
 
   if (query.includes("dividend") || query.includes("coupon") || query.includes("rendement") || query.includes("dividende")) {
-    return `🎒 **Mode Assistant Hors-ligne** (Le serveur IA de pointe subit temporairement une charge de trafic intense. Je poursuis notre échange grâce à mes connaissances embarquées ! 🧠)
+    if (isEn) {
+      return `### 📌 What is a Dividend?
+A **dividend** is a distribution of a portion of a company's earnings, decided by the board of directors, to a class of its shareholders. It represents a direct cash return on capital invested in a profitable corporation.
 
-Un **dividende** est une part des bénéfices générés par une entreprise qui est périodiquement reversée à ses fidèles actionnaires en guise de rémunération.
+---
 
-Les principes fondamentaux à garder à l'esprit :
-* 📅 **Périodicité** : Il est généralement versé tous les trois mois (trimestriel, très courant aux États-Unis) ou une fois par an (fréquent en Europe).
-* 📈 **Rendement (Yield)** : Il s'exprime en pourcentage. On le calcule en divisant le montant du dividende annuel par le prix de l'action. Par exemple, si l'action Coca-Cola s'échange à 60 $ et distribue 3 $ de dividende, son rendement annuel est de 5%.
-* 🔄 **L'effet boule de neige (Intérêts composés)** : Le secret absolu des grands investisseurs est de réinvestir chaque dividende perçu pour acheter de nouvelles fractions d'actions. Avec le temps, votre nombre d'actions augmente, augmentant vos prochains dividendes !
+### ⚙️ Mechanics & Key Concepts
+1. **Declaration Date**: The company announces the dividend amount per share and relevant dates.
+2. **Ex-Dividend Date**: The cutoff date. To receive the dividend, you must own the stock *before* the market opens on this date.
+3. **Payment Date**: The date when cash is deposited into the shareholder's brokerage account.
+4. **The Dividend Yield Formula**:
+   $$\\text{Dividend Yield} = \\frac{\\text{Annual Dividend Per Share}}{\\text{Current Stock Price}} \\times 100$$
 
-Pensez à regarder des valeurs de premier plan réputées pour la solidité de leur dividende comme **Coca-Cola (KO)** ou **LVMH (MC)** dans notre simulateur de trading !
+---
 
-_Avertissement : Les informations éducatives fournies ne constituent pas des conseils financiers officiels._`;
+### 📊 Concrete Example
+* A stock trades at **$100** and pays a quarterly dividend of **$1.00** ($4.00 annually).
+* **Dividend Yield** = $(4 / 100) \\times 100 = \\mathbf{4.0\\%}$.
+* If you own 50 shares ($5,000 invested), you receive **$200 per year** ($50 every quarter) in passive income.
+* **The Compounding Snowball**: If you use a Dividend Reinvestment Plan (DRIP) to automatically buy fractional shares with your $200 payouts, your share count grows each year, creating an accelerating compounding curve.
+
+---
+
+### ⚖️ Advantages & Red Flags to Watch
+* 💰 **Steady Income Stream**: Provides liquidity without needing to sell shares.
+* 🏛️ **Company Health Indicator**: Mature, cash-flow-positive firms (e.g. Dividend Aristocrats with 25+ consecutive years of dividend increases) tend to have lower share price volatility.
+* ⚠️ **The "Yield Trap" Danger**: An unusually high yield (e.g. 12%+) often signals that the stock price has collapsed due to underlying business distress, meaning a dividend cut is likely imminent.
+
+_Disclaimer: Educational information only; does not constitute personalized financial advice._`;
+    }
+    return `### 📌 Qu'est-ce qu'un Dividende en Bourse ?
+Un **dividende** est la part du bénéfice net qu'une entreprise décide de reverser périodiquement à ses actionnaires pour rémunérer le capital qu'ils ont investi.
+
+---
+
+### ⚙️ Le calendrier et les mécanismes indispensables
+1. **La date d'annonce** : L'assemblée générale des actionnaires vote le montant du dividende proposé par le conseil d'administration.
+2. **La date de détachement (Ex-Date)** : C'est la date charnière. Pour avoir droit au dividende, vous devez détenir l'action la veille au soir de la clôture des marchés. Le matin du détachement, le cours de l'action s'ajuste mécaniquement à la baisse du montant exact du dividende versé.
+3. **La date de mise en paiement** : C'est le jour où l'argent liquide est effectivement crédité sur votre compte boursier.
+4. **Le Rendement du dividende (Dividend Yield)** :
+   $$\\text{Rendement (\\%)} = \\frac{\\text{Dividende annuel par action}}{\\text{Cours actuel de l'action}} \\times 100$$
+
+---
+
+### 📊 Exemple concret et chiffré
+Prenons une société dont l'action cote **50 €** et qui verse un dividende annuel de **2,50 €** par action :
+* **Rendement** : $(2,50 / 50) \\times 100 = \\mathbf{5,0\\;\\%}$ par an.
+* Si vous possédez 100 actions (5 000 € investis), vous encaissez **250 € par an** de revenus passifs.
+* **L'effet boule de neige (intérêts composés)** : Si vous réinvestissez ces 250 € pour acheter 5 nouvelles actions, l'année suivante vous posséderez 105 actions qui généreront 262,50 €, et ainsi de suite.
+
+---
+
+### ⚖️ Avantages & Pièges à éviter
+* 💰 **Revenu passif prévisible** : Permet de générer des flux de trésorerie sans avoir à vendre ses titres.
+* 🏆 **Les "Aristocrates du Dividende"** : Entreprises renommées (comme Coca-Cola, Sanofi, LVMH, Johnson & Johnson) ayant augmenté leur dividende chaque année depuis plus de 25 ans consécutifs.
+* ⚠️ **Le piège du dividende trop élevé (Yield Trap)** : Un rendement artificiellement exorbitant (ex. 12 % ou 15 %) est souvent le signe d'un cours en chute libre et d'une entreprise en difficulté dont le dividende risque d'être coupé prochainement.
+* 📊 **Le ratio de distribution (Payout Ratio)** : Vérifiez que l'entreprise ne distribue pas plus de 60 à 75 % de ses bénéfices, afin de conserver de la trésorerie pour réinvestir dans son développement.
+
+_Avertissement : Les informations éducatives fournies ne constituent en aucun cas des conseils financiers ou des recommandations d'investissement._`;
   }
 
-  if (query.includes("ordre") || query.includes("acheter") || query.includes("vendre") || query.includes("achat") || query.includes("vente") || query.includes("limite") || query.includes("marché")) {
-    return `🎒 **Mode Assistant Hors-ligne** (Le serveur IA de pointe subit temporairement une charge de trafic intense. Je poursuis notre échange grâce à mes connaissances embarquées ! 🧠)
+  if (query.includes("ordre") || query.includes("order") || query.includes("buy") || query.includes("sell") || query.includes("acheter") || query.includes("vendre") || query.includes("limite") || query.includes("limit") || query.includes("market")) {
+    if (isEn) {
+      return `### 📌 Market Orders vs Limit Orders
+When executing trades in financial markets, choosing the right order type is essential to control your execution price and timing.
 
-Pour acheter ou vendre une action sur les places boursières mondiales, vous devez transmettre un **ordre de bourse**. Il existe deux méthodes incontournables :
+---
 
-1. ⚡ **L'Ordre au Marché (Market Order)** :
-   * **Le principe** : Vous ordonnez d'exécuter la transaction immédiatement au meilleur prix actuellement disponible à l'instant T.
-   * **Avantage** : L'exécution est instantanée et garantie à 100%.
-   * **Inconvénient** : Si le titre fluctue très vite (forte volatilité), le prix d'achat final peut s'éloigner un tout petit peu de celui observé au départ.
+### 1. ⚡ Market Order (Au Marché)
+* **Definition**: An instruction to buy or sell immediately at the best currently available market price.
+* **Pros**: Execution is guaranteed instantly with top priority in the order book.
+* **Cons**: No price control. In fast-moving or volatile markets, slippage can result in paying a higher price than expected.
+* **Best used for**: High-liquidity large-cap stocks when speed of entry/exit matters most.
 
-2. 🎯 **L'Ordre Limite (Limit Order)** :
-   * **Le principe** : Vous fixez rigoureusement un prix maximal pour un achat, ou un prix minimal pour une vente.
-   * **Avantage** : Vous contrôlez scrupuleusement votre tarif. L'achat ou la vente ne se déclenchera jamais en dehors de vos limites.
-   * **Inconvénient** : Si le cours de l'action n'atteint jamais votre borne fixée, l'ordre n'est jamais exécuté et expire inutilement.
+---
 
-Pour expérimenter ces notions en direct et sans risque de perte financière réelle, utilisez les **10 000 $** de solde virtuel disponibles sur votre compte Finance Bridge !
+### 2. 🎯 Limit Order (Ordre Limite)
+* **Definition**: An instruction to buy only at or below a specified maximum price, or sell at or above a specified minimum price.
+* **Pros**: Total price certainty. You will never pay more (or receive less) than your target limit.
+* **Cons**: No execution guarantee. If the market fails to reach your target price, the order remains unfilled.
+* **Best used for**: Setting strategic entry levels, managing disciplined trading, and avoiding volatility spikes.
 
-_Avertissement : Les informations éducatives fournies ne constituent pas des conseils financiers officiels._`;
+---
+
+### 3. 🛡️ Risk Management: Stop-Loss & Take-Profit
+* **Stop-Loss**: Automatically triggers a market sale if the price drops to a defined threshold (e.g. -5%), capping maximum loss.
+* **Take-Profit**: Automatically locks in gains once a target profit level is achieved.
+
+_Disclaimer: Educational information only, not financial advice._`;
+    }
+    return `### 📌 Comprendre les Ordres de Bourse : Marché vs Limite
+Pour exécuter des transactions sur les marchés financiers avec maîtrise, il est indispensable de connaître les différents types d'ordres de bourse et leurs cas d'application.
+
+---
+
+### 1. ⚡ L'Ordre au Marché (Market Order)
+* **Principe** : Vous demandez l'exécution immédiate de votre transaction au meilleur prix disponible instantanément sur le carnet d'ordres.
+* **Avantages** : Priorité absolue d'exécution. Votre ordre est exécuté à la milliseconde sans délai d'attente.
+* **Inconvénients** : Vous n'avez aucune garantie sur le prix final exact. En période de forte volatilité, un glissement de cours (*slippage*) peut survenir.
+* **Quand l'utiliser** : Sur les grandes valeurs très liquides (Apple, TotalEnergies) lorsque votre priorité est d'entrer ou sortir immédiatement de position.
+
+---
+
+### 2. 🎯 L'Ordre à Cours Limité (Limit Order)
+* **Principe** : Vous définissez un prix plafond à l'achat (ou un prix plancher à la vente).
+* **Avantages** : Maîtrise totale du prix d'exécution. Vous avez l'assurance absolue de ne jamais payer plus cher que votre seuil fixé.
+* **Inconvénients** : Aucune garantie d'exécution. Si le cours ne descend jamais jusqu'à votre limite, l'ordre expire sans être exécuté.
+* **Quand l'utiliser** : Idéal pour acheter lors de replis techniques ciblés ou pour négocier des titres plus volatils.
+
+---
+
+### 3. 🛡️ Les Ordres de Protection : Stop-Loss et Take-Profit
+* **Le Stop-Loss (Ordre Stop)** : Seuil de coupure automatique qui déclenche une vente si le cours chute en dessous d'un niveau critique (ex. -5 % ou -8 %), protégeant votre capital contre les pertes incontrôlées.
+* **Le Take-Profit** : Clôture automatiquement la position dès que votre objectif de gain est atteint pour sécuriser vos bénéfices.
+
+💡 *Conseil : Dans le simulateur Finance Bridge, entraînez-vous à combiner ordres limites et stop-loss pour acquérir les réflexes des gestionnaires professionnels.*
+
+_Avertissement : Les informations éducatives fournies ne constituent en aucun cas des conseils financiers ou des recommandations d'investissement._`;
   }
 
-  if (query.includes("pe ") || query.includes("per") || query.includes("p/e") || query.includes("ratio") || query.includes("valorisation") || query.includes("multiplier")) {
-    return `🎒 **Mode Assistant Hors-ligne** (Le serveur IA de pointe subit temporairement une charge de trafic intense. Je poursuis notre échange grâce à mes connaissances embarquées ! 🧠)
+  if (query.includes("pe ") || query.includes("per") || query.includes("p/e") || query.includes("ratio") || query.includes("valorisation") || query.includes("valuation")) {
+    if (isEn) {
+      return `### 📌 Understanding the P/E Ratio (Price-to-Earnings)
+The **P/E Ratio (Price-to-Earnings Ratio)** is one of the most widely referenced valuation multiples in fundamental equity analysis. It measures how much investors are willing to pay for each dollar of annual net profit generated by a company.
 
-Le **P/E Ratio** (ou **Price-to-Earnings Ratio** / **PER** en français) est la boussole incontournable pour jauger la valorisation d'une entreprise en bourse.
+---
 
-Pour faire simple :
-* 📉 **PER faible (inférieur à 15)** : L'action est généralement perçue comme bon marché ou sous-évaluée. Cela caractérise les industries matures et traditionnelles (banques, énergie) dont le rythme de croissance est modéré mais stable.
-* 📈 **PER élevé (supérieur à 25)** : L'action est considérée comme chère. C'est classique pour les valeurs technologiques à croissance fulgurante (comme **Nvidia (NVDA)** ou **Microsoft (MSFT)**). Les investisseurs acceptent de payer le prix fort car ils prévoient une explosion des bénéfices futurs.
+### ⚙️ The Mathematical Formula
+$$\\text{P/E Ratio} = \\frac{\\text{Current Stock Price}}{\\text{Earnings Per Share (EPS)}}$$
+*Or equivalently:* $\\text{Market Capitalization} / \\text{Total Net Income}$.
 
-Prendre l'habitude de comparer le PER d'une entreprise avec ses concurrents directs est l'une des techniques les plus saines pour débusquer les actions sous-évaluées !
+---
 
-_Avertissement : Les informations éducatives fournies ne constituent pas des conseils financiers officiels._`;
+### 📊 How to Interpret P/E Multiples
+* 📉 **Low P/E (< 15x)**: The company may be undervalued, or it operates in a mature, capital-intensive, slow-growth industry (banking, energy, utilities).
+* ⚖️ **Moderate P/E (15x – 25x)**: Typical range for established companies with steady, reliable growth matching the broader economy.
+* 📈 **High P/E (> 30x)**: The market expects strong double-digit revenue and earnings expansion in upcoming years (frequent in Artificial Intelligence, Cloud Software, and Biotechnology).
+* ❓ **Negative P/E / N/A**: The company is currently unprofitable (net loss).
+
+---
+
+### ⚖️ Practical Example & Rules
+Suppose **Company A** trades at $120 with an EPS of $6 (P/E = 20x), while **Company B** in the same sector trades at $100 with an EPS of $2.50 (P/E = 40x). Company B is twice as expensive relative to its current earnings, which is only justified if its future growth rate is substantially faster.
+
+* **Golden Rule**: Always compare a company's P/E to:
+  1. Its direct competitors in the same industry.
+  2. Its own 5-year historical average P/E.
+  3. Its projected growth rate via the **PEG Ratio** (P/E divided by annual earnings growth rate).
+
+_Disclaimer: Educational information only, not financial advice._`;
+    }
+    return `### 📌 Comprendre le PER (Price-to-Earnings Ratio / Ratio Cours/Bénéfice)
+Le **PER (Price-to-Earnings Ratio)**, ou ratio cours sur bénéfice, est l'indicateur fondamental de référence utilisé par les analystes financiers pour évaluer le niveau de valorisation d'une action.
+
+Il indique combien d'euros les investisseurs sont prêts à payer pour obtenir 1 euro de bénéfice net annuel réalisé par l'entreprise.
+
+---
+
+### ⚙️ La Formule Mathématique
+$$\\text{PER} = \\frac{\\text{Cours de l'action}}{\\text{Bénéfice Net Par Action (BNPA)}}$$
+*Ou de manière équivalente :* $\\text{Capitalisation boursière} / \\text{Bénéfice net total}$.
+
+---
+
+### 📊 Comment interpréter les différents niveaux de PER ?
+* 📉 **PER bas (< 12–15)** : L'action est potentiellement bon marché (sous-évaluée), ou appartient à un secteur traditionnel, cyclique et mature (banques, énergie, télécoms, automobile).
+* ⚖️ **PER moyen (15 à 25)** : Zone standard correspondant aux entreprises de qualité avec une croissance régulière alignée sur celle de l'économie mondiale.
+* 📈 **PER élevé (> 30–50+)** : Les marchés anticipent une accélération massive des bénéfices dans les années futures (très courant dans la Tech, le Cloud et l'IA comme Nvidia ou Microsoft).
+* 🚫 **PER négatif ou non défini** : L'entreprise est actuellement déficitaire (bénéfice net négatif).
+
+---
+
+### 🔍 Les 3 Règles d'Or pour une analyse rigoureuse
+1. **La comparaison sectorielle** : Ne comparez jamais le PER d'une entreprise technologique (ex. 35) avec celui d'un groupe pétrolier (ex. 8). Comparez toujours des concurrents directs dans le même domaine d'activité.
+2. **Le ratio PEG (Price/Earnings-to-Growth)** : Un PER de 30 n'est pas forcément cher si l'entreprise augmente ses bénéfices de 30 % par an (PEG = 1, ce qui reste équilibré).
+3. **Le PER prévisionnel (*Forward P/E*)** : Calcule le ratio sur la base des bénéfices estimés de l'année à venir plutôt que sur l'exercice passé.
+
+_Avertissement : Les informations éducatives fournies ne constituent en aucun cas des conseils financiers ou des recommandations d'investissement._`;
   }
 
-  if (query.includes("volat") || query.includes("risque") || query.includes("perdre") || query.includes("perte") || query.includes("chute") || query.includes("crash")) {
-    return `🎒 **Mode Assistant Hors-ligne** (Le serveur IA de pointe subit temporairement une charge de trafic intense. Je poursuis notre échange grâce à mes connaissances embarquées ! 🧠)
+  if (query.includes("volat") || query.includes("risk") || query.includes("risque") || query.includes("lose") || query.includes("crash") || query.includes("perte")) {
+    if (isEn) {
+      return `### 📌 Volatility & Risk Management in Financial Markets
+**Volatility** measures the speed, frequency, and magnitude of price swings of a financial asset over a given timeframe. High volatility indicates large and rapid price fluctuations in either direction.
 
-La **volatilité** désigne l'amplitude et la célérité des variations d'un cours de bourse sur un laps de temps donné. Elle représente le coeur de l'évaluation du **risque de marché** :
+---
 
-* 🌊 **Forte volatilité** : Le cours bondit ou plonge de manière abrupte et nerveuse (typique des valeurs technologiques naissantes comme **Coinbase (COIN)** ou des secteurs spéculatifs). Elle offre de gros gains rapides, mais s'accompagne d'un niveau de risque de perte tout aussi élevé !
-* ⛰️ **Faible volatilité** : Le cours évolue de façon linéaire, souple et sereine (typique de fleurons établis comme **Eli Lilly (LLY)** ou **Coca-Cola (KO)**).
+### ⚙️ How Risk is Quantified
+1. **Standard Deviation**: Measures how widely prices disperse around their historical average.
+2. **Beta Ratio**: Measures a stock's sensitivity relative to the broader market:
+   * **Beta = 1.0**: The stock moves in sync with the index.
+   * **Beta > 1.3**: Higher volatility (e.g. high-beta tech or crypto-linked assets like TSLA or COIN).
+   * **Beta < 0.8**: Defensive characteristics (consumer staples, utilities).
+3. **Maximum Drawdown**: The peak-to-trough decline experienced by an asset or portfolio.
 
-**Nos 3 conseils fondamentaux pour préserver votre capital :**
-1. 🏗️ **La diversification absolue** : Ne misez jamais tout sur un seul actif. Répartissez vos investissements sur différents secteurs (Tech, Santé, Luxe) et zones géographiques.
-2. 🕰️ **L'horizon à long terme** : La bourse récompense la constance. En maintenant votre cap d'investissement sur plusieurs années, vous effacez les oscillations temporaires d'humeur du marché.
-3. 🛡️ **Les ordres stop-loss (seuil de sécurité)** : Définissez toujours un seuil de vente automatique pour couper vos pertes si un cours venait à chuter lourdement.
+---
 
-_Avertissement : Les informations éducatives fournies ne constituent pas des conseils financiers officiels._`;
+### 🛡️ The 4 Pillars of Disciplined Risk Management
+* 🌐 **Structural Diversification**: Combine uncorrelated asset classes (equities, bonds, commodities, cash reserves) across global geographies.
+* 📏 **Position Sizing Rule**: Never allocate more than 2% to 5% of total portfolio risk to a single high-volatility trade.
+* 🛑 **Stop-Loss Execution**: Define your maximum acceptable exit point *before* entering any position to prevent emotional decisions.
+* ⏳ **Long-Term Time Horizon**: Over 10-year rolling periods, broad-market equity indices historically smooth out severe short-term recessions.
+
+_Disclaimer: Educational information only, not financial advice._`;
+    }
+    return `### 📌 Maîtriser la Volatilité et la Gestion du Risque en Bourse
+La **volatilité** désigne l'ampleur et la rapidité des variations du cours d'un actif financier sur une période donnée. Une forte volatilité signifie que les prix peuvent monter très vite, mais aussi chuter brusquement.
+
+---
+
+### ⚙️ Comment mesure-t-on le risque d'un titre ?
+1. **L'Écart-type** : Mesure statistique de la dispersion des rendements autour de leur moyenne historique.
+2. **Le coefficient Bêta (β)** : Mesure la sensibilité d'une action par rapport aux mouvements de son indice :
+   * **Bêta = 1,0** : Le titre réagit exactement comme le marché.
+   * **Bêta > 1,3** : Titre très réactif et volatil (ex. Tesla, Nvidia, Coinbase).
+   * **Bêta < 0,8** : Titre défensif et plus stable (ex. Danone, Air Liquide, Sanofi).
+3. **Le Drawdown maximal** : La baisse maximale enregistrée entre le plus haut sommet et le point le plus bas d'un cycle de marché.
+
+---
+
+### 🛡️ Les 4 Piliers pour protéger son portefeuille
+* 🌐 **La diversification sectorielle et géographique** : Répartissez vos investissements sur différents secteurs (Tech, Santé, Énergie, Biens de consommation) et zones géographiques (USA, Europe, Marchés émergents).
+* 📏 **La règle du dimensionnement de position (Position Sizing)** : Ne risquez jamais plus de 1 à 2 % de votre capital total sur une seule transaction spéculative.
+* 🛑 **La pose de Stop-Loss systématique** : Définissez à l'avance votre seuil d'invalidation (ex. -6 %) et coupez vos pertes sans hésitation émotionnelle.
+* ⏳ **L'horizon de placement long terme** : Sur des durées de 8 à 15 ans, la croissance de l'économie mondiale et les réinvestissements de dividendes absorbent les krachs et fluctuations temporaires.
+
+_Avertissement : Les informations éducatives fournies ne constituent en aucun cas des conseils financiers ou des recommandations d'investissement._`;
   }
 
-  if (query.includes("bonjour") || query.includes("salut") || query.includes("hello") || query.includes("hey") || query.includes("qui es-tu") || query.includes("aide")) {
-    return `🎒 **Mode Assistant Hors-ligne** (Le serveur IA de pointe subit temporairement une charge de trafic intense. Je poursuis notre échange grâce à mes connaissances embarquées ! 🧠)
+  if (isEn) {
+    return `### 👋 Welcome to Finance Bridge AI!
+I am your interactive, neutral financial education mentor. 🎯
 
-Bonjour ! Je suis **Finance Bridge AI**, votre guide chaleureux et dévoué pour décrypter le monde de l'investissement ! 
+Whether you are just getting started with virtual trading or looking to deepen your market knowledge, feel free to ask me comprehensive questions on:
+* 🌐 **ETFs, Index Funds & Asset Allocation**
+* 📊 **Financial Ratios & Valuation Models (P/E, EV/EBITDA, Free Cash Flow)**
+* 💰 **Dividend Strategies & Compounding Dynamics**
+* ⚡ **Order Types (Market, Limit, Stop-Loss, Trailing Stops)**
+* 📈 **Technical Analysis, Chart Patterns & Indicators (RSI, MACD, Moving Averages)**
+* 🛡️ **Portfolio Risk Management & Volatility Control**
 
-Nos liaisons avec l'IA centrale en ligne étant ralenties, je bascule instantanément sur mon moteur de bord pour vous expliquer de manière ultra-pédagogique tous les secrets de la finance !
+How can I assist your financial learning journey today?
 
-💬 **Avec quel sujet passionnant désirez-vous entamer votre apprentissage aujourd'hui ?**
-* 📋 **Les ETF / Trackers** (apprendre la diversification passive et intelligente).
-* 💸 **Les Dividendes boursiers** (créer des revenus passifs par l'effet boule de neige).
-* ⚡ **Les types d'ordres** (comprendre l'ordre au marché et l'ordre limite).
-* 📊 **Le P/E Ratio** (savoir si une action est sous-évaluée ou surévaluée).
-* 🛡️ **La gestion des risques** (maîtriser la volatilité pour protéger vos gains virtuels).
-
-Pensez également à valider vos objectifs dans l'onglet **Cours** ! Vous y trouverez des exercices interactifs amusants conçus sur mesure pour débloquer de magnifiques badges de réussite.
-
-_Avertissement : Les informations éducatives fournies ne constituent pas des conseils financiers officiels._`;
+_Disclaimer: Educational content only, not financial advice._`;
   }
 
-  return `🎒 **Mode Assistant Hors-ligne** (Le serveur IA de pointe subit temporairement une charge de trafic intense. Je poursuis notre échange grâce à mes connaissances embarquées ! 🧠)
+  if (isEs) {
+    return `### 👋 ¡Bienvenido a Finance Bridge AI!
+Soy tu tutor financiero interactivo y neutral. 🎯
 
-Merci pour votre question ! Nos serveurs de modèles IA en direct font face à un très grand nombre de requêtes simultanées de la part des élèves de Finance Bridge.
+Estoy a tu disposición para explicarte en profundidad conceptos como:
+* 🌐 **ETFs, Fondos Indexados y Diversificación Global**
+* 📊 **Ratios de Valoración (PER, Flujo de Caja Libre, Crecimiento)**
+* 💰 **Estrategias de Dividendos e Interés Compuesto**
+* ⚡ **Tipos de Órdenes Bursátiles (Mercado, Límite, Stop-Loss)**
+* 📈 **Análisis Técnico y Fundamental**
+* 🛡️ **Gestión del Riesgo y Volatilidad**
 
-En tant que votre coach de trading virtuel, je peux néanmoins vous accompagner sur tous les piliers majeurs de l'investissement :
+¿Qué tema financiero o estrategia te gustaría explorar en detalle hoy?
 
-* 📋 **Les ETF (Trackers)** : Investissez d'un coup dans des centaines de sociétés mondiales pour diversifier vos risques de façon autonome.
-* 💸 **Les Dividendes** : Découvrez comment transformer vos plus-values en flux de trésorerie réguliers.
-* 🎯 **Les Ordres de Bourse** : Maîtrisez le déclenchement immédiat (au marché) ou intelligent (limite).
-* 📊 **Le P/E Ratio (Valorisation)** : Analysez d'un coup d'oeil rapide si une action de renom est à son juste prix ou s'il s'agit d'une aubaine.
-* 🛡️ **La Volatilité et le Risque** : Appliquez les meilleures techniques de money-management pour sauvegarder votre capital de simulateur virtuel.
+_Aviso: Información educativa, no constituye asesoramiento financiero oficial._`;
+  }
 
-Posez-moi votre question en utilisant l'un de ces mots-clés boursiers pour recevoir instantanément un topo approfondi, ou rendez-vous sur l'onglet **Cours** pour suivre notre parcours de leçons interactives !
+  return `### 👋 Bienvenue sur Finance Bridge AI !
+Je suis votre coach et tuteur pédagogique en éducation financière et boursière. 🎯
 
-_Avertissement : Les informations éducatives fournies ne constituent pas des conseils financiers officiels._`;
+Je suis conçu pour vous apporter des explications complètes, structurées et détaillées sur l'ensemble des marchés financiers :
+
+* 🌐 **Les ETF et l'investissement indiciel passif** (MSCI World, S&P 500, CAC 40)
+* 📊 **Les ratios financiers et la valorisation** (PER, BPA, Free Cash Flow, Dette/EBITDA)
+* 💰 **Les stratégies de dividendes et la puissance des intérêts composés**
+* ⚡ **Les mécanismes d'ordres boursiers** (Marché, Limite, Stop-Loss, Trailing Stops)
+* 📈 **L'analyse technique et graphique** (Supports/Résistances, RSI, MACD, Moyennes mobiles)
+* 🛡️ **La gestion du risque, la diversification et la volatilité**
+
+Quelle notion ou stratégie financière souhaitez-vous approfondir aujourd'hui ?`;
 }
 
 export const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "20mb" }));
+app.use(express.urlencoded({ extended: true, limit: "20mb" }));
 
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -649,10 +892,10 @@ app.use((req, res, next) => {
 
 // API Route: AI Chat Advice (Streaming over Server-Sent Events for lowest latency)
 app.post(["/api/chat", "/chat"], async (req, res) => {
-    const { message, history } = req.body;
+    const { message, history, lang, image } = req.body;
     try {
-      if (!message) {
-        res.status(400).json({ error: "Le message est obligatoire." });
+      if (!message && !image) {
+        res.status(400).json({ error: "Le message ou une image est obligatoire." });
         return;
       }
 
@@ -666,13 +909,32 @@ app.post(["/api/chat", "/chat"], async (req, res) => {
       const client = getAIClient();
 
       // Convert history to system format if provided
-      const systemInstruction = `Vous êtes "Finance Bridge AI", un assistant financier virtuel de haute performance et hautement pédagogue. Vos rôles :
-1. Aider et guider les utilisateurs dans l'apprentissage de l'investissement en bourse.
-2. Expliquer de manière simple, claire et accessible les concepts financiers (valeur refuge, dividende, PE Ratio, volatilité, ETF, obligations, ordres au marché/limite).
-3. Rendre la bourse engageante, amusante et décomplexée pour les débutants.
-4. Ajouter un court rappel à la fin si des conseils d'achat d'actions spécifiques sont demandés ("Avertissement : Les informations éducatives fournies ne constituent pas des conseils financiers officiels.").
+      const systemInstruction = `You are "Finance Bridge AI", an elite, friendly, pedagogical, and strictly neutral virtual financial educator and market analyst.
 
-Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant, comme l'oiseau de Duolingo de la finance. Rédigez des réponses bien espacées en Markdown avec de jolies listes à puces.`;
+CRITICAL DIRECTIVES:
+1. STRICT BAN ON INDIVIDUAL STOCK RECOMMENDATIONS: You are STRICTLY PROHIBITED from recommending, advising, or telling users to buy, sell, or hold specific individual stocks, cryptocurrencies, or securities (e.g. never say "You should buy Apple / Nvidia" or "I recommend investing in X"). 
+   - If the user asks for stock tips, which stock to buy, or asks "Should I buy [Stock]?", you MUST clearly state that you cannot provide personalized investment advice or recommend specific stocks.
+   - Instead, guide them by explaining objective analysis methods, fundamental metrics (P/E ratio, Free Cash Flow, revenue growth, debt levels, competitive advantage/moat), technical indicators, diversification principles, and risk management so they can make their own informed decisions.
+
+2. ADAPTIVE DEPTH & THOROUGH EXPLANATIONS (HIGH PRIORITY):
+   - SIMPLE / GREETING QUERIES: For basic greetings (e.g. "Bonjour", "Hello") or quick single-number lookups, provide a concise, direct, and warm response.
+   - IN-DEPTH / COMPLEX QUESTIONS: Whenever the user asks to explain a financial concept, an economic indicator, a market mechanism, a trading strategy, a valuation model, technical/fundamental analysis, risk management, an asset class (ETFs, options, bonds, crypto, commodities), or asks a question requiring deep understanding (or specifically asks for a detailed answer):
+     * **PROVIDE A RICH, COMPREHENSIVE, AND DETAILED EXPLANATION.** Do not artificially condense or truncate important nuances.
+     * Organize the explanation with clear markdown structure:
+       - 📌 **Définition & Contexte** : Clear overview and conceptual framing.
+       - ⚙️ **Mécanisme & Fonctionnement détaillé** : Step-by-step mechanics, formulas (with clear notation), or workflows.
+       - 📊 **Exemple concret & Chiffré** : Realistic scenarios with numbers and calculations (e.g. investing $1,000, calculations of returns, P/E multiples, compounding over time).
+       - ⚖️ **Avantages & Risques / Limites** : Comprehensive breakdown of benefits, drawbacks, and market traps.
+       - 🛡️ **Bonnes pratiques & Méthodologie** : Actionable, prudent guidance for retail investors.
+
+3. LANGUAGE MATCHING (TOP PRIORITY):
+   - You MUST ALWAYS detect and respond in the EXACT SAME LANGUAGE as the user's question (e.g. French if asked in French, English if asked in English, Spanish if asked in Spanish, German if asked in German, Portuguese if asked in Portuguese, Chinese if asked in Chinese, etc.). Never switch languages unexpectedly.
+
+4. FORMATTING & READABILITY:
+   - Use clean Markdown with headers (###), bullet points, numbered lists, bold key terms, blockquotes, and relevant emojis to make long text pleasant and easy to scan.
+
+5. DISCLAIMER:
+   - Always conclude responses discussing market strategies with a short educational disclaimer in the user's language (e.g. "_Avertissement : Les informations éducatives fournies ne constituent en aucun cas des conseils financiers ou des recommandations d'investissement._" in French, or "_Disclaimer: Educational information only; does not constitute financial advice or investment recommendations._" in English).`;
 
       // We can use a single generateContent call with history mapped to clear roles or simple chat
       // To keep it highly performant and flexible:
@@ -683,7 +945,30 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
           prompt += `${roleName}: ${msg.text}\n`;
         });
       }
-      prompt += `Utilisateur: ${message}\nFinance Bridge AI:`;
+      const userText = message ? String(message).trim() : (image ? "Veuillez analyser cette image / ce graphique boursier ou financier et expliquer ses éléments clés de manière pédagogique et approfondie." : "");
+      prompt += `Utilisateur: ${userText}\nFinance Bridge AI:`;
+
+      let contents: any;
+      if (image && typeof image === "string") {
+        const match = image.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+        if (match) {
+          contents = [
+            {
+              inlineData: {
+                mimeType: match[1],
+                data: match[2]
+              }
+            },
+            {
+              text: prompt
+            }
+          ];
+        } else {
+          contents = prompt;
+        }
+      } else {
+        contents = prompt;
+      }
 
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
@@ -691,14 +976,12 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
       res.flushHeaders();
 
       const responseStream = await generateContentStreamWithRetry(client, {
-        model: "gemini-3.5-flash",
-        contents: prompt,
+        model: "gemini-3.7-flash",
+        contents,
         config: {
           systemInstruction,
           temperature: 0.7,
-          thinkingConfig: {
-            thinkingLevel: ThinkingLevel.LOW // Lower latency by minimizing unnecessary deep reasoning
-          }
+          maxOutputTokens: 4096
         }
       });
 
@@ -721,8 +1004,8 @@ Veuillez répondre exclusivement en français. Soyez chaleureux et encourageant,
           res.flushHeaders();
         }
 
-        console.log(`[Chat API] Activating local French educational fallback stream for message: "${message ? message.substring(0, 30) : ""}"`);
-        const fallbackText = getOfflineFinancialResponse(message || "");
+        console.log(`[Chat API] Activating local educational fallback stream for message: "${message ? message.substring(0, 30) : ""}" (lang: ${lang || 'auto'})`);
+        const fallbackText = getOfflineFinancialResponse(message || "", lang);
         
         // Split text into words and stream dynamically
         const words = fallbackText.split(" ");
