@@ -17,7 +17,9 @@ import {
   Maximize2,
   ChevronUp,
   ChevronDown,
-  ExternalLink
+  ExternalLink,
+  Globe,
+  Filter
 } from "lucide-react";
 
 interface NewsTabProps {
@@ -91,6 +93,54 @@ const PERMANENT_REFERENCE_URLS: Record<string, string> = {
   std_43: "https://www.investopedia.com/terms/t/trailingstop.asp",
   std_47: "https://www.investopedia.com/terms/c/cold-storage.asp",
   std_49: "https://www.investopedia.com/terms/p/price-to-bookratio.asp",
+  std_51: "https://finance.yahoo.com/topic/tech/",
+  std_52: "https://www.bloomberg.com/markets",
+  std_53: "https://investir.lesechos.fr/",
+  std_54: "https://www.investopedia.com/terms/f/freecashflow.asp",
+  std_55: "https://www.forbes.com/energy/",
+  std_56: "https://www.zonebourse.com/actualite-bourse/",
+};
+
+// Source brand styling badge helper
+const getSourceBadgeStyle = (source: string): string => {
+  switch (source) {
+    case "Yahoo Finance":
+      return "bg-purple-100 dark:bg-purple-950/60 text-purple-750 dark:text-purple-300 border-purple-250 dark:border-purple-800/50";
+    case "Bloomberg":
+      return "bg-slate-900 dark:bg-slate-800 text-amber-350 dark:text-amber-300 border-slate-700 dark:border-slate-600";
+    case "Reuters":
+      return "bg-amber-100 dark:bg-amber-950/60 text-amber-850 dark:text-amber-300 border-amber-250 dark:border-amber-800/50";
+    case "Les Echos":
+      return "bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800/50";
+    case "Financial Times":
+      return "bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800/50";
+    case "The Wall Street Journal":
+      return "bg-stone-100 dark:bg-stone-800 text-stone-800 dark:text-stone-200 border-stone-300 dark:border-stone-700";
+    case "CNBC":
+      return "bg-sky-100 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 border-sky-200 dark:border-sky-800/50";
+    case "MarketWatch":
+      return "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/50";
+    case "Forbes":
+      return "bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-700";
+    case "Zonebourse":
+      return "bg-cyan-100 dark:bg-cyan-950/60 text-cyan-800 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800/50";
+    case "Investopedia":
+      return "bg-teal-100 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border-teal-200 dark:border-teal-800/50";
+    case "CoinDesk":
+      return "bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/50";
+    case "BFM Bourse":
+      return "bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800";
+    case "Barron's":
+      return "bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border-zinc-300 dark:border-zinc-700";
+    case "Morningstar":
+      return "bg-red-100 dark:bg-red-950/60 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800/50";
+    case "Seeking Alpha":
+      return "bg-orange-100 dark:bg-orange-950/60 text-orange-800 dark:text-orange-300 border-orange-200 dark:border-orange-800/50";
+    case "Cointelegraph":
+      return "bg-yellow-100 dark:bg-yellow-950/60 text-yellow-800 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800/50";
+    default:
+      return "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700";
+  }
 };
 
 // Helper to resolve an authentic URL that never 404s
@@ -101,13 +151,36 @@ const getArticleUrl = (article: NewsArticle, lang: string): string => {
   const title = article.title[lang] || article.title["fr"] || article.title["en"] || "";
   const cleanTitle = title.replace(/[^\w\s\u00C0-\u017F-]/gi, " ").trim();
   const source = article.source || "";
-  
-  // Use Google News search to dynamically surface live articles directly without dead link/404 issues
-  return `https://www.google.com/search?q=${encodeURIComponent(cleanTitle + " " + source)}&tbm=nws`;
+
+  const domainQueryMap: Record<string, string> = {
+    "Yahoo Finance": "site:finance.yahoo.com OR \"Yahoo Finance\"",
+    "Bloomberg": "site:bloomberg.com OR Bloomberg",
+    "Reuters": "site:reuters.com OR Reuters",
+    "Les Echos": "site:lesechos.fr OR \"Les Echos\"",
+    "The Wall Street Journal": "site:wsj.com OR \"Wall Street Journal\"",
+    "Financial Times": "site:ft.com OR \"Financial Times\"",
+    "CNBC": "site:cnbc.com OR CNBC",
+    "MarketWatch": "site:marketwatch.com OR MarketWatch",
+    "Forbes": "site:forbes.com OR Forbes",
+    "Zonebourse": "site:zonebourse.com OR Zonebourse",
+    "Investopedia": "site:investopedia.com OR Investopedia",
+    "CoinDesk": "site:coindesk.com OR CoinDesk",
+    "BFM Bourse": "site:tradingsat.com OR \"BFM Bourse\"",
+    "Morningstar": "site:morningstar.com OR Morningstar",
+    "Barron's": "site:barrons.com OR Barron",
+    "Seeking Alpha": "site:seekingalpha.com OR \"Seeking Alpha\"",
+    "Cointelegraph": "site:cointelegraph.com OR Cointelegraph",
+    "TradingView News": "site:tradingview.com/news OR TradingView"
+  };
+
+  const domainFilter = domainQueryMap[source] || source;
+  // Use Google News search with explicit media query to dynamically surface live articles directly
+  return `https://www.google.com/search?q=${encodeURIComponent(cleanTitle + " " + domainFilter)}&tbm=nws`;
 };
 
 export default function NewsTab({ lang, t }: NewsTabProps) {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedSource, setSelectedSource] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("_default_all_news_");
   const [activeShock, setActiveShock] = useState<boolean>(false);
   const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
@@ -154,7 +227,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Zinsen sind die 'Kosten für Geld'. Wenn der Zinsgipfel erreicht ist, lässt der Abwärtsdruck auf Aktien nach, da sich die Refinanzierungskosten der Unternehmen nicht weiter verteuern.",
       "zh": "利率本質上是銀行的借款成本。當基準利率不再攀升，企業擴張時的融資利息負擔停止增加，這通常利多科技股與指數型資產走勢。"
     },
-    "source": "FinTech Insight",
+    "source": "BFM Bourse",
     "timestamp": {
       "fr": "Il y a 1 heure",
       "en": "1 hour ago",
@@ -200,7 +273,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Legen Sie niemals alle Eier in einen Korb. Eine ausgewogene Verteilung über verschiedene Branchen hinweg schützt Ihr Vermögen, wenn eine Branche einbricht.",
       "zh": "千萬不要把雞蛋放在同一個籃子裡。平均配置到科技、醫療、金融等不同產業塊，能在大盤板塊輪動或單一產業重挫時化身為最堅實的防護傘。"
     },
-    "source": "Academic Fund",
+    "source": "Investopedia",
     "timestamp": {
       "fr": "Il y a 3 heures",
       "en": "3 hours ago",
@@ -246,7 +319,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Kryptowährungen sind hochgradig volatil. Während sie Kursbeschleuniger sein können, sollten sie auf kleinstmögliche Anteile (2% bis 5%) Ihres Gesamtkapitals beschränkt bleiben.",
       "zh": "加密貨幣以超高波動性著稱。雖然其爆發力誘人，但穩健的投資人一般會將此類高風險資產控制在總部位的 2% 至 5% 內，以免本金大失血。"
     },
-    "source": "Decentralized Daily",
+    "source": "CoinDesk",
     "timestamp": {
       "fr": "Hier",
       "en": "Yesterday",
@@ -292,7 +365,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Ein niedriges KGV ist kein Garant für ein Schnäppchen (Gefahr einer Value-Falle), und ein hohes KGV bedeutet nicht automatisch eine Spekulationsblase. Vergleichen Sie Apple stets mit Microsoft, nicht mit Walmart.",
       "zh": "低本益比不代表撿到便宜（小心夕陽產業衰退陷阱），高本益比也不等於即將泡沫化。使用本益比時，請務必橫向對比同業競爭對手（如英特爾之於 NVIDIA，切勿將其與可口可樂進行跨界比較）。"
     },
-    "source": "Educate & Grow",
+    "source": "MarketWatch",
     "timestamp": {
       "fr": "Il y a 3 jours",
       "en": "3 days ago",
@@ -338,7 +411,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Gold ist kein Instrument für schnelle Spekulationsgewinne, sondern eine Versicherungskarte. Eine moderate Beimischung (z.B. 5 %) schirmt Ihr Gesamtvermögen vor extremen Verlustwellen ab.",
       "zh": "黃金從來不是用來追求暴利的跟風投機工具，而是一張資產保了險的保單。在資產籃子中提撥 5% 左右配置於黃金等大宗原材料，能為你對抗大盤未知下挫時發揮避震功能。"
     },
-    "source": "Commodity Watch",
+    "source": "Bloomberg",
     "timestamp": {
       "fr": "Il y a 6 heures",
       "en": "6 hours ago",
@@ -384,7 +457,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Die Wechselkurse (Forex) sind ein oft unterschätzter Hebel der Fundamentalanalyse. Privatanleger sollten darauf achten, in welchen Währungsräumen Portfoliounternehmen ihre Umsätze generieren.",
       "zh": "貨幣匯率（Forex）是基本面分析中極為關鍵的隱形推手。成熟的投資人在檢視跨國財報（如 Apple 或高通）時，除了看營收增長，還必須考量美元指數對海外營收折算後的影響。"
     },
-    "source": "Forex Live Bulletin",
+    "source": "The Wall Street Journal",
     "timestamp": {
       "fr": "Il y a 10 heures",
       "en": "10 hours ago",
@@ -430,7 +503,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Zinssenkungen der EZB wirken wie Katalysatoren für den Aktienmarkt, da sich Unternehmen günstiger für zukünftiges Wachstum finanzieren können.",
       "zh": "歐洲央行的調降利率通常是股票市場的中期強心針。當借貸資金成本下滑，上市企業能更容易發行債券籌集低成本資金，以此回購股票 ou 加速擴張。"
     },
-    "source": "Euro Markets",
+    "source": "Les Echos",
     "timestamp": {
       "fr": "Il y a 12 heures",
       "en": "12 hours ago",
@@ -476,7 +549,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Ausufernde Staatsschulden erhöhen das Zinsrisiko. Wenn die Refinanzierung des Staates teurer wird, steigen auch die Kapitalkosten für Unternehmen.",
       "zh": "主權債務高企會加劇市場對匯率和通膨的敏感度。當各國財政債台高築，銀行在核發新信貸時會更加保守，間接擠壓中小型科技股的增長空間。"
     },
-    "source": "Fiscal Policy Watch",
+    "source": "Financial Times",
     "timestamp": {
       "fr": "Il y a 1 jour",
       "en": "1 day ago",
@@ -522,7 +595,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "ESG-Investments bieten exzellente Renditechancen, erfordern aber genaue Recherche. Achten Sie auf echte Erträge statt auf Lippenbekenntnisse im Geschäftsbericht.",
       "zh": "綠色投資浪潮催生了可觀的成長板塊，然而投資人仍須小心防範虛假的「綠色包裝（Greenwashing）」。務必仔細檢視企業的實質營收與現金流，而非僅看行銷宣傳標籤。"
     },
-    "source": "Green Wealth",
+    "source": "Reuters",
     "timestamp": {
       "fr": "Il y a 14 heures",
       "en": "14 hours ago",
@@ -568,7 +641,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Ein simpler S&P 500 ETF schützt Sie heute nicht mehr automatisch vor konzentrierten Kursrisiken. Behalten Sie das Branchengewicht im Auge.",
       "zh": "對於定時定額 S&P 500 指數的投資人而言，你的配置實質上已高度傾斜至科技巨擘（Tech Overweight）。可視個人風險偏好，納入防禦性民生板塊以達最佳平衡。"
     },
-    "source": "Wall Street Digest",
+    "source": "Yahoo Finance",
     "timestamp": {
       "fr": "Il y a 16 heures",
       "en": "16 hours ago",
@@ -614,7 +687,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Bitcoin ist erwachsen geworden. Nutzen Sie jedoch strikte Rebalancing-Regeln, damit Krypto-Kursgewinne Ihr Portfolio-Risikoprofil nicht unbeabsichtigt dominieren.",
       "zh": "加密資產已非昔日的非主流邊緣物。在實際追求溢酬的同時，務必搭配嚴格的「資產再平衡」紀律，當加密幣比重因漲幅過大時，適時賣出獲利了結並回流至大盤指數。"
     },
-    "source": "Crypto Trust",
+    "source": "CoinDesk",
     "timestamp": {
       "fr": "Il y a 18 heures",
       "en": "18 hours ago",
@@ -660,7 +733,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Regulierung beseitigt vielleicht scheinbar unbegrenzte Freiheiten, ist jedoch der entscheidende Wegbereiter für den Einstieg großer Institutionen.",
       "zh": "法規健全化意味著先前缺乏約束的高倍槓桿與空無監管將被壓縮；但在大局觀下，這才是讓主流資金、傳統企業財政儲備能夠安全配置加密資產的真正基石。"
     },
-    "source": "Blockchain Ledger",
+    "source": "Les Echos",
     "timestamp": {
       "fr": "Il y a 2 jours",
       "en": "2 days ago",
@@ -706,7 +779,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Die Zinsinversion ist kein unfehlbares Orakel, spiegelt jedoch die kollektive Besorgnis im Rentenmarkt wider. Bringen Sie etwas Ruhe in Ihr Aktienportfolio.",
       "zh": "倒掛指標並非絕對會引發即時衰退，但它生動揭示了債券大戶與專業法人對景氣中短期的深沉擔憂，此時宜審慎檢視自己的融資和高槓桿倉位。"
     },
-    "source": "Investing Basics",
+    "source": "Investopedia",
     "timestamp": {
       "fr": "Il y a 4 jours",
       "en": "4 days ago",
@@ -752,7 +825,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Die Unternehmensgröße prägt das Kursschwenk-Verhalten. Strukturierte Depots vereinen die Stabilität von Branchenführern mit der Renditedynamik aufstrebender Nebenwerte.",
       "zh": "市值大小是股價波動屬性的最基礎分野。健康的策略通常會將較大份額部署在穩定、具抗禦力的大藍籌股，再提撥部分份額主動追求小盤股的超額回報。"
     },
-    "source": "Wealth School",
+    "source": "CNBC",
     "timestamp": {
       "fr": "Il y a 5 jours",
       "en": "5 days ago",
@@ -798,7 +871,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Eine Investition in Industriemetalle, beispielsweise über weltweit führende Bergbaukonzerne, bietet verlässlichen Schutz vor steigenden Gestehungskosten der Tech-Unternehmen.",
       "zh": "若想佈局基礎原料，除直接投資期貨外，關注掌握實體優質礦山、開採成本低於同業平均的主力礦業股，通常能在商品牛市中享有高額槓桿溢酬與配息。"
     },
-    "source": "Resource Ledger",
+    "source": "Bloomberg",
     "timestamp": {
       "fr": "Il y a 20 heures",
       "en": "20 hours ago",
@@ -844,7 +917,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Agrar-Investments sind gute Diversifikationsmittel, unterliegen jedoch aufgrund ihrer Natur unberechenbaren Risiken wie Dürren oder Ernteschäden.",
       "zh": "軟性農產品（Soft Commodities）是大宗商品領域中重要的多元配置板塊；然而氣候因素的不可預測性極高，不建議以短線高槓桿方式重倉跟風。"
     },
-    "source": "Agri Markets",
+    "source": "Reuters",
     "timestamp": {
       "fr": "Il y a 1 jour",
       "en": "1 day ago",
@@ -890,7 +963,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Harmonieren Notenbanken in ihren Strategien, dämmt das die Kursschwankungen der Devisen ein. Dies erleichtert Import- und Exportkalkulationen.",
       "zh": "兩大重要貨幣發行體政策如果高度同步，相關匯率匯率即容易長時間「貼地爬行（Low Volatility Range）」。這有利於該區域跨國供應商降低外匯避險的保費支出。"
     },
-    "source": "Forex Live Bulletin",
+    "source": "Zonebourse",
     "timestamp": {
       "fr": "Il y a 22 heures",
       "en": "22 hours ago",
@@ -936,7 +1009,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Ein extrem schwacher Yen kurbelt zwar die Exporte der heimischen Industrie an, entgleitet aber im Hinblick auf die Importkosten für wertvolle Konsumgüter.",
       "zh": "超弱勢貨幣本質上是一把雙刃劍：它能顯著推高日本跨國汽車巨頭（如 Toyota）折算回本國 of 海外營收；但卻會無情吞噬國內受薪職工購買進口燃料與糧食時的實質生活水準。"
     },
-    "source": "Tokyo Forex Desk",
+    "source": "Financial Times",
     "timestamp": {
       "fr": "Il y a 1 jour",
       "en": "1 day ago",
@@ -982,7 +1055,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Protektionismus wirkt wie eine Steuer auf wirtschaftliche Effizienz und erschwert lockere Notenbankzinsen.",
       "zh": "貿易保衛戰本質上對跨國生產體系加課了印花稅，限制了央行快速降息的空間。"
     },
-    "source": "Macro Global Review",
+    "source": "The Wall Street Journal",
     "timestamp": {
       "fr": "Il y a 1 jour",
       "en": "1 day ago",
@@ -1028,7 +1101,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Rückkäufe sind ein Zeichen von Cashflow-Stärke und stützen die langfristige Entwicklung der Aktienmärkte.",
       "zh": "庫藏股回購通常說明自由現金流充沛，是美股大盤指數長線走升的關鍵推手。"
     },
-    "source": "Wall Street Digest",
+    "source": "Barron's",
     "timestamp": {
       "fr": "Il y a 2 jours",
       "en": "2 days ago",
@@ -1074,7 +1147,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "PoW gilt als unzerstörbares Fundament für digitales Gold, während PoS die Anwendungsgeschwindigkeit erhöht.",
       "zh": "PoW 適合做為保存價值的「數位黃金金庫」，PoS 則極利於高速擴建智慧合約應用網路。"
     },
-    "source": "Decentralized Daily",
+    "source": "CoinDesk",
     "timestamp": {
       "fr": "Il y a 3 jours",
       "en": "3 days ago",
@@ -1120,7 +1193,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Bevorzugen Sie stetiges und stabiles Ausschüttungswachstum gegenüber riskanten, überhöhten Einmalrenditen.",
       "zh": "優先布局連續十幾年健康、穩定調升股息的優質股，切忌被短期的高息噱頭吞噬本金。"
     },
-    "source": "Wealth School",
+    "source": "Morningstar",
     "timestamp": {
       "fr": "Il y a 4 jours",
       "en": "4 days ago",
@@ -1166,7 +1239,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Hersteller von Elektrofahrzeugen sind direkt von Rohstoff-Lieferketten abhängig. Langfristige Abnahmeverträge mit Bergbauunternehmen sind geschäftskritisch.",
       "zh": "新能源車企的利潤空間極易受上游精鍊冶金週期的劇烈波動影響。與資源開採商直接簽訂長期包銷協議（Offtake Agreements），是構建供應鏈安全穩定的唯一途徑。"
     },
-    "source": "Resource Ledger",
+    "source": "Les Echos",
     "timestamp": {
       "fr": "Il y a 5 jours",
       "en": "5 days ago",
@@ -1212,7 +1285,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Die gezielte Beimischung des Schweizer Frankens glättet Währungsschwankungen und sichert langfristig Ihre Kaufkraft.",
       "zh": "在多幣種外匯配置中，常態配比少量的瑞士法郎資產，能為你組建高抗禦、穩健的避震盾牌。"
     },
-    "source": "Forex Live Bulletin",
+    "source": "Bloomberg",
     "timestamp": {
       "fr": "Il y a 6 jours",
       "en": "6 days ago",
@@ -1258,7 +1331,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Eine moderate Depot-Exposition gegenüber Schwellenländern fängt die dortigen Wachstumsimpulse ein, die in reifen Märkten oft fehlen.",
       "zh": "在多資產配置中，適度選擇布局新興市場營收佔比高的龍頭企業，常能捕捉到比飽和、低增速的已開發國家更具張力的超額增長。"
     },
-    "source": "Macro Global Review",
+    "source": "Forbes",
     "timestamp": {
       "fr": "Il y a 2 jours",
       "en": "2 days ago",
@@ -1304,7 +1377,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Halbleiter sind das Rohöl der Digitalisierung. Die fundamentale Wichtigkeit dieser Branche ist unantastbar, doch die zyklischen Nachfrageschwankungen müssen beachtet werden.",
       "zh": "半導體已成為數位革命時代無可置疑的「核心大宗原料」。其商業護城河極深，但具有獨特的供需調整庫存週期（Hardware Cycles），建議切忌在波段高點盲目追漲。"
     },
-    "source": "Wall Street Digest",
+    "source": "Financial Times",
     "timestamp": {
       "fr": "Il y a 5 jours",
       "en": "5 days ago",
@@ -1350,7 +1423,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "IPO-Wellen bringen Dynamik, verlangen Anlegern aber auch Disziplin ab. Ein vorsichtiger Blick auf die ersten Quartalszahlen schützt vor überteuerten Erstkäufen.",
       "zh": "新股上市固然能擴充大盤可支配的資產板塊，但散戶切忌盲目參與「首日開盤飆車（IPO Opening Day Hype）」。等待幾期財報透明化、股價回歸安定的盤整區，是老練投資人的避雷基本功。"
     },
-    "source": "Wall Street Digest",
+    "source": "Yahoo Finance",
     "timestamp": {
       "fr": "Il y a 6 jours",
       "en": "6 days ago",
@@ -1396,7 +1469,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Fokussieren Sie sich im Krypto-Sektor auf Protokolle mit etablierter Gebühreneinnahme-Struktur, da diese fundamentalen Wert ausdrücken.",
       "zh": "在數字資產配置中，建議鎖定那些具有真實用戶群體、能穩定通過智慧合約收取並燃燒手續費（Gas Fees）流動通證，這才是對抗估值泡沫的堅實依據。"
     },
-    "source": "Decentralized Daily",
+    "source": "Cointelegraph",
     "timestamp": {
       "fr": "Il y a 5 jours",
       "en": "5 days ago",
@@ -1441,7 +1514,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Verwechseln Sie Renditegier nicht mit Investitionseffizienz. Ein hohes Sharpe-Ratio ist das Kennzeichen professioneller Anlageportfolios.",
       "zh": "成熟配置不盲信「高收益率」，而是追求「高夏普效率」。高效率的資產配置組合能協助投資人在震盪市場中穩健前行。"
     },
-    "source": "Academic Finance Journal",
+    "source": "Morningstar",
     "timestamp": {
       "fr": "Il y a 3 jours",
       "en": "3 days ago",
@@ -1488,7 +1561,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Silber bietet Anlegern eine interessante Kombination aus industrieller Wachstumsstory und klassischem Inflationsschutz. Es verhält sich in Krisenzeiten stabiler als rein industrielle Industriemetalle.",
       "zh": "白銀兼有清潔能源科技需求增長紅利與貴金屬避險屬性。與價格暴起暴落的鋰或鈷不同，白銀保留了強大的貨幣保值底層價值，能夠在通膨狂潮或信用法幣貶值期為投資人提供優質的安全邊際。"
     },
-    "source": "Commodity Intelligence",
+    "source": "Reuters",
     "timestamp": {
       "fr": "Il y a 6 jours",
       "en": "6 days ago",
@@ -1534,7 +1607,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Der Carry-Trade ist ertragreich, gleicht aber dem Aufsammeln von Münzen vor einer Dampfwalze. Dreht der Devisenkurs des Nehmerlandes nach oben, drohen Verluste.",
       "zh": "跨境利差交易是極佳的被動現金流來源，但高回報伴隨高風險——即「匯率突變風險」。一旦借款國貨幣（如日圓）受地緣衝突影響升值 5%，將在數小時內侵蝕一整年的利息所得。"
     },
-    "source": "Forex Live Bulletin",
+    "source": "Seeking Alpha",
     "timestamp": {
       "fr": "Il y a 1 semaine",
       "en": "1 week ago",
@@ -1580,7 +1653,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Lassen Sie Gewinne laufen, während Sie Verlustrisiken eng begrenzen. Dieses Tool entzieht emotionalen Trading-Fehlentscheidungen die Grundlage.",
       "zh": "「讓利潤奔跑，讓虧損截斷」的精髓即在於此。移動止損能協助投資人在股價狂飆時不必提早下車，且能徹底剔除貪婪與恐懼這兩大最阻礙收益的人性弱點。"
     },
-    "source": "Central Board News",
+    "source": "TradingView News",
     "timestamp": {
       "fr": "Il y a 2 minutes (BREAKING)",
       "en": "2 minutes ago (BREAKING)",
@@ -1627,7 +1700,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "In Phasen extremer geopolitischer Konflikte erweist sich Gold als ultimativer sicherer Hafen, während explodierende Energiekosten die Aktienmärkte belasten.",
       "zh": "地緣政治極端交火期，黃金依然是最終極的防禦性資產；急升的能源成本將對股票估值倍數造成持續性的緊縮壓力。"
     },
-    "source": "Global Intelligence Bulletin",
+    "source": "Bloomberg",
     "timestamp": {
       "fr": "Il y a 10 minutes",
       "en": "10 minutes ago",
@@ -1674,7 +1747,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Spezialiserte Recycling-Anbieter vereinen hohe Technologiekompetenz mit exzellenten Wachstumschancen, wodurch sie langfristig Bergbauunternehmen übertreffen könnten.",
       "zh": "電池金屬與稀土循環回收 is 典型的高附加值技術拼圖。長遠來看，掌握專利化學精煉回收技術的先驅，其市場溢價和毛利率將顯著超越單純開採原礦的採礦巨頭。"
     },
-    "source": "Resource Ledger",
+    "source": "Les Echos",
     "timestamp": {
       "fr": "Il y a 1 semaine",
       "en": "1 week ago",
@@ -1720,7 +1793,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Versuchen Sie nicht, den Markt zu schlagen. Regelmäßiges DCA ist die unschlagbare Geheimwaffe für Privatanleger, um entspannt Vermögen aufzubauen.",
       "zh": "擇時交易對九成以上的散戶來說是資產毀滅的開端。唯有將 DCA 定期定額內化為紀律習慣，才能在毫無壓力下，享受到景氣牛市長線成長的豐碩果實。"
     },
-    "source": "Wealth Education Bureau",
+    "source": "Investopedia",
     "timestamp": {
       "fr": "Il y a 3 semaines",
       "en": "3 weeks ago",
@@ -1766,7 +1839,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Der Austral-Dollar ist ein hervorragender Indikator für den Welthandel. Anlagen im AUD-Raum binden das Devisendepot direkt an die Stärke des globalen Rohstoffzyklus.",
       "zh": "澳洲元在國際融資盤中是反映實體大宗商品景氣循環的最佳試金石。如果想讓自己的外匯部位與實體金屬、礦物牛市綁定，配置澳元資產（澳元定存或澳股）是一項極佳、低摩擦的外匯避風港策略。"
     },
-    "source": "Forex Live Bulletin",
+    "source": "MarketWatch",
     "timestamp": {
       "fr": "Il y a 1 semaine",
       "en": "1 week ago",
@@ -1812,7 +1885,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Zinsdivergenz steuert den Devisenmarkt. Ein Land, dessen Zinssätze länger hoch verbleiben, gewinnt für Carry-Trader temporär an Attraktivität.",
       "zh": "「貨幣利差分歧（Monetary Divergence）」是外匯交易最核心的黃金聖經。哪個國家的基準利率在高位支撐得更久，該國貨幣往往在短期內最抗跌、最吸金。"
     },
-    "source": "Forex Live Bulletin",
+    "source": "Financial Times",
     "timestamp": {
       "fr": "Il y a 1 semaine",
       "en": "1 week ago",
@@ -1858,7 +1931,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Der Hebel vervielfacht Gewinne, aber auch Verluste. Ein scheinbar milder Kurssturz um 10 % wird bei einem Hebel von 5x zu einem fatalen Verlust von 50 % des eingesetzten Kapitals.",
       "zh": "財務槓桿放大了獲利，但也等比放大了致命性虧損。原始標的下跌 10%，在 5 倍槓桿操作下即等同於 50% 的驚人虧損！此案例深入展示了被動分散配置的避險重要性。"
     },
-    "source": "Leverage Tracker",
+    "source": "CNBC",
     "timestamp": {
       "fr": "Il y a 15 minutes",
       "en": "15 minutes ago",
@@ -1905,7 +1978,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Konsum steuert das Bruttoinlandsprodukt. Solange Arbeitsplätze sicher sind, bleiben Unternehmensgewinne stabil und stützen Aktienkurse.",
       "zh": "消費者支出正是實體經濟最核心的永動機。只要家庭需求不發生大滑坡，企業營收就能維持穩定，進而為估值提供防護墊。"
     },
-    "source": "Global Macro Advisor",
+    "source": "The Wall Street Journal",
     "timestamp": {
       "fr": "Il y a 6 heures",
       "en": "6 hours ago",
@@ -1951,7 +2024,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Anleihen reduzieren das Portfoliorisiko und liefern planbare Erträge. Eine ideale Ergänzung zu dividendenstarken Sachwerten.",
       "zh": "債券資產是平衡股市高波動的必備沙包。在降息周期前鎖定高票息，能為資產組合注入高度可預測的穩定現金流。"
     },
-    "source": "Bond Weekly",
+    "source": "Reuters",
     "timestamp": {
       "fr": "Il y a 12 heures",
       "en": "12 hours ago",
@@ -1997,7 +2070,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Skalierbarkeit löst das klassische Blockchain-Trilemma. Diese sekundären Netzwerke bilden das Rückgrat für die weltweite Nutzung digitaler Vermögenswerte.",
       "zh": "擴容技術解決了區塊鏈「去中心化、安全、擴容」看似不可調和的三難困境（Trilemma）。這類高速、廉價的第二層網路是百萬級用戶鏈上活動的重要基石。"
     },
-    "source": "Web3 Engineering",
+    "source": "CoinDesk",
     "timestamp": {
       "fr": "Il y a 4 jours",
       "en": "4 days ago",
@@ -2043,7 +2116,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Das KBV ist ein bewährtes Werkzeug zur Sicherheitsanalyse. Es schützt Anleger davor, übermäßig hohe Preise für reine Wachstumshoffnungen zu bezahlen.",
       "zh": "股價淨值比是穩健配置者的重要護城河。以低於淨值的價格買入實體資產，能在市場大跌時為長期投資建立極佳的防禦底座。"
     },
-    "source": "Value Academy",
+    "source": "Zonebourse",
     "timestamp": {
       "fr": "Il y a 6 jours",
       "en": "6 days ago",
@@ -2089,7 +2162,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Algorithmen gestalten Preise hocheffizient. Langfristige Investoren sollten sich nicht von kurzfristigem, algorithmengetriebenem Rauschen irritieren lassen.",
       "zh": "科技雖然加劇了瞬時波動，但也使訂單定價更有效率。了解量化模型的交易慣性，有助於一般的散戶投資人避免在極端高位踩雷追漲。"
     },
-    "source": "Alpha Analytics",
+    "source": "Yahoo Finance",
     "timestamp": {
       "fr": "Il y a 1 jour",
       "en": "1 day ago",
@@ -2135,7 +2208,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Nicht Ihre Schlüssel, nicht Ihre Kryptos. Wer langfristig investiert, sichert seine Wiederherstellungswörter ausschließlich offline auf Metall oder Papier.",
       "zh": "「非子其鑰，非群其幣（Not your keys, not your coins）」是區塊鏈世界唯一的生存法則。請務必將私鑰助記詞離線手抄保存，絕對不要上傳雲端。"
     },
-    "source": "Sovereign Ledger",
+    "source": "Forbes",
     "timestamp": {
       "fr": "Il y a 2 jours",
       "en": "2 days ago",
@@ -2181,7 +2254,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       "de": "Silber ist der 'kleine Bruder des Goldes', verhält sich aber durch die industrielle Koppelung oft dynamischer und volatiler in Aufwärtsphasen.",
       "zh": "白銀既享有黃金的貨幣對抗通膨屬性，又具備強固的工業增長基本面支撐。傳統上當黃金發動漲勢時，白銀因具備高波動度（High-Beta）往往表現得更為耀眼。"
     },
-    "source": "Precious Metals News",
+    "source": "BFM Bourse",
     "timestamp": {
       "fr": "Il y a 6 jours",
       "en": "6 days ago",
@@ -2193,9 +2266,309 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
     "sentiment": "positive"
   }
 
+,
+  {
+    "id": "std_51",
+    "category": "markets",
+    "title": {
+      "fr": "Semi-conducteurs et IA : Les géants technologiques franchissent les 3 000 milliards $ de valorisation",
+      "en": "Semiconductors & AI: Tech giants surpass $3 trillion market cap milestone",
+      "pt": "Semicondutores e IA: Gigantes da tecnologia superam marco de US$ 3 trilhões em valor",
+      "es": "Semiconductores e IA: Los gigantes tecnológicos superan los 3 billones de dólares de capitalización",
+      "de": "Halbleiter & KI: Tech-Giganten überschreiten Marke von 3 Billionen Dollar Marktkapitalisierung",
+      "zh": "半導體與人工智慧熱潮：科技巨頭市值突破 3 兆美元歷史大關"
+    },
+    "summary": {
+      "fr": "La demande sans précédent pour les puces d'accélération graphique et les data centers propulse les valeurs technologiques vers de nouveaux sommets.",
+      "en": "Unprecedented demand for AI hardware accelerators and hyperscale data centers drives semiconductor stocks to historic valuations.",
+      "pt": "A demanda sem precedentes por chips de IA e centros de dados impulsiona ações de tecnologia para novos recordes.",
+      "es": "La demanda récord de chips de inteligencia artificial y centros de datos impulsa las acciones tecnológicas a máximos históricos.",
+      "de": "Die beispiellose Nachfrage nach KI-Prozessoren und Rechenzentren treibt die Aktien führender Chip-Hersteller auf neue Rekordstände.",
+      "zh": "對人工智慧硬體加速晶片與超大規模數據中心的前所未見需求，推升半導體產業龍頭股價屢創歷史新高。"
+    },
+    "fullContent": {
+      "fr": "L'essor fulgurant de l'intelligence artificielle générative a créé un besoin industriel massif en processeurs ultra-rapides et en infrastructures cloud de pointe. Les fonderies de pointe et les concepteurs de microprocesseurs enregistrent des carnets de commandes record pour les années à venir. Les analystes soulignent toutefois que les valorisations élevées exigent des marges opérationnelles sans faille.",
+      "en": "The explosive rise of generative AI has generated extraordinary structural demand for high-performance processors and modern cloud server farms. Leading chip designers and semiconductor foundries are booking record order backlogs spanning multiple years. Market observers note that maintaining these elevated valuations will require flawless operational execution.",
+      "pt": "A ascensão da inteligência artificial generativa criou uma demanda estrutural sem precedentes por processadores de alto desempenho e infraestrutura em nuvem. Fabricantes e projetistas de chips registram livros de pedidos recordes. Analistas ressaltam que manter valuations elevados exige consistência nas margens operacionais.",
+      "es": "El auge de la inteligencia artificial generativa ha desatado una demanda extraordinaria de procesadores avanzados e infraestructura en la nube. Los diseñadores de microchips y fundiciones acumulan pedidos récord para varios años vista. Los analistas advierten que estas altas valoraciones exigen mantener una rentabilidad operativa impecable.",
+      "de": "Der Boom der generativen KI sorgt für eine enorme Nachfrage nach Hochleistungsprozessoren und Cloud-Infrastruktur. Führende Chipentwickler verzeichnen Rekord-Auftragsbestände über mehrere Jahre. Analysten betonen jedoch, dass die hohen Bewertungen anhaltend starke Gewinnmargen voraussetzen.",
+      "zh": "生成式人工智慧的爆發性成長催生了對高階運算處理器與雲端伺服器機房的龐大硬體需求。主要晶片設計商與晶圓代工廠訂單能見度已延續數年。市場分析師提醒，維持當前高估值需仰賴持續穩健的獲利率與營收兌現能力。"
+    },
+    "expertTakeaway": {
+      "fr": "L'industrie des semi-conducteurs est au cœur de toutes les révolutions modernes. Pour l'investisseur individuel, privilégier des ETF sectoriels permet de s'exposer à cette mégatendance tout en limitant le risque individuel.",
+      "en": "Semiconductors represent the foundational bedrock of all modern computing. For individual investors, sector ETFs provide balanced exposure to this megatrend while mitigating individual company risk.",
+      "pt": "Semicondutores representam a base de toda a tecnologia moderna. Para o investidor individual, ETFs setoriais oferecem exposição a essa megatendência com menor risco específico.",
+      "es": "Los semiconductores son la piedra angular de la tecnología moderna. Para el inversor particular, los ETFs sectoriales permiten participar en esta megatendencia limitando el riesgo específico de una sola acción.",
+      "de": "Halbleiter sind das Rückgrat moderner Technologie. Für Privatanleger bieten Branchen-ETFs einen diversifizierten Zugang zu diesem Megatrend bei kontrolliertem Einzelwertrisiko.",
+      "zh": "半導體是現代數位科技與人工智慧的核心基石。對於一般投資人而言，配置產業型 ETF 能有效參與此項大趨勢，同時降低押注單一個股的波動風險。"
+    },
+    "source": "Yahoo Finance",
+    "timestamp": {
+      "fr": "Il y a 40 minutes",
+      "en": "40 minutes ago",
+      "pt": "Há 40 minutos",
+      "es": "Hace 40 minutos",
+      "de": "Vor 40 Minuten",
+      "zh": "40 分鐘前"
+    },
+    "sentiment": "positive"
+  },
+  {
+    "id": "std_52",
+    "category": "macro",
+    "title": {
+      "fr": "Resserrement quantitatif et liquidités bancaires : Bloomberg analyse l'équilibre délicat des banques centrales",
+      "en": "Quantitative Tightening & Bank Liquidity: Bloomberg examines central banks delicate balance",
+      "pt": "Aperto Quantitativo e Liquidez: Bloomberg analisa o equilíbrio delicado dos bancos centrais",
+      "es": "Ajuste Cuantitativo y Liquidez Bancaria: Bloomberg analiza el delicado balance de los bancos centrales",
+      "de": "Quantitative Straffung & Bankenliquidität: Bloomberg analysiert den Balanceakt der Notenbanken",
+      "zh": "量化緊縮與銀行體系流動性：彭博社深度剖析各國央行資產負債表縮減歷程"
+    },
+    "summary": {
+      "fr": "La réduction progressive des bilans monétaires permet d'éponger l'excédent de liquidités sans heurter le refinancement interbancaire.",
+      "en": "Gradual balance sheet normalization absorbs excess liquidity while preserving stable funding across the interbank lending system.",
+      "pt": "A normalização gradual dos balanços absorve o excesso de liquidez preservando a estabilidade no mercado interbancário.",
+      "es": "La normalización gradual de los balances absorbe el exceso de liquidez garantizando la estabilidad del mercado interbancario.",
+      "de": "Der schrittweise Bilanzabbau entzieht dem Markt überschüssige Liquidität, ohne die Stabilität der Interbankenmärkte zu gefährden.",
+      "zh": "各國央行有節奏地回收市場過剩資金，力求在不衝擊跨行同業拆借體系的前提下實現貨幣政策常態化。"
+    },
+    "fullContent": {
+      "fr": "Après des années d'assouplissement quantitatif (QE), les grandes institutions monétaires poursuivent le dégonflement ordonné de leurs portefeuilles d'obligations souveraines. Cette politique de QT (Quantitative Tightening) vise à restaurer des marges de manœuvre pour faire face aux futurs cycles économiques, tout en surveillant attentivement les réserves excédentaires des banques commerciales.",
+      "en": "Following years of massive quantitative easing, major monetary authorities continue their methodical runoff of sovereign bond holdings. This quantitative tightening policy aims to restore policy ammunition for future economic cycles while keeping a vigilant eye on commercial banking system reserve levels.",
+      "pt": "Após anos de estímulos quantitativos, as principais autoridades monetárias continuam reduzindo suas carteiras de títulos públicos de forma planejada. Essa política busca recompor espaço para futuras intervenções, monitorando de perto as reservas do sistema financeiro.",
+      "es": "Tras años de estímulos cuantitativos extraordinarios, las autoridades monetarias continúan reduciendo sus carteras de deuda pública de forma ordenada. Esta estrategia busca reconstruir margen de actuación para futuros ciclos preservando la solidez de las reservas bancarias.",
+      "de": "Nach jahrelanger quantitativer Lockerung setzen die Notenbanken den geordneten Abbau ihrer Staatsanleihebestände fort. Diese quantitative Straffung soll künftige geldpolitische Handlungsspielräume sichern, während die Liquiditätspolster der Banken genau überwacht werden.",
+      "zh": "在經歷多年的超寬鬆量化寬鬆（QE）後，主要央行正有序縮減持有的公債資產規模。此項量化緊縮政策旨在為未來景氣循環預留彈性空間，同時密切監控商業銀行體系的準備金充足度。"
+    },
+    "expertTakeaway": {
+      "fr": "La liquidité est le lubrifiant des marchés financiers. Quand les banques centrales réduisent leurs bilans, les primes de risque redeviennent positives, ce qui favorise les obligations à court terme bien rémunérées.",
+      "en": "Liquidity acts as the financial market lubricant. When central banks taper balance sheets, risk premiums normalize, creating favorable risk-adjusted yields on short-term fixed income.",
+      "pt": "A liquidez é o combustível dos mercados. Quando os bancos centrais reduzem balanços, os prêmios de risco se normalizam, favorecendo títulos de renda fixa de curto prazo.",
+      "es": "La liquidez es el motor de los mercados financieros. A medida que los bancos centrales normalizan sus balances, las primas de riesgo se recomponen, beneficiando a la renta fija a corto plazo.",
+      "de": "Liquidität treibt die Finanzmärkte an. Wenn Notenbanken ihre Bilanzen abbauen, normalisieren sich die Risikoprämien, was kurzlaufenden Anleihen attraktive Renditen verschafft.",
+      "zh": "流動性是金融市場運轉的關鍵潤滑劑。當央行縮減資產負債表規模時，市場風險溢價往往回歸理性，短天期高評級定存與公債資產因此具備極佳的配置性價比。"
+    },
+    "source": "Bloomberg",
+    "timestamp": {
+      "fr": "Il y a 2 heures",
+      "en": "2 hours ago",
+      "pt": "Há 2 horas",
+      "es": "Hace 2 horas",
+      "de": "Vor 2 Stunden",
+      "zh": "2 小時前"
+    },
+    "sentiment": "neutral"
+  },
+  {
+    "id": "std_53",
+    "category": "markets",
+    "title": {
+      "fr": "Luxe, aéronautique et énergie : Les champions boursiers européens tirent parti de leur rayonnement international",
+      "en": "Luxury, Aerospace & Energy: European market leaders leverage global export strength",
+      "pt": "Luxo, Aeroespacial e Energia: Líderes europeus capitalizam sua força de exportação global",
+      "es": "Lujo, Aeroespacial y Energía: Los líderes europeos se apoyan en su fortaleza exportadora global",
+      "de": "Luxus, Luftfahrt & Energie: Europäische Marktführer profitieren von weltweiter Exportstärke",
+      "zh": "精品、航空航太與新能源：歐洲產業領頭羊憑藉全球化外銷網路抵禦區域景氣波動"
+    },
+    "summary": {
+      "fr": "Malgré les incertitudes macroéconomiques régionales, les fleurons européens affichent des bilans sains et une forte capacité de pricing power.",
+      "en": "Despite regional macro uncertainties, premier European enterprises maintain healthy balance sheets and robust pricing power across international markets.",
+      "pt": "Mesmo diante de incertezas macroeconômicas regionais, as grandes empresas europeias mantêm balanços saudáveis e forte poder de precificação global.",
+      "es": "A pesar de las incertidumbres macroeconómicas locales, las principales multinacionales europeas exhiben balances sólidos y gran poder de fijación de precios.",
+      "de": "Trotz regionaler Konjunktursorgen überzeugen führende europäische Unternehmen mit gesunden Bilanzen und internationaler Preissetzungsmacht.",
+      "zh": "儘管面臨區域宏觀景氣不確定性，歐洲標竿跨國企業依然仰賴健康的資產負債表與定價實力維持全球獲利韌性。"
+    },
+    "fullContent": {
+      "fr": "Les grands groupes européens cotés réalisent pour la plupart plus de 75% de leur chiffre d'affaires en dehors de leur pays d'origine. Cette diversification géographique leur offre un bouclier naturel contre les aléas de conjoncture locale. Le secteur du luxe, l'industrie aéronautique et les leaders des technologies environnementales continuent d'attirer des flux institutionnels internationaux.",
+      "en": "Most major European listed companies generate over 75% of their total revenues outside their home domestic markets. This geographical breadth provides an inherent buffer against localized economic slowdowns. Luxury goods manufacturers, aerospace leaders, and clean technology innovators continue to draw substantial global institutional allocations.",
+      "pt": "A maioria das grandes companhias abertas europeias obtém mais de 75% de sua receita fora de suas fronteiras domésticas. Essa diversificação geográfica funciona como um amortecedor contra desacelerações pontuais. Setores como luxo, aviação e tecnologias sustentáveis seguem atraindo capital global.",
+      "es": "La mayor parte de las grandes multinacionales europeas cotizadas genera más del 75% de sus ingresos fuera de su país de origen. Esta amplia diversificación geográfica actúa como amortiguador frente a enfriamientos puntuales de la demanda interna.",
+      "de": "Die meisten großen europäischen Börsenkonzerne erwirtschaften über 75 % ihrer Erlöse außerhalb ihres Heimatmarktes. Diese globale Streuung federt lokale Konjunkturschwächen wirkungsvoll ab. Besonders Luxusgüter, Luftfahrt und Umwelttechnologien bleiben bei globalen Fonds gefragt.",
+      "zh": "歐洲主要的上市巨頭多數有超過 75% 的營收來自母國以外的全球市場。這種地理版圖的分散性化身為天然的防護屏障。精品、航太工程與綠能產業龍頭持續吸引國際主權基金與法人機構的大額資產配置。"
+    },
+    "expertTakeaway": {
+      "fr": "Investir dans des actions européennes de premier plan permet de capter la croissance mondiale tout en profitant de ratios de valorisation souvent plus mesurés que sur les mégacaps américaines.",
+      "en": "Investing in top-tier European leaders captures global growth while often offering more attractive price-to-earnings valuations compared to US mega-cap peers.",
+      "pt": "Alocar em líderes europeus de primeira linha permite capturar o crescimento global com múltiplos de valuation frequentemente mais atrativos que seus pares norte-americanos.",
+      "es": "Invertir en empresas europeas líderes permite capturar el crecimiento global aprovechando múltiplos de valoración a menudo más atractivos que en las megacaps estadounidenses.",
+      "de": "Ein Engagement in europäischen Spitzenunternehmen bietet weltweites Wachstumspotenzial bei oft günstigeren Bewertungskennzahlen als bei US-Megacaps.",
+      "zh": "配置歐洲一線龍頭股能兼顧全球實體經濟成長動能，且通常享有較美股超大型科技股更具吸引力的本益比安全邊際。"
+    },
+    "source": "Les Echos",
+    "timestamp": {
+      "fr": "Il y a 4 heures",
+      "en": "4 hours ago",
+      "pt": "Há 4 horas",
+      "es": "Hace 4 horas",
+      "de": "Vor 4 Stunden",
+      "zh": "4 小時前"
+    },
+    "sentiment": "positive"
+  },
+  {
+    "id": "std_54",
+    "category": "learning",
+    "title": {
+      "fr": "Le Free Cash Flow (FCF) : Pourquoi le flux de trésorerie disponible est le roi de l'analyse fondamentale",
+      "en": "Free Cash Flow (FCF): Why available cash is the true king of fundamental investing analysis",
+      "pt": "Fluxo de Caixa Livre (FCF): Por que o caixa disponível é o rei da análise fundamentalista",
+      "es": "Flujo de Caja Libre (FCF): Por qué el efectivo disponible es el rey del análisis fundamental",
+      "de": "Free Cash Flow (FCF): Warum der freie Cashflow der wichtigste Maßstab fundamentaler Analyse ist",
+      "zh": "自由現金流（FCF）：為何實質營運現金流是價值投資與基本面分析的真正王者"
+    },
+    "summary": {
+      "fr": "Le bénéfice comptable peut être influencé par des amortissements, alors que le Free Cash Flow mesure l'argent réel qu'une entreprise génère après ses investissements.",
+      "en": "Accounting net income can be influenced by non-cash charges, whereas Free Cash Flow reflects actual spendable money generated after capital expenditures.",
+      "pt": "O lucro contábil pode ser impactado por amortizações, enquanto o FCF mede o caixa real gerado pela companhia após todos os investimentos operacionais.",
+      "es": "El beneficio neto puede estar influido por partidas contables, mientras que el FCF refleja el dinero real y tangible generado tras inversiones de capital.",
+      "de": "Der buchhalterische Gewinn kann durch Abschreibungen beeinflusst werden, während der Free Cash Flow das tatsächlich erwirtschaftete Geld nach Investitionen misst.",
+      "zh": "會計純益可能受到非現金攤提項目的影響，而自由現金流則忠實反映企業扣除資本支出後所產生的最真實可支配現金。"
+    },
+    "fullContent": {
+      "fr": "En finance d'entreprise, le Free Cash Flow (flux de trésorerie disponible) représente le cash restant à disposition une fois payées toutes les dépenses d'exploitation et les investissements productifs (CapEx). C'est cette manne financière qui permet à l'entreprise de verser des dividendes, de racheter ses propres actions, de désendetter son bilan ou d'acquérir des concurrents sans recourir à l'emprunt bancaire.",
+      "en": "In corporate finance, Free Cash Flow (FCF) measures the actual cash remaining after covering operating costs and necessary capital expenditures (CapEx). This surplus cash enables businesses to reward shareholders through dividends, conduct stock buybacks, retire debt, or acquire strategic assets without taking on costly bank loans.",
+      "pt": "Na análise fundamentalista, o Fluxo de Caixa Livre (FCF) representa o montante de recursos remanescentes após o custeio operacional e os investimentos em bens de capital (CapEx). Esse excedente permite remunerar acionistas com dividendos, recomprar ações e amortizar dívidas sem novas emissões de dívida.",
+      "es": "El Flujo de Caja Libre (FCF) cuantifica los fondos líquidos que quedan disponibles tras sufragar los gastos operativos y las inversiones de capital (CapEx). Esta liquidez neta es la que permite a la empresa pagar dividendos, recomprar títulos propios y reducir pasivos sin sobreendeudarse.",
+      "de": "Der Free Cash Flow (FCF) beziffert die liquiden Mittel, die einem Unternehmen nach Abzug aller laufenden Betriebskosten und Investitionen (CapEx) frei zur Verfügung stehen. Mit diesem Geld können Dividenden ausgeschüttet, Aktien zurückgekauft, Schulden getilgt oder Akquisitionen getätigt werden.",
+      "zh": "在基本面價值分析中，自由現金流（FCF）衡量的是企業支付日常營業費用與必要資本支出（CapEx）後實際剩餘的現金。正是這筆實質資金，讓企業能夠發放現金股利、實施庫藏股買回、清償債務或進行策略併購，而無需承擔高昂的借貸成本。"
+    },
+    "expertTakeaway": {
+      "fr": "Le chiffre d'affaires est une vanité, le bénéfice est une opinion, mais la trésorerie est une réalité. Privilégiez toujours les entreprises avec un historique constant de génération de Free Cash Flow positif.",
+      "en": "Revenue is vanity, profit is opinion, but cash is reality. Always favor enterprises with a proven track record of consistent and growing positive Free Cash Flow.",
+      "pt": "Faturamento é vaidade, lucro é opinião, mas fluxo de caixa é realidade. Priorize empresas com histórico consistente de geração de caixa livre positivo ao longo dos ciclos.",
+      "es": "La facturación es vanidad, el beneficio es opinión, pero el flujo de caja es realidad. Prioriza siempre compañías con generación continuada de FCF positivo en el tiempo.",
+      "de": "Umsatz ist Eitelkeit, Gewinn ist Meinung, aber Cash ist Realität. Bevorzugen Sie stets Unternehmen mit einer soliden Historie kontinuierlicher Free-Cashflow-Generierung.",
+      "zh": "營收是面子，帳面獲利是主觀認定，唯有現金流才是硬道理。長期投資時，請優先挑選具備穩定且持續增長之正向自由現金流的優質企業。"
+    },
+    "source": "MarketWatch",
+    "timestamp": {
+      "fr": "Il y a 5 heures",
+      "en": "5 hours ago",
+      "pt": "Há 5 horas",
+      "es": "Hace 5 horas",
+      "de": "Vor 5 Stunden",
+      "zh": "5 小時前"
+    },
+    "sentiment": "positive"
+  },
+  {
+    "id": "std_55",
+    "category": "commodities",
+    "title": {
+      "fr": "Nucléaire civil et énergies décarbonées : La tech mondiale investit massivement pour alimenter ses data centers",
+      "en": "Nuclear Energy & Clean Power: Global tech companies invest billions to power computing infrastructure",
+      "pt": "Energia Nuclear e Fontes Limpas: Gigantes de tecnologia investem bilhões para alimentar infraestrutura",
+      "es": "Energía Nuclear y Fuentes Limpias: La gran tecnología invierte miles de millones en centros de datos",
+      "de": "Kernkraft & Saubere Energie: Globale Tech-Konzerne investieren Milliarden in Stromversorgung für Rechenzentren",
+      "zh": "核電與潔淨能源復興：全球科技龍頭大舉簽署長期購電協議以支援算力運算中心"
+    },
+    "summary": {
+      "fr": "L'explosion des besoins en électricité pour les serveurs pousse les leaders technologiques à signer des contrats directs avec des producteurs d'énergie propre.",
+      "en": "Surging electricity demand for computing clusters prompts tech leaders to secure direct long-term power purchase agreements with clean energy providers.",
+      "pt": "A crescente demanda de eletricidade para servidores leva líderes tecnológicos a fechar contratos de longo prazo com geradores de energia limpa.",
+      "es": "El fuerte aumento del consumo eléctrico de los centros de datos impulsa acuerdos directos de suministro con productores de energía limpia.",
+      "de": "Der rasant wachsende Strombedarf für Rechenzentren veranlasst Tech-Giganten zu langfristigen Direktabnahmeverträgen mit sauberen Energieerzeugern.",
+      "zh": "隨著雲端運算與模型訓練的耗電量暴增，科技巨擘紛紛與零碳排核電及清潔能源發電廠簽署數十年長約以確保電力充足。"
+    },
+    "fullContent": {
+      "fr": "L'entraînement et l'exécution des modèles d'IA nécessitent des mégawatts d'électricité continue et décarbonée. Pour éviter la saturation des réseaux électriques classiques et respecter leurs engagements climatiques, les géants du cloud concluent des partenariats pluriannuels avec des exploitants de centrales nucléaires civiles et de parcs d'énergie renouvelable.",
+      "en": "Training and running large AI models requires gigawatts of round-the-clock, low-carbon electricity. To prevent grid congestion and fulfill environmental pledges, hyperscale cloud providers are executing multi-decade power contracts with civil nuclear operators and renewable generation facilities.",
+      "pt": "O treinamento e operação de grandes modelos de IA exigem gigawatts de energia contínua e descarbonizada. Para evitar sobrecargas na rede e cumprir metas ESG, gigantes da computação celebram acordos de longo prazo com usinas nucleares civis e geradores renováveis.",
+      "es": "El entrenamiento y ejecución de modelos de IA requiere gigavatios de electricidad ininterrumpida y baja en carbono. Para evitar cuellos de botella en la red, las grandes tecnológicas están firmando contratos multimillonarios con centrales nucleares civiles e instalaciones renovables.",
+      "de": "Der Betrieb modernster KI-Rechenzentren erfordert gigantische Mengen an grundlastfähigem, CO2-freiem Strom. Um das Stromnetz nicht zu überlasten, schließen führende Cloud-Anbieter langfristige Lieferverträge mit Kernkraftwerksbetreibern und Erzeugern erneuerbarer Energien ab.",
+      "zh": "大型人工智慧模型的運算與推理需要全天候不間斷的基載零碳電力。為避免造成傳統公共電網過載並達成氣候承諾，全球雲端運算巨頭正積極與民用核能電廠及大型再生能源園區簽訂長達數十年的專屬購電合約。"
+    },
+    "expertTakeaway": {
+      "fr": "La transition énergétique ne concerne pas uniquement les matières premières physiques, mais aussi l'infrastructure électrique de base. Les producteurs d'énergie stable bénéficient d'une demande structurelle sur plusieurs décennies.",
+      "en": "The energy transition extends beyond raw commodities into essential power infrastructure. Baseload clean energy providers are poised to benefit from multi-decade structural demand tailwinds.",
+      "pt": "A transição energética vai muito além das commodities básicas: envolve a infraestrutura de geração estável. Produtores de energia limpa contínua desfrutam de ventos favoráveis por décadas.",
+      "es": "La transición energética abarca toda la infraestructura de generación base. Los productores de energía limpia ininterrumpida se benefician de una demanda estructural duradera.",
+      "de": "Die Energiewende umfasst neben Rohstoffen vor allem die verlässliche Netzinfrastruktur. Erzeuger grundlastfähiger sauberer Energie profitieren von jahrzehntelangen Nachfragetrends.",
+      "zh": "能源轉型不僅涉及原物料採掘，更關乎全天候基載電網架構。具備穩定零碳發電能力之公用事業及潔淨能源營運商，將在未來數十年享有結構性成長紅利。"
+    },
+    "source": "Forbes",
+    "timestamp": {
+      "fr": "Il y a 6 heures",
+      "en": "6 hours ago",
+      "pt": "Há 6 horas",
+      "es": "Hace 6 horas",
+      "de": "Vor 6 Stunden",
+      "zh": "6 小時前"
+    },
+    "sentiment": "positive"
+  },
+  {
+    "id": "std_56",
+    "category": "markets",
+    "title": {
+      "fr": "Santé et biotechnologies : Les avancées génomiques relancent les fusions-acquisitions à Wall Street",
+      "en": "Healthcare & Biotech: Genomic breakthroughs trigger new wave of M&A deals on Wall Street",
+      "pt": "Saúde e Biotecnologia: Avanços em genômica impulsionam nova onda de fusões e aquisições globais",
+      "es": "Salud y Biotecnología: Los avances genómicos reavivan las fusiones y adquisiciones en bolsa",
+      "de": "Gesundheit & Biotech: Durchbrüche in der Genomik entfachen neue M&A-Welle an den Börsen",
+      "zh": "生技醫療與基因科技：重大突破重燃全球跨國製藥巨頭併購與授權熱潮"
+    },
+    "summary": {
+      "fr": "Les grands laboratoires pharmaceutiques mobilisent leur trésorerie pour acquérir des biotechs innovantes spécialisées dans les thérapies ciblées.",
+      "en": "Major pharmaceutical corporations deploy cash reserves to acquire innovative biotech developers specializing in precision therapies.",
+      "pt": "Grandes laboratórios farmacêuticos utilizam reservas financeiras para adquirir empresas de biotecnologia pioneiras em terapias dirigidas.",
+      "es": "Las principales farmacéuticas despliegan su liquidez para adquirir biotecnológicas punteras enfocadas en terapias de precisión.",
+      "de": "Führende Pharma-Konzerne nutzen liquide Mittel zur Übernahme innovativer Biotech-Spezialisten für personalisierte Therapien.",
+      "zh": "跨國製藥集團積極動用手中現金儲備，大舉併購在精準標靶治療與基因療法領域具備領先技術的創新生技公司。"
+    },
+    "fullContent": {
+      "fr": "Face à l'expiration prochaine de brevets majeurs, les géants de la pharmacie accélèrent leurs rachats stratégiques pour étoffer leurs pipelines de médicaments. Les jeunes pousses de biotechnologie dotées d'essais cliniques de phase 3 prometteurs voient leurs primes d'acquisition grimper fortement, offrant un nouveau souffle aux valorisations du secteur de la santé.",
+      "en": "Facing impending patent expirations on blockbuster treatments, large pharmaceutical corporations are accelerating strategic acquisitions to replenish their drug development pipelines. Biotech firms with promising Phase 3 clinical trials are commanding substantial buyout premiums, revitalizing market enthusiasm across the healthcare sector.",
+      "pt": "Diante do vencimento de patentes de medicamentos consagrados, grandes farmacêuticas aceleram aquisições para renovar seus pipelines. Biotechs com estudos clínicos em fase 3 avançada recebem prêmios significativos de aquisição, reanimando o setor de saúde.",
+      "es": "Ante la próxima expiración de patentes clave, las grandes farmacéuticas aceleran adquisiciones estratégicas para fortalecer sus líneas de desarrollo. Las biotecnológicas con ensayos clínicos avanzados obtienen importantes primas de compra, revalorizando el sector.",
+      "de": "Vor dem Hintergrund auslaufender Patente auf Blockbuster-Medikamente beschleunigen große Pharmahersteller ihre Zukäufe, um ihre Wirkstoff-Pipelines aufzufüllen. Biotech-Unternehmen mit vielversprechenden Phase-3-Studien erzielen hohe Übernahmeprämien.",
+      "zh": "面臨主力重磅藥物專利陸續到期的挑戰，全球製藥巨頭紛紛加速戰略併購以充實新藥研發管線。在臨床三期試驗展現亮眼成果的生技新創公司獲得可觀的溢價收購，為整體生醫板塊注入強勁動能。"
+    },
+    "expertTakeaway": {
+      "fr": "Le secteur de la santé combine des caractéristiques défensives indispensables avec un fort potentiel de croissance technologique. C'est un pilier de stabilité pour tout portefeuille à long terme.",
+      "en": "The healthcare sector uniquely combines non-cyclical defensive stability with high-tech breakthrough growth potential, making it a foundational pillar for balanced long-term portfolios.",
+      "pt": "O setor de saúde combina solidez defensiva clássica com alto potencial de inovação científica, sendo um alicerce de equilíbrio para carteiras de investimento de longo prazo.",
+      "es": "El sector salud aúna características defensivas frente al ciclo económico con gran potencial de revalorización tecnológica, constituyendo un pilar de estabilidad en carteras diversificadas.",
+      "de": "Der Gesundheitssektor vereint defensive Stabilität mit technologischer Innovationskraft und bildet damit einen verlässlichen Anker für jedes langfristig ausgerichtete Portfolio.",
+      "zh": "生技醫療產業同時具備抗景氣循環的防禦性需求與尖端科學創新的爆發力，是建構長期穩健均衡投資組合時不可或缺的核心支柱。"
+    },
+    "source": "Zonebourse",
+    "timestamp": {
+      "fr": "Il y a 7 heures",
+      "en": "7 hours ago",
+      "pt": "Há 7 horas",
+      "es": "Hace 7 horas",
+      "de": "Vor 7 Stunden",
+      "zh": "7 小時前"
+    },
+    "sentiment": "positive"
+  },
+
   ], []);
 
-  // Filter based on search query and category tab selector
+  // Distinct source counts for the source filter selector
+  const availableSources = useMemo(() => {
+    let baseList = [...newsDatabase];
+    if (!activeShock) {
+      baseList = baseList.filter(art => !art.isShockNews);
+    }
+    if (selectedCategory !== "all") {
+      baseList = baseList.filter(art => art.category === selectedCategory);
+    }
+    const counts: Record<string, number> = {};
+    baseList.forEach(art => {
+      counts[art.source] = (counts[art.source] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [newsDatabase, activeShock, selectedCategory]);
+
+  const totalSourceArticlesCount = useMemo(() => {
+    return availableSources.reduce((acc, curr) => acc + curr.count, 0);
+  }, [availableSources]);
+
+  // Filter based on search query, category tab selector, and source filter selector
   const filteredArticles = useMemo(() => {
     let list = [...newsDatabase];
     
@@ -2210,19 +2583,14 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
       list = list.filter(art => !art.isShockNews);
     }
 
-    // Limit each category to exactly 7 news items to respect user intent of "7 nouvelles pour chaque catégorie"
-    const categoriesList = ["macro", "markets", "crypto", "learning", "commodities", "forex"];
-    const limitedList: typeof newsDatabase = [];
-    categoriesList.forEach((cat) => {
-      const catElements = list.filter(art => art.category === cat).slice(0, 7);
-      limitedList.push(...catElements);
-    });
-    const limitedIds = new Set(limitedList.map(art => art.id));
-    list = list.filter(art => limitedIds.has(art.id));
-
     // Category filter
     if (selectedCategory !== "all") {
       list = list.filter(art => art.category === selectedCategory);
+    }
+
+    // Source filter
+    if (selectedSource !== "all") {
+      list = list.filter(art => art.source === selectedSource);
     }
 
     // Search query query filter
@@ -2237,7 +2605,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
     }
 
     return list;
-  }, [newsDatabase, selectedCategory, searchQuery, activeShock, lang]);
+  }, [newsDatabase, selectedCategory, selectedSource, searchQuery, activeShock, lang]);
 
   // Handle preset simulated shock buttons
   const toggleMarketShock = () => {
@@ -2405,6 +2773,42 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
                 />
               </div>
             </div>
+
+            {/* Sources Filter Row */}
+            <div className="flex items-center gap-1.5 pt-2.5 overflow-x-auto pb-1 scrollbar-none border-t border-slate-100 dark:border-slate-850">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 whitespace-nowrap flex items-center gap-1 shrink-0 mr-1">
+                <Globe className="w-3.5 h-3.5 text-indigo-500" />
+                {t("newsFilterBySource") || "Sources :"}:
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedSource("all")}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all duration-100 cursor-pointer whitespace-nowrap shrink-0 border ${
+                  selectedSource === "all"
+                    ? "bg-slate-900 dark:bg-indigo-600 text-white border-transparent shadow-xs"
+                    : "bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200/50 dark:border-slate-800"
+                }`}
+              >
+                {t("newsAllSources") || "Toutes"} ({totalSourceArticlesCount})
+              </button>
+              {availableSources.map((src) => {
+                const isSelected = selectedSource === src.name;
+                return (
+                  <button
+                    key={src.name}
+                    type="button"
+                    onClick={() => setSelectedSource(isSelected ? "all" : src.name)}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all duration-100 cursor-pointer whitespace-nowrap shrink-0 border ${
+                      isSelected
+                        ? "bg-indigo-600 text-white border-indigo-600 shadow-xs"
+                        : `${getSourceBadgeStyle(src.name)} hover:opacity-80`
+                    }`}
+                  >
+                    {src.name} <span className="opacity-75 text-[9px]">({src.count})</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* List display matching matches */}
@@ -2415,7 +2819,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
                 <p className="text-xs font-bold">{t("newsNoArticles") || "Aucune actualité ne correspond à vos filtres de recherche."}</p>
                 <button 
                   type="button" 
-                  onClick={() => { setSelectedCategory("all"); setSearchQuery("_default_all_news_"); }}
+                  onClick={() => { setSelectedCategory("all"); setSelectedSource("all"); setSearchQuery("_default_all_news_"); }}
                   className="text-xs font-extrabold text-indigo-600 dark:text-indigo-400 underline cursor-pointer"
                 >
                   {t("newsResetFilters") || "Réinitialiser les filtres"}
@@ -2449,7 +2853,7 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
                   de: "Artikel schließen",
                   zh: "收起文章"
                 };
-                const collapseText = collapseLabels[lang] || collapseLabels["en"];
+                const collapseText = collapseLabels[lang] || collapseLabels["en"] || "Collapse";
 
                 return (
                   <div
@@ -2476,7 +2880,9 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
                             </span>
                           )}
                           <span className="text-slate-450 dark:text-slate-500">•</span>
-                          <span className="text-slate-500 dark:text-slate-450 uppercase">{article.source}</span>
+                          <span className={`px-2 py-0.5 rounded-md text-[9px] font-extrabold tracking-tight border ${getSourceBadgeStyle(article.source)}`}>
+                            {article.source}
+                          </span>
                         </div>
 
                         {/* Sentiment indicator badge component */}
@@ -2735,12 +3141,14 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
           >
             {/* Header info bar */}
             <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 dark:text-slate-500 pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2 uppercase">
-                <span className="px-2.5 py-0.5 bg-slate-100 dark:bg-slate-950 rounded-full text-[9px]">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 bg-slate-100 dark:bg-slate-950 rounded-full text-[9px] uppercase">
                   {selectedArticle.category}
                 </span>
-                <span>•</span>
-                <span>{selectedArticle.source}</span>
+                <span className="text-slate-300 dark:text-slate-700">•</span>
+                <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-extrabold border ${getSourceBadgeStyle(selectedArticle.source)}`}>
+                  {selectedArticle.source}
+                </span>
               </div>
               <button 
                 type="button" 
