@@ -378,6 +378,43 @@ export default function AiAdvisorTab({
     return "Finance Bridge AI";
   };
 
+  const formatConversationTitle = (title: string, index: number): string => {
+    if (!title) {
+      return `${t("newConversationTitle") || (lang === "fr" ? "Nouvelle discussion" : "Conversation")} #${index + 1}`;
+    }
+
+    // Match default conversation title patterns across languages
+    const defaultRegex = /^(?:Conversation|Nouvelle discussion|New conversation|Nova conversa|Nueva conversaci[oó]n|Neuer Chat|新對話|Discussion)\s*(?:#|\b)?\s*(\d+)$/i;
+    const match = title.trim().match(defaultRegex);
+    if (match) {
+      const num = match[1];
+      const baseLabel = t("newConversationTitle") || (lang === "fr" ? "Nouvelle discussion" : "Conversation");
+      return `${baseLabel} #${num}`;
+    }
+
+    // Match generic single word default
+    const singleRegex = /^(?:Conversation|Nouvelle discussion|New conversation|Nova conversa|Nueva conversaci[oó]n|Neuer Chat|新對話|Discussion)$/i;
+    if (singleRegex.test(title.trim())) {
+      const baseLabel = t("newConversationTitle") || (lang === "fr" ? "Nouvelle discussion" : "Conversation");
+      return `${baseLabel} #${index + 1}`;
+    }
+
+    // Attached chart image generic title
+    if (/^(?:Chart image|Image boursi[eè]re|Image de graphique|Imagem do gr[aá]fico|Imagen del gr[aá]fico|Chart-Bild|圖表圖片)$/i.test(title.trim())) {
+      const chartLabels: Record<string, string> = {
+        fr: "Image de graphique",
+        en: "Chart image",
+        pt: "Imagem do gráfico",
+        es: "Imagen del gráfico",
+        de: "Chart-Bild",
+        zh: "圖表圖片"
+      };
+      return chartLabels[lang] || chartLabels["en"] || "Chart image";
+    }
+
+    return title;
+  };
+
   return (
     <div 
       id="ai-advisor-tab" 
@@ -431,7 +468,7 @@ export default function AiAdvisorTab({
 
             {/* Conversation list box */}
             <div className="max-h-[160px] overflow-y-auto pr-1 space-y-1.5 scrollbar-thin">
-              {conversations.map((conv) => {
+              {conversations.map((conv, idx) => {
                 const isActive = conv.id === activeConversationId;
                 return (
                   <div
@@ -447,7 +484,7 @@ export default function AiAdvisorTab({
                   >
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                       <MessageSquare className="w-3.5 h-3.5 shrink-0 text-slate-400 group-hover:text-indigo-500 transition" />
-                      <span className="truncate pr-1">{conv.title}</span>
+                      <span className="truncate pr-1">{formatConversationTitle(conv.title, idx)}</span>
                     </div>
                     
                     {!isGenerating && (

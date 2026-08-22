@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Lesson, LessonModule, UserProfile, LessonQuestion } from "../types";
-import { BookOpen, Award, CheckCircle, Lock, Play, RotateCcw, AlertCircle, Sparkles, Heart, Clock, Timer, Image as ImageIcon } from "lucide-react";
+import { BookOpen, Award, CheckCircle, Lock, Play, RotateCcw, AlertCircle, Sparkles, Heart, Clock, Timer, Hourglass, Zap, Image as ImageIcon } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { ChartAnalysisLessonDiagram } from "./ChartAnalysisLessonDiagram";
 
@@ -9,6 +9,7 @@ interface LearningTabProps {
   profile: UserProfile;
   onCompleteLesson: (lessonId: string, xp: number) => void;
   onUpdateHearts: (hearts: number) => void;
+  onNavigateToSubscriptions?: () => void;
   lang: string;
   t: (key: string) => string;
 }
@@ -865,7 +866,7 @@ const getLocalizedModules = (lang: string, originalModules: LessonModule[]): Les
   });
 };
 
-export default function LearningTab({ modules, profile, onCompleteLesson, onUpdateHearts, lang, t }: LearningTabProps) {
+export default function LearningTab({ modules, profile, onCompleteLesson, onUpdateHearts, onNavigateToSubscriptions, lang, t }: LearningTabProps) {
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
   const [quizQuestions, setQuizQuestions] = useState<LessonQuestion[]>([]);
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState<number>(0);
@@ -878,6 +879,59 @@ export default function LearningTab({ modules, profile, onCompleteLesson, onUpda
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
 
   const currentHearts = profile.learningHearts ?? 4;
+
+  // 10 hours cooldown duration (10 * 3600 seconds)
+  const COOLDOWN_DURATION_MS = 10 * 60 * 60 * 1000;
+
+  // Hearts countdown until 10-hour recharge
+  const [countdown, setCountdown] = useState({
+    hours: 10,
+    minutes: 0,
+    seconds: 0,
+    formatted: "10:00:00",
+    progressPct: 0
+  });
+
+  useEffect(() => {
+    if (currentHearts > 0) return;
+
+    const calcRemaining = () => {
+      const now = Date.now();
+      const depletedAt = profile.heartsDepletedAt 
+        ? new Date(profile.heartsDepletedAt).getTime() 
+        : now;
+      
+      const targetTime = depletedAt + COOLDOWN_DURATION_MS;
+      const diffMs = targetTime - now;
+
+      if (diffMs <= 0) {
+        onUpdateHearts(4);
+        return;
+      }
+
+      const totalSec = Math.floor(diffMs / 1000);
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const s = totalSec % 60;
+
+      // Elapsed time to calculate progress %
+      const elapsedMs = Math.max(0, COOLDOWN_DURATION_MS - diffMs);
+      const progress = Math.min(100, Math.max(0, Math.round((elapsedMs / COOLDOWN_DURATION_MS) * 100)));
+
+      const pad = (num: number) => String(num).padStart(2, '0');
+      setCountdown({
+        hours: h,
+        minutes: m,
+        seconds: s,
+        formatted: `${pad(h)}:${pad(m)}:${pad(s)}`,
+        progressPct: progress
+      });
+    };
+
+    calcRemaining();
+    const interval = setInterval(calcRemaining, 1000);
+    return () => clearInterval(interval);
+  }, [currentHearts, profile.heartsDepletedAt, onUpdateHearts]);
 
   // Session timer for active lesson (~5 minutes pacing)
   useEffect(() => {
@@ -1063,11 +1117,21 @@ export default function LearningTab({ modules, profile, onCompleteLesson, onUpda
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 bg-rose-50 dark:bg-rose-955/45 px-5 py-3.5 rounded-2xl border border-rose-100/50 dark:border-rose-900/40">
-                  <Heart className="w-5 h-5 text-rose-500 fill-rose-500 animate-pulse" />
+                <div className="flex items-center gap-3 bg-rose-50 dark:bg-rose-955/45 px-5 py-3.5 rounded-2xl border border-rose-100/50 dark:border-rose-900/40 relative">
+                  <Heart className={`w-5 h-5 ${currentHearts > 0 ? "text-rose-500 fill-rose-500 animate-pulse" : "text-rose-400/60 dark:text-rose-500/40"}`} />
                   <div>
                     <span className="text-xs text-rose-505 dark:text-rose-300 font-bold block leading-none">CŒURS DU JOUR</span>
-                    <span className="text-lg font-black text-slate-850 dark:text-white font-mono">{currentHearts} / 4</span>
+                    <div className="flex items-baseline gap-2 mt-0.5">
+                      <span className={`text-lg font-black font-mono ${currentHearts === 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-850 dark:text-white"}`}>
+                        {currentHearts} / 4
+                      </span>
+                      {currentHearts === 0 && (
+                        <span className="text-[11px] font-mono font-bold text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/60 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Clock className="w-3 h-3 animate-spin" style={{ animationDuration: '6s' }} />
+                          {countdown.formatted}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1126,18 +1190,87 @@ export default function LearningTab({ modules, profile, onCompleteLesson, onUpda
               );
             })()}
 
+            {/* Zero Hearts Countdown Banner */}
             {currentHearts === 0 && (
-              <div className="bg-rose-550/10 border border-rose-500/20 rounded-2xl p-4 flex items-start gap-3 shadow-xs bg-rose-50 dark:bg-rose-955/10">
-                <AlertCircle className="w-5 h-5 text-rose-550 dark:text-rose-400 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <h4 className="font-extrabold text-rose-800 dark:text-rose-300 text-sm">
-                    Plus de cœurs pour aujourd'hui !
-                  </h4>
-                  <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed">
-                    Vous avez épuisé vos 4 cœurs quotidiens de formation. Revenez demain pour obtenir de nouveaux cœurs et continuer votre apprentissage boursier !
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-gradient-to-br from-rose-50/90 via-rose-50/50 to-amber-50/40 dark:from-rose-955/25 dark:via-slate-900 dark:to-slate-950 border-2 border-rose-300/80 dark:border-rose-800/60 rounded-3xl p-6 sm:p-7 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden"
+              >
+                {/* Subtle background ambient light */}
+                <div className="absolute -top-24 -right-24 w-64 h-64 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                <div className="space-y-3 z-10 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="bg-rose-500 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1.5 shadow-xs">
+                      <Heart className="w-3 h-3 fill-white" />
+                      {t("heartsOutOfLives") || "Plus de cœurs disponibles !"}
+                    </span>
+                    <span className="text-[11px] font-bold text-rose-700 dark:text-rose-300 bg-rose-100/90 dark:bg-rose-950/70 px-2.5 py-0.5 rounded-full border border-rose-200 dark:border-rose-900/60 flex items-center gap-1">
+                      <Zap className="w-3 h-3 text-amber-500" />
+                      4 cœurs rechargés en 10h
+                    </span>
+                  </div>
+
+                  <h3 className="text-xl sm:text-2xl font-black text-rose-900 dark:text-rose-100 tracking-tight flex items-center gap-2.5">
+                    <Hourglass className="w-6 h-6 text-rose-500 dark:text-rose-400 animate-spin" style={{ animationDuration: '10s' }} />
+                    {t("heartsCountdownLabel") || "Prochaine recharge des cœurs dans :"}
+                  </h3>
+
+                  <p className="text-slate-600 dark:text-slate-300 text-xs sm:text-sm max-w-xl leading-relaxed">
+                    {t("heartsOutOfLivesDesc") || "Vous avez épuisé vos 4 cœurs quotidiens de formation. Vos cœurs se rechargeront automatiquement pour vous permettre de reprendre votre entraînement."}
                   </p>
+
+                  {onNavigateToSubscriptions && (
+                    <div className="pt-1">
+                      <button
+                        type="button"
+                        onClick={onNavigateToSubscriptions}
+                        className="inline-flex items-center gap-1.5 text-xs font-extrabold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 underline underline-offset-4 cursor-pointer transition"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                        {t("heartsUnlimitedWithPro") || "Passez à Pro pour débloquer des cœurs illimités"}
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
+
+                {/* Digital Countdown Timer Box */}
+                <div className="z-10 shrink-0 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-800/70 rounded-2xl p-4 sm:p-5 shadow-md flex flex-col items-center gap-2.5 min-w-[240px]">
+                  <span className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <Timer className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
+                    {t("heartsRefillIn") || "Recharge dans"}
+                  </span>
+
+                  {/* 3 Digits Blocks: HH : MM : SS */}
+                  <div className="flex items-center gap-2">
+                    <div className="flex flex-col items-center bg-slate-900 dark:bg-slate-950 text-white rounded-xl px-3 py-2 min-w-[54px] shadow-xs border border-slate-800">
+                      <span className="font-mono text-xl sm:text-2xl font-black">{String(countdown.hours).padStart(2, '0')}</span>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase">{t("heartsHoursUnit") || "h"}</span>
+                    </div>
+                    <span className="font-black text-rose-500 text-xl animate-pulse">:</span>
+                    <div className="flex flex-col items-center bg-slate-900 dark:bg-slate-950 text-white rounded-xl px-3 py-2 min-w-[54px] shadow-xs border border-slate-800">
+                      <span className="font-mono text-xl sm:text-2xl font-black">{String(countdown.minutes).padStart(2, '0')}</span>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase">{t("heartsMinutesUnit") || "m"}</span>
+                    </div>
+                    <span className="font-black text-rose-500 text-xl animate-pulse">:</span>
+                    <div className="flex flex-col items-center bg-slate-900 dark:bg-slate-950 text-white rounded-xl px-3 py-2 min-w-[54px] shadow-xs border border-slate-800">
+                      <span className="font-mono text-xl sm:text-2xl font-black text-rose-400">{String(countdown.seconds).padStart(2, '0')}</span>
+                      <span className="text-[9px] font-bold text-rose-300 uppercase">{t("heartsSecondsUnit") || "s"}</span>
+                    </div>
+                  </div>
+
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden mt-1">
+                    <div 
+                      className="bg-gradient-to-r from-rose-500 to-amber-500 h-full rounded-full transition-all duration-1000"
+                      style={{ width: `${countdown.progressPct}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                    Recharge complète automatique après 10h
+                  </span>
+                </div>
+              </motion.div>
             )}
 
             {/* Modules duolingo-styled tree timeline path */}
@@ -1400,8 +1533,16 @@ export default function LearningTab({ modules, profile, onCompleteLesson, onUpda
                   animate={{ opacity: 1, y: 0 }}
                   className="text-center py-8 space-y-6"
                 >
-                  <div className="w-16 h-16 bg-gradient-to-tr from-amber-500 to-yellow-400 rounded-full flex items-center justify-center text-white mx-auto shadow-md animate-bounce">
-                    <Award className="w-8 h-8" />
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center text-white mx-auto shadow-md ${
+                    currentHearts > 0 
+                      ? "bg-gradient-to-tr from-amber-500 to-yellow-400 animate-bounce" 
+                      : "bg-gradient-to-tr from-rose-500 to-rose-600 animate-pulse"
+                  }`}>
+                    {currentHearts > 0 ? (
+                      <Award className="w-8 h-8" />
+                    ) : (
+                      <Hourglass className="w-8 h-8 text-white animate-spin" style={{ animationDuration: '8s' }} />
+                    )}
                   </div>
                   
                   <div className="space-y-2">
@@ -1412,7 +1553,7 @@ export default function LearningTab({ modules, profile, onCompleteLesson, onUpda
                             : activeLesson.isExam 
                             ? "Examen Réussi avec Succès ! 🎓🎉" 
                             : "Félicitations ! 🎉") 
-                        : "Fin de partie 😢"}
+                        : (t("heartsOutOfLives") || "Plus de cœurs disponibles ! 😢")}
                     </h4>
                     <p className="text-slate-400 dark:text-slate-400 text-xs sm:text-sm max-w-sm mx-auto">
                       {currentHearts > 0
@@ -1421,11 +1562,11 @@ export default function LearningTab({ modules, profile, onCompleteLesson, onUpda
                             : activeLesson.isExam
                             ? `Vous avez validé l'examen de synthèse et prouvé votre maîtrise complète des notions de ce niveau !`
                             : `Vous avez complété la leçon avec brio en répondant correctement aux questions !`)
-                        : "Vous avez perdu toutes vos vies. Pas d'inquiétude, lisez bien les explications et recommencez !"}
+                        : (t("heartsOutOfLivesDesc") || "Vous avez perdu toutes vos vies. Vos 4 cœurs quotidiens se rechargeront automatiquement dès la fin du décompte !")}
                     </p>
                   </div>
 
-                  {currentHearts > 0 && (
+                  {currentHearts > 0 ? (
                     <div className="flex items-center justify-center gap-4 flex-wrap">
                       <div className="bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 p-4 rounded-2xl inline-block min-w-[140px]">
                         <span className="text-[10px] text-slate-400 dark:text-indigo-400 block font-bold leading-none uppercase mb-1.5">{t("xpRewardMsg")}</span>
@@ -1438,6 +1579,43 @@ export default function LearningTab({ modules, profile, onCompleteLesson, onUpda
                           {formatTimer(elapsedSeconds)}
                         </span>
                       </div>
+                    </div>
+                  ) : (
+                    /* Zero hearts countdown card in quiz completion screen */
+                    <div className="bg-gradient-to-br from-rose-50/80 to-amber-50/60 dark:from-rose-955/30 dark:to-slate-900 border-2 border-rose-200/80 dark:border-rose-900/50 rounded-2xl p-5 max-w-sm mx-auto space-y-3.5 shadow-sm">
+                      <div className="flex items-center justify-center gap-2 text-rose-700 dark:text-rose-300 font-bold text-xs">
+                        <Timer className="w-4 h-4 text-rose-500 animate-pulse" />
+                        <span>{t("heartsCountdownLabel") || "Prochaine recharge des cœurs dans :"}</span>
+                      </div>
+
+                      {/* Digits Display */}
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="flex flex-col items-center bg-slate-900 dark:bg-slate-950 text-white rounded-xl px-3 py-2 min-w-[50px] shadow-xs border border-slate-800">
+                          <span className="font-mono text-xl font-black">{String(countdown.hours).padStart(2, '0')}</span>
+                          <span className="text-[8px] font-bold text-slate-400 uppercase">{t("heartsHoursUnit") || "h"}</span>
+                        </div>
+                        <span className="font-black text-rose-500 text-lg animate-pulse">:</span>
+                        <div className="flex flex-col items-center bg-slate-900 dark:bg-slate-950 text-white rounded-xl px-3 py-2 min-w-[50px] shadow-xs border border-slate-800">
+                          <span className="font-mono text-xl font-black">{String(countdown.minutes).padStart(2, '0')}</span>
+                          <span className="text-[8px] font-bold text-slate-400 uppercase">{t("heartsMinutesUnit") || "m"}</span>
+                        </div>
+                        <span className="font-black text-rose-500 text-lg animate-pulse">:</span>
+                        <div className="flex flex-col items-center bg-slate-900 dark:bg-slate-950 text-white rounded-xl px-3 py-2 min-w-[50px] shadow-xs border border-slate-800">
+                          <span className="font-mono text-xl font-black text-rose-400">{String(countdown.seconds).padStart(2, '0')}</span>
+                          <span className="text-[8px] font-bold text-rose-300 uppercase">{t("heartsSecondsUnit") || "s"}</span>
+                        </div>
+                      </div>
+
+                      <div className="w-full bg-slate-200/70 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                        <div 
+                          className="bg-gradient-to-r from-rose-500 to-amber-500 h-full rounded-full transition-all duration-1000"
+                          style={{ width: `${countdown.progressPct}%` }}
+                        />
+                      </div>
+
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
+                        Vos 4 cœurs d'apprentissage seront automatiquement restaurés après le délai de 10h.
+                      </p>
                     </div>
                   )}
 
@@ -1459,6 +1637,19 @@ export default function LearningTab({ modules, profile, onCompleteLesson, onUpda
                     >
                       {t("backToModules")}
                     </button>
+                    {currentHearts === 0 && onNavigateToSubscriptions && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleQuit();
+                          onNavigateToSubscriptions();
+                        }}
+                        className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white px-5 py-3 rounded-xl font-bold text-xs sm:text-sm transition shadow-md cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Sparkles className="w-4 h-4 text-amber-300" />
+                        <span>Passer à Pro (Cœurs illimités)</span>
+                      </button>
+                    )}
                   </div>
                 </motion.div>
               ) : learningPhase === 'study' && activeLesson.slides && activeLesson.slides.length > 0 ? (

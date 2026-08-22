@@ -96,6 +96,7 @@ export interface UserProfile {
   marketMode?: 'real' | 'continuous' | 'exact';
   learningHearts?: number;
   lastHeartsResetDate?: string; // YYYY-MM-DD
+  heartsDepletedAt?: string; // ISO timestamp when hearts reached 0 (10h recharge cooldown)
   geminiApiKey?: string;
   twelveDataApiKey?: string;
   finnhubApiKey?: string;

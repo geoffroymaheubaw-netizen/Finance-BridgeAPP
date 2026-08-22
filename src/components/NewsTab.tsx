@@ -2774,9 +2774,9 @@ export default function NewsTab({ lang, t }: NewsTabProps) {
               </div>
             </div>
 
-            {/* Sources Filter Row */}
-            <div className="flex items-center gap-1.5 pt-2.5 overflow-x-auto pb-1 scrollbar-none border-t border-slate-100 dark:border-slate-850">
-              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 whitespace-nowrap flex items-center gap-1 shrink-0 mr-1">
+            {/* Sources Filter Row with Vertical Scrollbar */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-2.5 max-h-24 sm:max-h-28 overflow-y-auto pr-1.5 custom-scrollbar border-t border-slate-100 dark:border-slate-850">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 whitespace-nowrap flex items-center gap-1 shrink-0 mr-1 sticky top-0 py-0.5 z-10 bg-white dark:bg-slate-900">
                 <Globe className="w-3.5 h-3.5 text-indigo-500" />
                 {t("newsFilterBySource") || "Sources :"}:
               </span>

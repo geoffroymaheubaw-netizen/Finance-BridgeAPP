@@ -375,6 +375,17 @@ export default function App() {
         }
         if (parsed.learningHearts === undefined) {
           parsed.learningHearts = 4;
+        } else if (parsed.learningHearts === 0) {
+          const TEN_HOURS_MS = 10 * 60 * 60 * 1000;
+          if (parsed.heartsDepletedAt) {
+            const depletedTime = new Date(parsed.heartsDepletedAt).getTime();
+            if (Date.now() - depletedTime >= TEN_HOURS_MS) {
+              parsed.learningHearts = parsed.subscriptionTier && parsed.subscriptionTier !== "free" ? 999 : 4;
+              parsed.heartsDepletedAt = undefined;
+            }
+          } else {
+            parsed.heartsDepletedAt = new Date().toISOString();
+          }
         }
         if (parsed.aiMode === undefined) {
           parsed.aiMode = "backend";
@@ -1783,10 +1794,21 @@ export default function App() {
   };
 
   const handleUpdateHearts = (hearts: number) => {
-    setProfile((prev) => ({
-      ...prev,
-      learningHearts: hearts,
-    }));
+    setProfile((prev) => {
+      let heartsDepletedAt = prev.heartsDepletedAt;
+      if (hearts === 0) {
+        if (!heartsDepletedAt) {
+          heartsDepletedAt = new Date().toISOString();
+        }
+      } else {
+        heartsDepletedAt = undefined;
+      }
+      return {
+        ...prev,
+        learningHearts: hearts,
+        heartsDepletedAt,
+      };
+    });
   };
 
   // Gemini AI Chat integration
@@ -2784,6 +2806,7 @@ CRITICAL DIRECTIVES:
               profile={profile}
               onCompleteLesson={handleCompleteLesson}
               onUpdateHearts={handleUpdateHearts}
+              onNavigateToSubscriptions={() => setActiveTab("subscriptions")}
               lang={lang}
               t={t}
             />
